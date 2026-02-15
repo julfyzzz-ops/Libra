@@ -1,0 +1,7 @@
+{
+  "name": "BookTracker",
+  "description": "Smart reading assistant with sync and analytics",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
