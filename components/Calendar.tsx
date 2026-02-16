@@ -76,13 +76,13 @@ export const Calendar: React.FC<CalendarProps> = ({ books }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 mb-2">
+        <div className="grid grid-cols-7 gap-1 mb-2">
           {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'].map(d => (
             <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase">{d}</div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1">
           {padding.map((_, i) => <div key={`p-${i}`} className="aspect-square" />)}
           {days.map(day => {
             const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;

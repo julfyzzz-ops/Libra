@@ -55,14 +55,14 @@ export const Wishlist: React.FC<WishlistProps> = ({ books, onUpdateStatus, onDel
   };
 
   return (
-    <div className="pt-2 pb-24 text-gray-800">
+    <div className="text-gray-800">
       {wishes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4 text-gray-300">
            <ShoppingBag size={64} />
            <p className="text-lg font-medium">Ваш список бажань порожній</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {wishes.map((book, idx) => (
             <div 
               key={book.id} 
@@ -70,7 +70,7 @@ export const Wishlist: React.FC<WishlistProps> = ({ books, onUpdateStatus, onDel
               onDragStart={(e) => handleDragStart(e, idx)}
               onDragOver={(e) => handleDragOver(e, idx)}
               onDragEnd={() => setDraggedItemIndex(null)}
-              className={`bg-white p-2 rounded-2xl shadow-sm border border-transparent flex gap-4 items-center animate-in slide-in-from-right-4 duration-300 ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
+              className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent flex gap-4 items-center animate-in slide-in-from-right-4 duration-300 ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
             >
               <div className="w-12 h-16 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
                  {book.coverUrl ? (

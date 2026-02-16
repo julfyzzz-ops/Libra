@@ -90,11 +90,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-slate-50 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-slate-50 overflow-x-hidden relative">
       <main className="min-h-screen">{renderView()}</main>
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] glass-morphism rounded-[2.5rem] shadow-2xl p-2 z-50 flex justify-between items-center px-4">
-        <NavButton active={activeView === 'statistics'} onClick={() => setActiveView('statistics')} icon={<BarChart2 size={20} />} label="Стат" />
         <NavButton active={activeView === 'library'} onClick={() => setActiveView('library')} icon={<LibraryIcon size={20} />} label="Книги" />
+        <NavButton active={activeView === 'statistics'} onClick={() => setActiveView('statistics')} icon={<BarChart2 size={20} />} label="Стат" />
         <button onClick={() => setActiveView('add')} className={`p-4 rounded-full shadow-xl transition-all transform active:scale-90 ${activeView === 'add' ? 'bg-indigo-600 text-white scale-110' : 'bg-white text-indigo-600 hover:bg-indigo-50'}`}><PlusCircle size={28} strokeWidth={2.5} /></button>
         <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label="Календ" />
         <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label="Налашт" />

@@ -264,6 +264,21 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
                 }
             });
 
+            // Auto-create session for completed books
+            if (book.status === 'Completed' && book.pagesTotal && book.pagesTotal > 0) {
+                 // Estimation: 50 pages = 60 minutes.
+                 // 1 page = 1.2 minutes = 72 seconds.
+                 const estimatedDurationSeconds = Math.round(book.pagesTotal * 72);
+                 const completionDate = book.completedAt ? book.completedAt.split('T')[0] : new Date().toISOString().split('T')[0];
+
+                 book.sessions = [{
+                     id: crypto.randomUUID(),
+                     date: completionDate,
+                     duration: estimatedDurationSeconds,
+                     pages: book.pagesTotal
+                 }];
+            }
+
             if (hasTitle) {
                 if (!book.author) book.author = "Невідомий автор";
                 
