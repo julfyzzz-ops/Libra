@@ -1,20 +1,20 @@
 
 import React, { useState } from 'react';
 import { Book, BookFormat } from '../types';
-import { ShoppingBag, BookOpenCheck, Trash2, BookOpen, Tablet, Headphones, X, Lock, Unlock } from 'lucide-react';
+import { ShoppingBag, BookOpenCheck, Trash2, BookOpen, Tablet, Headphones, X } from 'lucide-react';
 
 interface WishlistProps {
   books: Book[];
   onUpdateStatus: (id: string, status: 'Reading' | 'Completed', formats?: BookFormat[]) => void;
   onDelete: (id: string) => void;
   onReorderBooks?: (books: Book[]) => void;
+  isSortLocked: boolean;
 }
 
-export const Wishlist: React.FC<WishlistProps> = ({ books, onUpdateStatus, onDelete, onReorderBooks }) => {
+export const Wishlist: React.FC<WishlistProps> = ({ books, onUpdateStatus, onDelete, onReorderBooks, isSortLocked }) => {
   const wishes = books.filter(b => b.status === 'Wishlist');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [selectedFormats, setSelectedFormats] = useState<BookFormat[]>(['Paper']);
-  const [isSortLocked, setIsSortLocked] = useState(true);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
   const toggleFormat = (format: BookFormat) => {
@@ -55,20 +55,7 @@ export const Wishlist: React.FC<WishlistProps> = ({ books, onUpdateStatus, onDel
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24 text-gray-800">
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Бажанки</h1>
-          <p className="text-xs text-gray-500 mt-1">Книги, які ви мрієте прочитати</p>
-        </div>
-        <button 
-          onClick={() => setIsSortLocked(!isSortLocked)}
-          className={`p-3 rounded-2xl transition-all ${isSortLocked ? 'bg-gray-100 text-gray-400' : 'bg-pink-600 text-white shadow-lg shadow-pink-100'}`}
-        >
-          {isSortLocked ? <Lock size={20} /> : <Unlock size={20} />}
-        </button>
-      </header>
-
+    <div className="pt-2 pb-24 text-gray-800">
       {wishes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4 text-gray-300">
            <ShoppingBag size={64} />

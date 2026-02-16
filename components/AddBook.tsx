@@ -1,8 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2 } from 'lucide-react';
+import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2, Wand2, Link } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../types';
-import { processImage } from '../services/storageService';
+import { processImage, fetchBookCover } from '../services/storageService';
 
 interface AddBookProps {
   onAdd: (book: Book) => void;
@@ -28,6 +28,7 @@ const FormatToggle: React.FC<{
 export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
+  const [isMagicLoading, setIsMagicLoading] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
@@ -55,6 +56,27 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
       } finally {
         setIsProcessingImg(false);
       }
+    }
+  };
+
+  const handleMagicSearch = async () => {
+    if (!formData.title) {
+        alert("Будь ласка, введіть назву книги для пошуку.");
+        return;
+    }
+    setIsMagicLoading(true);
+    try {
+        const url = await fetchBookCover(formData.title, formData.author || '');
+        if (url) {
+            setFormData({ ...formData, coverUrl: url });
+        } else {
+            alert("Обкладинку не знайдено. Спробуйте уточнити назву або автора.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Помилка пошуку");
+    } finally {
+        setIsMagicLoading(false);
     }
   };
 
@@ -106,7 +128,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
       </header>
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl shadow-sm space-y-5 border border-gray-100">
-         <div className="flex justify-center mb-2">
+         <div className="flex justify-center mb-2 relative">
             <button 
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -125,6 +147,16 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
               )}
             </button>
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+            
+            <button
+                type="button"
+                onClick={handleMagicSearch}
+                disabled={isMagicLoading}
+                className="absolute top-0 right-16 translate-x-full bg-white p-3 rounded-2xl text-indigo-600 shadow-lg border border-indigo-50 active:scale-95 transition-all disabled:opacity-50"
+                title="Знайти обкладинку"
+            >
+                {isMagicLoading ? <Loader2 className="animate-spin" size={20} /> : <Wand2 size={20} />}
+            </button>
          </div>
 
          <div className="space-y-4">
@@ -136,6 +168,19 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
            <div className="space-y-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Автор</label>
              <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} />
+           </div>
+
+           <div className="space-y-1">
+             <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">URL Обкладинки</label>
+             <div className="relative">
+               <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+               <input 
+                  placeholder="https://example.com/image.jpg" 
+                  className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
+                  value={formData.coverUrl || ''} 
+                  onChange={e => setFormData({...formData, coverUrl: e.target.value})} 
+               />
+             </div>
            </div>
 
            <div className="grid grid-cols-2 gap-3">

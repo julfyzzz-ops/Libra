@@ -1,11 +1,12 @@
 
-import React, { useRef } from 'react';
-import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { loadLibrary, importLibraryFromJSON, importLibraryFromCSV } from '../services/storageService';
 
 export const Settings: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -55,14 +56,16 @@ export const Settings: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
     try {
       const count = await importLibraryFromCSV(file);
-      alert(`Успішно імпортовано ${count} книг!`);
+      alert(`Успішно імпортовано ${count} книг! Обкладинки знайдено через Google Books.`);
       window.location.reload();
     } catch (error: any) {
       console.error(error);
       alert(error.message || "Помилка імпорту CSV. Перевірте формат файлу (потрібні колонки: Назва, Автор).");
     } finally {
+      setIsImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = '';
     }
   };
@@ -82,7 +85,8 @@ export const Settings: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
             <button 
               onClick={handleExport}
-              className="bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100"
+              disabled={isImporting}
+              className="bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
             >
               <Download size={24} />
               <span className="text-xs">Експорт (JSON)</span>
@@ -90,7 +94,8 @@ export const Settings: React.FC = () => {
 
             <button 
               onClick={handleImportClick}
-              className="bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100"
+              disabled={isImporting}
+              className="bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100 disabled:opacity-50"
             >
               <Upload size={24} />
               <span className="text-xs">Імпорт (JSON)</span>
@@ -98,10 +103,11 @@ export const Settings: React.FC = () => {
 
             <button 
               onClick={handleCsvImportClick}
-              className="col-span-2 bg-emerald-50 text-emerald-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100"
+              disabled={isImporting}
+              className="col-span-2 bg-emerald-50 text-emerald-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
             >
-              <FileSpreadsheet size={24} />
-              <span className="text-xs">Імпорт з Excel / CSV</span>
+              {isImporting ? <Loader2 className="animate-spin" size={24} /> : <FileSpreadsheet size={24} />}
+              <span className="text-xs">{isImporting ? 'Завантаження обкладинок...' : 'Імпорт з Excel / CSV'}</span>
             </button>
             
             <input 

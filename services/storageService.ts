@@ -49,6 +49,102 @@ export const importLibraryFromJSON = async (file: File): Promise<boolean> => {
   });
 };
 
+// --- Cover Search Providers ---
+
+const searchGoogleBooks = async (query: string): Promise<string | null> => {
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const book = data.items?.[0];
+    const imageLinks = book?.volumeInfo?.imageLinks;
+    let url = imageLinks?.thumbnail || imageLinks?.smallThumbnail;
+    if (url) {
+      return url.replace('http://', 'https://');
+    }
+    return null;
+  } catch (e) {
+    console.warn("Google Books search failed", e);
+    return null;
+  }
+};
+
+const searchOpenLibrary = async (title: string, author: string): Promise<string | null> => {
+  try {
+    // Open Library search is better with Title and Author specifically
+    const query = `title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`;
+    const response = await fetch(`https://openlibrary.org/search.json?${query}&limit=1`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    
+    // Look for cover_i (cover ID)
+    const doc = data.docs?.[0];
+    if (doc && doc.cover_i) {
+      // Use 'L' for large size
+      return `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
+    }
+    return null;
+  } catch (e) {
+    console.warn("Open Library search failed", e);
+    return null;
+  }
+};
+
+const searchITunes = async (query: string): Promise<string | null> => {
+  try {
+    // Search for ebooks
+    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=ebook&entity=ebook&limit=1`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      // Get the artwork URL and upgrade resolution (default is often 100x100)
+      let url = data.results[0].artworkUrl100;
+      if (url) {
+        // Simple hack to get higher res from Apple CDN
+        return url.replace('100x100', '600x600');
+      }
+    }
+    return null;
+  } catch (e) {
+    // iTunes often blocks CORS from localhost, so this might fail in development but work in production or with a proxy
+    console.warn("iTunes search failed", e);
+    return null;
+  }
+};
+
+export const fetchBookCover = async (title: string, author: string): Promise<string> => {
+  const cleanTitle = title.trim();
+  const cleanAuthor = author === 'Невідомий автор' ? '' : author.trim();
+  const combinedQuery = `${cleanTitle} ${cleanAuthor}`.trim();
+
+  if (!combinedQuery) return '';
+
+  console.log(`Searching cover for: ${combinedQuery}`);
+
+  // 1. Try Google Books (Best general coverage)
+  let cover = await searchGoogleBooks(combinedQuery);
+  if (cover) return cover;
+
+  // 2. Try Open Library (Good for older books / English editions)
+  if (cleanTitle) {
+      cover = await searchOpenLibrary(cleanTitle, cleanAuthor);
+      if (cover) return cover;
+  }
+
+  // 3. Try iTunes (Apple Books) (High quality images, good for new releases)
+  cover = await searchITunes(combinedQuery);
+  if (cover) return cover;
+  
+  // 4. Fallback: Try Google Books again but just with Title (fuzzy search if author mismatch caused fail)
+  if (cleanAuthor) {
+      cover = await searchGoogleBooks(cleanTitle);
+      if (cover) return cover;
+  }
+
+  return '';
+};
+
 export const importLibraryFromCSV = async (file: File): Promise<number> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -76,26 +172,21 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
         // Parse headers (assume first row)
         const headers = firstLine.split(splitRegex).map(h => h.trim().toLowerCase().replace(/^"|"$/g, '').replace(/^\ufeff/, ''));
         
-        console.log("CSV Delimiter:", delimiter);
-        console.log("CSV Headers:", headers);
-
         const newBooks: Book[] = [];
 
+        // Iterate starting from line 1
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
-            // Skip empty lines
             if (!line.trim()) continue;
 
-            // Split row
             const row = line.split(splitRegex).map(cell => cell.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
-            
             if (row.length < 1) continue;
 
             const book: Partial<Book> = {
                 id: crypto.randomUUID(),
                 addedAt: new Date().toISOString(),
-                formats: ['Paper'], // Default
-                status: 'Unread',   // Default
+                formats: ['Paper'],
+                status: 'Unread', 
                 sessions: [],
                 readingDates: []
             };
@@ -106,7 +197,6 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
                 const value = row[index];
                 if (!value) return;
 
-                // Flexible column mapping
                 if (header.includes('title') || header.includes('назва') || header.includes('книга') || header.includes('name')) {
                     book.title = value;
                     hasTitle = true;
@@ -115,14 +205,49 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
                 else if (header.includes('publisher') || header.includes('видавництво') || header.includes('видавець')) book.publisher = value;
                 else if (header.includes('series') || header.includes('серія')) book.seriesPart = value;
                 else if (header.includes('pages') || header.includes('сторінки') || header.includes('стор')) book.pagesTotal = parseInt(value.replace(/\D/g, '')) || 0;
-                else if (header.includes('rating') || header.includes('оцінка') || header.includes('рейтинг')) book.rating = parseInt(value);
+                else if (header.includes('rating') || header.includes('оцінка') || header.includes('рейтинг')) {
+                    // Multiply by 2 as requested (1-5 scale -> 1-10 scale)
+                    const parsedRating = parseInt(value);
+                    if (!isNaN(parsedRating)) {
+                        book.rating = parsedRating * 2;
+                    }
+                }
                 else if (header.includes('isbn')) book.isbn = value;
                 else if (header.includes('genre') || header.includes('жанр')) book.genre = value;
+                else if (header.includes('cover') || header.includes('фото') || header.includes('обкладинка') || header.includes('image')) book.coverUrl = value;
+                
+                // Date Logic: Check for 'date', 'дата', 'finished', 'завершено'
+                else if (header.includes('date') || header.includes('дата') || header.includes('finished') || header.includes('завершено')) {
+                     let dateStr = value.trim();
+                     let parsedDate: Date | null = null;
+
+                     // Try parsing common formats like DD.MM.YYYY
+                     const dmy = dateStr.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+                     if (dmy) {
+                         // Note: Month is 0-indexed in JS Date
+                         parsedDate = new Date(parseInt(dmy[3]), parseInt(dmy[2]) - 1, parseInt(dmy[1]));
+                     } else {
+                         // Try standard parser
+                         const d = new Date(dateStr);
+                         if (!isNaN(d.getTime())) parsedDate = d;
+                     }
+
+                     if (parsedDate && !isNaN(parsedDate.getTime())) {
+                         book.completedAt = parsedDate.toISOString();
+                         // If date is present, it usually implies the book is completed
+                         book.status = 'Completed';
+                         book.pagesRead = book.pagesTotal || 0;
+                     }
+                }
+
                 else if (header.includes('status') || header.includes('статус') || header.includes('стан')) {
                     const s = value.toLowerCase();
                     if (s.includes('read') || s.includes('прочитано') || s.includes('прочитана') || s.includes('done') || s.includes('completed')) {
                          book.status = 'Completed';
-                         book.completedAt = new Date().toISOString();
+                         // Only set completedAt to NOW if it wasn't already set by a specific Date column
+                         if (!book.completedAt) {
+                            book.completedAt = new Date().toISOString();
+                         }
                          book.pagesRead = book.pagesTotal || 0;
                     }
                     else if (s.includes('reading') || s.includes('читаю') || s.includes('process') || s.includes('in progress')) book.status = 'Reading';
@@ -141,6 +266,20 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
 
             if (hasTitle) {
                 if (!book.author) book.author = "Невідомий автор";
+                
+                // --- MAGIC: Multi-API Cover Search ---
+                // If we don't have a cover from the CSV, try to find one using our improved function
+                if (!book.coverUrl) {
+                    try {
+                        const foundCover = await fetchBookCover(book.title as string, book.author as string);
+                        if (foundCover) {
+                            book.coverUrl = foundCover;
+                        }
+                    } catch (e) {
+                        // Ignore errors to keep import running
+                    }
+                }
+                
                 newBooks.push(book as Book);
             }
         }

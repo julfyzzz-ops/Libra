@@ -1,13 +1,16 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Book, BookFormat, BookStatus, ReadingSessionData } from '../types';
-import { Search, BookOpen, Headphones, Tablet, Trash2, Edit3, Save, X, Play, Pause, Square, Timer, Trophy, ChevronDown, ChevronUp, Zap, Hourglass, Lock, Unlock, Filter, Calendar as CalendarIcon, Building2, Upload, ShoppingCart, Ghost, Layers, Loader2, CheckCircle2, RotateCcw, Clock } from 'lucide-react';
-import { processImage } from '../services/storageService';
+import { Search, BookOpen, Headphones, Tablet, Trash2, Edit3, Save, X, Play, Pause, Square, Timer, Trophy, ChevronDown, ChevronUp, Zap, Hourglass, Lock, Unlock, Filter, Calendar as CalendarIcon, Building2, Upload, ShoppingCart, Ghost, Layers, Loader2, CheckCircle2, RotateCcw, Clock, Wand2, Link } from 'lucide-react';
+import { processImage, fetchBookCover } from '../services/storageService';
+import { Wishlist } from './Wishlist';
 
 interface LibraryProps {
   books: Book[];
   onUpdateBook: (book: Book) => void;
   onDeleteBook: (id: string) => void;
   onReorderBooks?: (books: Book[]) => void;
+  onUpdateStatus: (id: string, status: 'Reading' | 'Completed', formats?: BookFormat[]) => void;
 }
 
 interface ReadingSessionState {
@@ -50,6 +53,14 @@ const formatTime = (totalSeconds: number) => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
+const getRatingColor = (rating: number) => {
+  if (rating <= 2) return '#3E2723'; // Very Dark Brown
+  if (rating <= 4) return '#5D4037'; // Brown
+  if (rating <= 6) return '#8D6E63'; // Light Brown / Bronze
+  if (rating <= 8) return '#FBC02D'; // Amber Gold
+  return '#FFD700'; // Pure Gold
+};
+
 const FormatToggle: React.FC<{ 
   label: string; 
   active: boolean; 
@@ -65,7 +76,8 @@ const FormatToggle: React.FC<{
   </button>
 );
 
-export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks }) => {
+export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus }) => {
+  const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
   const [search, setSearch] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -92,6 +104,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
   const [lastSessionSummary, setLastSessionSummary] = useState<any>(null);
   const [tempRating, setTempRating] = useState<number>(10);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
+  const [isMagicLoading, setIsMagicLoading] = useState(false);
 
   useEffect(() => {
     let interval: any;
@@ -309,6 +322,27 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     }
   };
 
+  const handleMagicSearch = async () => {
+    if (!editForm || !editForm.title) {
+        alert("Будь ласка, введіть назву книги для пошуку.");
+        return;
+    }
+    setIsMagicLoading(true);
+    try {
+        const url = await fetchBookCover(editForm.title, editForm.author || '');
+        if (url) {
+            setEditForm({ ...editForm, coverUrl: url });
+        } else {
+            alert("Обкладинку не знайдено.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Помилка пошуку");
+    } finally {
+        setIsMagicLoading(false);
+    }
+  };
+
   const FormatIcon = ({ format }: { format: BookFormat }) => {
     switch (format) {
       case 'Paper': return <BookOpen size={14} />;
@@ -323,7 +357,20 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800">
       <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Бібліотека</h1>
+        <div className="flex items-baseline gap-4">
+          <h1 
+            onClick={() => setActiveTab('library')}
+            className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}
+          >
+            Бібліотека
+          </h1>
+          <h1 
+            onClick={() => setActiveTab('wishlist')}
+            className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}
+          >
+            Бажанки
+          </h1>
+        </div>
         <button 
           onClick={() => setIsSortLocked(!isSortLocked)}
           className={`p-3 rounded-2xl transition-all ${isSortLocked ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'}`}
@@ -332,146 +379,168 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
         </button>
       </header>
 
-      <div className="space-y-3">
-        {/* Search Bar */}
-        <div className="flex gap-2">
-            <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-                type="text"
-                placeholder="Пошук..."
-                className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            />
-            {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 glass-morphism rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                {suggestions.map((s, i) => (
-                    <button 
-                    key={i} 
-                    onClick={() => { setSearch(s); setShowSuggestions(false); }}
-                    className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 suggestion-item transition-colors border-b border-gray-100 last:border-none"
-                    >
-                    {s}
-                    </button>
-                ))}
+      {activeTab === 'library' ? (
+        <>
+          <div className="space-y-3">
+            {/* Search Bar */}
+            <div className="flex gap-2">
+                <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                    type="text"
+                    placeholder="Пошук..."
+                    className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 glass-morphism rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {suggestions.map((s, i) => (
+                        <button 
+                        key={i} 
+                        onClick={() => { setSearch(s); setShowSuggestions(false); }}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 suggestion-item transition-colors border-b border-gray-100 last:border-none"
+                        >
+                        {s}
+                        </button>
+                    ))}
+                    </div>
+                )}
+                </div>
+                <button 
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`px-4 rounded-2xl flex items-center gap-2 transition-all ${showFilters || selectedFormats.length > 0 || selectedStatuses.length < 3 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
+                >
+                    <Filter size={18} />
+                </button>
+            </div>
+
+            {/* Filters Panel */}
+            {showFilters && (
+                <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
+                    <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
+                        <div className="flex flex-wrap gap-2">
+                            {['Reading', 'Unread', 'Completed'].map((s) => (
+                                <button
+                                    key={s}
+                                    onClick={() => toggleStatusFilter(s as BookStatus)}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedStatuses.includes(s as BookStatus) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                                >
+                                    {STATUS_LABELS[s as BookStatus]}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
+                        <div className="flex flex-wrap gap-2">
+                            {Object.keys(FORMAT_LABELS).map((f) => (
+                                <button
+                                    key={f}
+                                    onClick={() => toggleFormatFilter(f as BookFormat)}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                                >
+                                    {FORMAT_LABELS[f as BookFormat]}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {(selectedFormats.length > 0 || selectedStatuses.length !== 3 || search) && (
+                       <button 
+                         onClick={clearFilters}
+                         className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
+                       >
+                         <RotateCcw size={14} /> Очистити фільтри
+                       </button>
+                    )}
                 </div>
             )}
-            </div>
-            <button 
-                onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 rounded-2xl flex items-center gap-2 transition-all ${showFilters || selectedFormats.length > 0 || selectedStatuses.length < 3 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
-            >
-                <Filter size={18} />
-            </button>
-        </div>
+          </div>
 
-        {/* Filters Panel */}
-        {showFilters && (
-            <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
-                <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
-                    <div className="flex flex-wrap gap-2">
-                        {['Reading', 'Unread', 'Completed'].map((s) => (
-                            <button
-                                key={s}
-                                onClick={() => toggleStatusFilter(s as BookStatus)}
-                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedStatuses.includes(s as BookStatus) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+          <div className="space-y-3">
+            {filteredBooks.map((book, idx) => (
+              <div 
+                key={book.id}
+                draggable={!isSortLocked}
+                onDragStart={(e) => {
+                  if (isSortLocked) return;
+                  setDraggedItemIndex(idx);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (isSortLocked || draggedItemIndex === null || draggedItemIndex === idx) return;
+                  const newBooks = [...books];
+                  const draggedItem = newBooks[draggedItemIndex];
+                  newBooks.splice(draggedItemIndex, 1);
+                  newBooks.splice(idx, 0, draggedItem);
+                  setDraggedItemIndex(idx);
+                  onReorderBooks?.(newBooks);
+                }}
+                onDragEnd={() => setDraggedItemIndex(null)}
+                onClick={() => { setSelectedBook(book); setShowHistory(false); }}
+                className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-start group relative ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
+              >
+                {/* Completed Badge with Rating */}
+                {book.status === 'Completed' && (
+                    <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
+                        <div className="bg-white rounded-full p-0.5 shadow-sm">
+                            <CheckCircle2 className="text-emerald-500" size={18} fill="white" />
+                        </div>
+                        {book.rating && book.rating > 0 && (
+                            <span 
+                                className="px-1.5 py-0.5 bg-white/95 backdrop-blur-sm rounded-md shadow-sm border border-gray-100 text-[9px] font-black"
+                                style={{ color: getRatingColor(book.rating) }}
                             >
-                                {STATUS_LABELS[s as BookStatus]}
-                            </button>
-                        ))}
+                                {book.rating}/10
+                            </span>
+                        )}
                     </div>
-                </div>
-                <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
-                    <div className="flex flex-wrap gap-2">
-                        {Object.keys(FORMAT_LABELS).map((f) => (
-                            <button
-                                key={f}
-                                onClick={() => toggleFormatFilter(f as BookFormat)}
-                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                            >
-                                {FORMAT_LABELS[f as BookFormat]}
-                            </button>
-                        ))}
-                    </div>
+                )}
+
+                <div className="w-16 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                  {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={20} /></div>}
                 </div>
                 
-                {(selectedFormats.length > 0 || selectedStatuses.length !== 3 || search) && (
-                   <button 
-                     onClick={clearFilters}
-                     className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
-                   >
-                     <RotateCcw size={14} /> Очистити фільтри
-                   </button>
-                )}
-            </div>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        {filteredBooks.map((book, idx) => (
-          <div 
-            key={book.id}
-            draggable={!isSortLocked}
-            onDragStart={(e) => {
-              if (isSortLocked) return;
-              setDraggedItemIndex(idx);
-              e.dataTransfer.effectAllowed = 'move';
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (isSortLocked || draggedItemIndex === null || draggedItemIndex === idx) return;
-              const newBooks = [...books];
-              const draggedItem = newBooks[draggedItemIndex];
-              newBooks.splice(draggedItemIndex, 1);
-              newBooks.splice(idx, 0, draggedItem);
-              setDraggedItemIndex(idx);
-              onReorderBooks?.(newBooks);
-            }}
-            onDragEnd={() => setDraggedItemIndex(null)}
-            onClick={() => { setSelectedBook(book); setShowHistory(false); }}
-            className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-start group relative ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
-          >
-            {/* Green Check for Completed */}
-            {book.status === 'Completed' && (
-                <div className="absolute top-2 right-2 z-10 bg-white rounded-full">
-                    <CheckCircle2 className="text-emerald-500" size={20} fill="white" />
+                <div className="min-w-0 flex-1 flex flex-col justify-between h-24 py-0.5">
+                  <div>
+                    <h3 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{book.title}</h3>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{book.author}</p>
+                    {(book.publisher || book.seriesPart) && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                        {book.publisher && <span className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded font-medium">{book.publisher}</span>}
+                        {book.seriesPart && <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-medium">{book.seriesPart}</span>}
+                        </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-1 opacity-40">
+                    {book.formats.slice(0, 3).map(f => <span key={f}><FormatIcon format={f} /></span>)}
+                  </div>
                 </div>
+              </div>
+            ))}
+            {filteredBooks.length === 0 && (
+              <div className="text-center py-12 text-gray-300 flex flex-col items-center">
+                <Search size={48} className="mb-2 opacity-20" />
+                <p className="text-sm font-medium">Нічого не знайдено</p>
+              </div>
             )}
-
-            <div className="w-16 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
-              {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={20} /></div>}
-            </div>
-            
-            <div className="min-w-0 flex-1 flex flex-col justify-between h-24 py-0.5">
-              <div>
-                <h3 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{book.title}</h3>
-                <p className="text-xs text-gray-500 truncate mt-0.5">{book.author}</p>
-                {(book.publisher || book.seriesPart) && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                    {book.publisher && <span className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded font-medium">{book.publisher}</span>}
-                    {book.seriesPart && <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-medium">{book.seriesPart}</span>}
-                    </div>
-                )}
-              </div>
-              
-              <div className="flex gap-1 opacity-40">
-                {book.formats.slice(0, 3).map(f => <span key={f}><FormatIcon format={f} /></span>)}
-              </div>
-            </div>
           </div>
-        ))}
-        {filteredBooks.length === 0 && (
-          <div className="text-center py-12 text-gray-300 flex flex-col items-center">
-            <Search size={48} className="mb-2 opacity-20" />
-            <p className="text-sm font-medium">Нічого не знайдено</p>
-          </div>
-        )}
-      </div>
+        </>
+      ) : (
+        <Wishlist 
+          books={books} 
+          onUpdateStatus={onUpdateStatus} 
+          onDelete={onDeleteBook} 
+          onReorderBooks={onReorderBooks}
+          isSortLocked={isSortLocked}
+        />
+      )}
 
       {selectedBook && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -519,6 +588,18 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                   )}
                   {isEditing && !isProcessingImg && <div className="absolute inset-0 bg-black/20 flex items-center justify-center"><Upload className="text-white" size={20} /></div>}
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleEditFileUpload} />
+                  
+                  {isEditing && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleMagicSearch(); }}
+                        disabled={isMagicLoading}
+                        className="absolute top-1 right-1 bg-white/90 backdrop-blur-sm p-1.5 rounded-full text-indigo-600 shadow-sm border border-indigo-50 active:scale-95 transition-all disabled:opacity-50 z-20"
+                        title="Знайти обкладинку"
+                    >
+                        {isMagicLoading ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />}
+                    </button>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   {/* Status Label on Modal */}
@@ -542,6 +623,19 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
               <div className="space-y-6">
                 {isEditing ? (
                   <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">URL Обкладинки</label>
+                      <div className="relative">
+                        <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={12} />
+                        <input 
+                           placeholder="https://..." 
+                           className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-2xl text-xs font-bold border-none outline-none" 
+                           value={editForm?.coverUrl || ''} 
+                           onChange={e => setEditForm(p => p ? {...p, coverUrl: e.target.value} : null)} 
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                        <div className="space-y-1">
                           <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Видавництво</label>
@@ -563,6 +657,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                              <option value="Unread">Не прочитано</option>
                              <option value="Reading">Читаю</option>
                              <option value="Completed">Прочитано</option>
+                             <option value="Wishlist">Бажанка</option>
                           </select>
                        </div>
                     </div>
@@ -639,6 +734,17 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                                 {STATUS_LABELS[selectedBook.status]}
                             </span>
                         </div>
+                        {selectedBook.rating && selectedBook.rating > 0 && (
+                            <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Оцінка</span>
+                                <span 
+                                    className="text-xs font-black px-2 py-0.5 rounded bg-white border border-gray-100 shadow-sm"
+                                    style={{ color: getRatingColor(selectedBook.rating) }}
+                                >
+                                    {selectedBook.rating}/10
+                                </span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                             <span className="text-[10px] font-bold text-gray-400 uppercase">Сторінок</span>
                             <span className="text-xs font-bold text-gray-700">
