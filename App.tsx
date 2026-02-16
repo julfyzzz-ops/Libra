@@ -8,7 +8,7 @@ import { AddBook } from './components/AddBook';
 import { Calendar } from './components/Calendar';
 import { Wishlist } from './components/Wishlist';
 import { Settings } from './components/Settings';
-import { loadLibrary, saveLibrary, syncToCloud } from './services/storageService';
+import { loadLibrary, saveLibrary } from './services/storageService';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('library');
@@ -20,7 +20,6 @@ const App: React.FC = () => {
       const data = await loadLibrary();
       setState(data);
       setIsLoading(false);
-      syncToCloud(data);
     };
     init();
   }, []);

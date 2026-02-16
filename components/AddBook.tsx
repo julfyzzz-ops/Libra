@@ -1,7 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers } from 'lucide-react';
+import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2 } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../types';
+import { processImage } from '../services/storageService';
 
 interface AddBookProps {
   onAdd: (book: Book) => void;
@@ -26,6 +27,7 @@ const FormatToggle: React.FC<{
 
 export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingImg, setIsProcessingImg] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
@@ -40,14 +42,19 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
     coverUrl: ''
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, coverUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      setIsProcessingImg(true);
+      try {
+        const compressedImage = await processImage(file);
+        setFormData({ ...formData, coverUrl: compressedImage });
+      } catch (error) {
+        console.error("Image processing failed", error);
+        alert("Не вдалося обробити зображення");
+      } finally {
+        setIsProcessingImg(false);
+      }
     }
   };
 
@@ -103,9 +110,12 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
             <button 
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="relative w-28 aspect-[2/3] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden hover:bg-gray-100 transition-colors"
+              disabled={isProcessingImg}
+              className="relative w-28 aspect-[2/3] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
-              {formData.coverUrl ? (
+              {isProcessingImg ? (
+                <Loader2 className="animate-spin text-indigo-600" />
+              ) : formData.coverUrl ? (
                 <img src={formData.coverUrl} className="w-full h-full object-cover" />
               ) : (
                 <>

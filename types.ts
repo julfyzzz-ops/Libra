@@ -36,9 +36,3 @@ export type ViewType = 'statistics' | 'library' | 'add' | 'calendar' | 'wishlist
 export interface LibraryState {
   books: Book[];
 }
-
-export interface SyncStatus {
-  isConnected: boolean;
-  lastSync?: string;
-  accountEmail?: string;
-}

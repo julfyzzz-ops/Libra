@@ -1,7 +1,7 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Book, BookFormat, BookStatus, ReadingSessionData } from '../types';
-import { Search, BookOpen, Headphones, Tablet, Trash2, Edit3, Save, X, Plus, Clock, Play, Pause, Square, Timer, Trophy, ChevronDown, ChevronUp, Zap, Hourglass, Lock, Unlock, Filter, Calendar as CalendarIcon, Building2, Upload, ShoppingCart, Ghost, Layers } from 'lucide-react';
+import { Search, BookOpen, Headphones, Tablet, Trash2, Edit3, Save, X, Play, Pause, Square, Timer, Trophy, ChevronDown, ChevronUp, Zap, Hourglass, Lock, Unlock, Filter, Calendar as CalendarIcon, Building2, Upload, ShoppingCart, Ghost, Layers, Loader2, CheckCircle2, RotateCcw, Clock } from 'lucide-react';
+import { processImage } from '../services/storageService';
 
 interface LibraryProps {
   books: Book[];
@@ -16,6 +16,39 @@ interface ReadingSessionState {
   seconds: number;
   startPage: number;
 }
+
+// Translations
+const FORMAT_LABELS: Record<BookFormat, string> = {
+  'Paper': 'Паперова',
+  'E-book': 'Електронна',
+  'Audio': 'Аудіо',
+  'Pirate': 'Піратка',
+  'Expected': 'Очікується',
+  'Sold': 'Продана'
+};
+
+const STATUS_LABELS: Record<BookStatus, string> = {
+  'Reading': 'Читаю',
+  'Completed': 'Прочитано',
+  'Unread': 'Не прочитано',
+  'Wishlist': 'Бажанка'
+};
+
+const calculateProgress = (read?: number, total?: number) => {
+  if (!read || !total) return 0;
+  return Math.min(100, Math.round((read / total) * 100));
+};
+
+const formatTime = (totalSeconds: number) => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
 
 const FormatToggle: React.FC<{ 
   label: string; 
@@ -35,7 +68,13 @@ const FormatToggle: React.FC<{
 export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks }) => {
   const [search, setSearch] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filterFormat, setFilterFormat] = useState<BookFormat | 'All'>('All');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // New Filter State
+  const [selectedFormats, setSelectedFormats] = useState<BookFormat[]>([]);
+  // Default show Reading, Unread, Completed (Hide Wishlist usually)
+  const [selectedStatuses, setSelectedStatuses] = useState<BookStatus[]>(['Reading', 'Unread', 'Completed']);
+  
   const [isSortLocked, setIsSortLocked] = useState(true);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +91,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
   const [showSummaryDialog, setShowSummaryDialog] = useState(false);
   const [lastSessionSummary, setLastSessionSummary] = useState<any>(null);
   const [tempRating, setTempRating] = useState<number>(10);
+  const [isProcessingImg, setIsProcessingImg] = useState(false);
 
   useEffect(() => {
     let interval: any;
@@ -81,8 +121,13 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
 
   const filteredBooks = useMemo(() => {
     return books.filter(b => {
-      const matchStatus = b.status !== 'Wishlist';
-      const matchFormat = filterFormat === 'All' || b.formats.includes(filterFormat as BookFormat);
+      // 1. Filter by Status
+      const matchStatus = selectedStatuses.includes(b.status);
+
+      // 2. Filter by Format (If selectedFormats is empty, assume ALL formats)
+      const matchFormat = selectedFormats.length === 0 || b.formats.some(f => selectedFormats.includes(f));
+
+      // 3. Search
       const s = search.toLowerCase();
       const matchSearch = 
         b.title.toLowerCase().includes(s) || 
@@ -92,7 +137,25 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
       
       return matchStatus && matchFormat && matchSearch;
     });
-  }, [books, search, filterFormat]);
+  }, [books, search, selectedFormats, selectedStatuses]);
+
+  const toggleFormatFilter = (format: BookFormat) => {
+    setSelectedFormats(prev => 
+      prev.includes(format) ? prev.filter(f => f !== format) : [...prev, format]
+    );
+  };
+
+  const toggleStatusFilter = (status: BookStatus) => {
+    setSelectedStatuses(prev => 
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedFormats([]);
+    setSelectedStatuses(['Reading', 'Unread', 'Completed']);
+    setSearch('');
+  };
 
   const calculateAverageSpeed = (book: Book) => {
     if (!book.sessions || book.sessions.length === 0) return 0;
@@ -115,8 +178,19 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
 
   const handleSave = () => {
     if (editForm) {
-      onUpdateBook(editForm);
-      setSelectedBook(editForm);
+      let updatedBook = { ...editForm };
+      
+      if (updatedBook.status === 'Completed') {
+          if (!updatedBook.completedAt) {
+             updatedBook.completedAt = new Date().toISOString();
+          }
+          if (!updatedBook.pagesRead && updatedBook.pagesTotal) {
+             updatedBook.pagesRead = updatedBook.pagesTotal;
+          }
+      }
+
+      onUpdateBook(updatedBook);
+      setSelectedBook(updatedBook);
       setIsEditing(false);
     }
   };
@@ -218,6 +292,22 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     onUpdateBook(updatedBook);
     setSelectedBook(updatedBook);
   };
+  
+  const handleEditFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && editForm) {
+      setIsProcessingImg(true);
+      try {
+        const compressed = await processImage(file);
+        setEditForm({ ...editForm, coverUrl: compressed });
+      } catch (err) {
+        console.error(err);
+        alert("Помилка обробки фото");
+      } finally {
+        setIsProcessingImg(false);
+      }
+    }
+  };
 
   const FormatIcon = ({ format }: { format: BookFormat }) => {
     switch (format) {
@@ -243,47 +333,86 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
       </header>
 
       <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder="Пошук за назвою, автором, серією..."
-            className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          />
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-morphism rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              {suggestions.map((s, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => { setSearch(s); setShowSuggestions(false); }}
-                  className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 suggestion-item transition-colors border-b border-gray-100 last:border-none"
-                >
-                  {s}
-                </button>
-              ))}
+        {/* Search Bar */}
+        <div className="flex gap-2">
+            <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+                type="text"
+                placeholder="Пошук..."
+                className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 glass-morphism rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                {suggestions.map((s, i) => (
+                    <button 
+                    key={i} 
+                    onClick={() => { setSearch(s); setShowSuggestions(false); }}
+                    className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 suggestion-item transition-colors border-b border-gray-100 last:border-none"
+                    >
+                    {s}
+                    </button>
+                ))}
+                </div>
+            )}
             </div>
-          )}
+            <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`px-4 rounded-2xl flex items-center gap-2 transition-all ${showFilters || selectedFormats.length > 0 || selectedStatuses.length < 3 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
+            >
+                <Filter size={18} />
+            </button>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <Filter size={16} className="text-gray-400 flex-shrink-0" />
-          {['All', 'Paper', 'E-book', 'Audio', 'Pirate'].map((f) => (
-            <button 
-              key={f}
-              onClick={() => setFilterFormat(f as any)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all border ${filterFormat === f ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-100'}`}
-            >
-              {f === 'All' ? 'Усі' : f}
-            </button>
-          ))}
-        </div>
+        {/* Filters Panel */}
+        {showFilters && (
+            <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
+                <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
+                    <div className="flex flex-wrap gap-2">
+                        {['Reading', 'Unread', 'Completed'].map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => toggleStatusFilter(s as BookStatus)}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedStatuses.includes(s as BookStatus) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                            >
+                                {STATUS_LABELS[s as BookStatus]}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
+                    <div className="flex flex-wrap gap-2">
+                        {Object.keys(FORMAT_LABELS).map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => toggleFormatFilter(f as BookFormat)}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                            >
+                                {FORMAT_LABELS[f as BookFormat]}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                
+                {(selectedFormats.length > 0 || selectedStatuses.length !== 3 || search) && (
+                   <button 
+                     onClick={clearFilters}
+                     className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
+                   >
+                     <RotateCcw size={14} /> Очистити фільтри
+                   </button>
+                )}
+            </div>
+        )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {filteredBooks.map((book, idx) => (
           <div 
             key={book.id}
@@ -305,23 +434,34 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
             }}
             onDragEnd={() => setDraggedItemIndex(null)}
             onClick={() => { setSelectedBook(book); setShowHistory(false); }}
-            className={`bg-white p-2 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-center group ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
+            className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-start group relative ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
           >
-            <div className="w-12 h-16 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
-              {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={16} /></div>}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-gray-800 text-sm truncate">{book.title}</h3>
-              <p className="text-[10px] text-gray-400 truncate mt-0.5">{book.author}</p>
-              {(book.publisher || book.seriesPart) && (
-                <div className="flex gap-2 mt-1">
-                  {book.publisher && <span className="text-[8px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded uppercase font-bold">{book.publisher}</span>}
-                  {book.seriesPart && <span className="text-[8px] px-1.5 py-0.5 bg-indigo-50 text-indigo-400 rounded uppercase font-bold">{book.seriesPart}</span>}
+            {/* Green Check for Completed */}
+            {book.status === 'Completed' && (
+                <div className="absolute top-2 right-2 z-10 bg-white rounded-full">
+                    <CheckCircle2 className="text-emerald-500" size={20} fill="white" />
                 </div>
-              )}
+            )}
+
+            <div className="w-16 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+              {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={20} /></div>}
             </div>
-            <div className="flex gap-1 pr-3 opacity-40">
-              {book.formats.slice(0, 2).map(f => <span key={f}><FormatIcon format={f} /></span>)}
+            
+            <div className="min-w-0 flex-1 flex flex-col justify-between h-24 py-0.5">
+              <div>
+                <h3 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{book.title}</h3>
+                <p className="text-xs text-gray-500 truncate mt-0.5">{book.author}</p>
+                {(book.publisher || book.seriesPart) && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                    {book.publisher && <span className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded font-medium">{book.publisher}</span>}
+                    {book.seriesPart && <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-medium">{book.seriesPart}</span>}
+                    </div>
+                )}
+              </div>
+              
+              <div className="flex gap-1 opacity-40">
+                {book.formats.slice(0, 3).map(f => <span key={f}><FormatIcon format={f} /></span>)}
+              </div>
             </div>
           </div>
         ))}
@@ -368,20 +508,22 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
             <div className="px-6 pb-12 overflow-y-auto no-scrollbar -mt-12 relative z-10 flex-1 bg-white rounded-t-[2.5rem] pt-6">
               <div className="flex gap-4 items-end mb-8">
                 <div onClick={() => isEditing && fileInputRef.current?.click()} className={`w-28 aspect-[2/3] bg-white rounded-xl shadow-2xl overflow-hidden border-4 border-white flex-shrink-0 relative ${isEditing ? 'cursor-pointer' : ''}`}>
-                  {isEditing ? <img src={editForm?.coverUrl} className="w-full h-full object-cover opacity-80" /> : selectedBook.coverUrl ? <img src={selectedBook.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-50"><BookOpen size={48} /></div>}
-                  {isEditing && <div className="absolute inset-0 bg-black/20 flex items-center justify-center"><Upload className="text-white" size={20} /></div>}
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file && editForm) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => setEditForm({ ...editForm, coverUrl: reader.result as string });
-                      reader.readAsDataURL(file);
-                    }
-                  }} />
+                  {isProcessingImg ? (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-indigo-600" /></div>
+                  ) : isEditing ? (
+                    <img src={editForm?.coverUrl} className="w-full h-full object-cover opacity-80" />
+                  ) : selectedBook.coverUrl ? (
+                    <img src={selectedBook.coverUrl} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-50"><BookOpen size={48} /></div>
+                  )}
+                  {isEditing && !isProcessingImg && <div className="absolute inset-0 bg-black/20 flex items-center justify-center"><Upload className="text-white" size={20} /></div>}
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleEditFileUpload} />
                 </div>
                 <div className="flex-1 min-w-0">
+                  {/* Status Label on Modal */}
                   <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${selectedBook.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                    {selectedBook.status === 'Reading' ? 'Читаю' : selectedBook.status === 'Completed' ? 'Прочитано' : 'Не прочитано'}
+                    {STATUS_LABELS[selectedBook.status]}
                   </span>
                   {isEditing ? (
                     <div className="mt-2 space-y-2">
@@ -424,13 +566,41 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                           </select>
                        </div>
                     </div>
+
+                    {editForm?.status === 'Completed' && (
+                       <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
+                          <div className="space-y-1">
+                             <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Дата завершення</label>
+                             <input 
+                               type="date" 
+                               className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" 
+                               value={editForm.completedAt ? editForm.completedAt.substring(0, 10) : ''} 
+                               onChange={e => setEditForm(p => p ? {...p, completedAt: e.target.value ? new Date(e.target.value).toISOString() : undefined} : null)} 
+                             />
+                          </div>
+                          <div className="space-y-1">
+                             <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Оцінка</label>
+                             <select 
+                               className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none" 
+                               value={editForm.rating || 0} 
+                               onChange={e => setEditForm(p => p ? {...p, rating: parseInt(e.target.value)} : null)}
+                             >
+                                <option value={0}>Без оцінки</option>
+                                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(r => (
+                                   <option key={r} value={r}>{r}</option>
+                                ))}
+                             </select>
+                          </div>
+                       </div>
+                    )}
+
                     <div className="space-y-2">
                        <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Формати</label>
                        <div className="grid grid-cols-3 gap-2">
-                          {['Paper', 'E-book', 'Audio', 'Pirate', 'Expected', 'Sold'].map(f => (
+                          {Object.keys(FORMAT_LABELS).map(f => (
                              <FormatToggle 
                                key={f} 
-                               label={f} 
+                               label={FORMAT_LABELS[f as BookFormat]} 
                                active={editForm?.formats.includes(f as any) || false} 
                                onChange={() => {
                                  const cur = editForm?.formats || [];
@@ -459,6 +629,28 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                           <p className="text-[10px] font-bold text-gray-700 truncate">{selectedBook.seriesPart || '—'}</p>
                         </div>
                       </div>
+                    </div>
+
+                    {/* New Info Block for Pages, Status, Format in View Mode */}
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2">
+                        <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Статус</span>
+                            <span className={`text-xs font-bold ${selectedBook.status === 'Completed' ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                                {STATUS_LABELS[selectedBook.status]}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Сторінок</span>
+                            <span className="text-xs font-bold text-gray-700">
+                                {selectedBook.pagesTotal || '—'}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Формат</span>
+                            <span className="text-xs font-bold text-gray-700 text-right">
+                                {selectedBook.formats.map(f => FORMAT_LABELS[f]).join(', ')}
+                            </span>
+                        </div>
                     </div>
 
                     {selectedBook.status === 'Completed' ? (
@@ -642,6 +834,3 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     </div>
   );
 };
-
-const formatTime = (s: number) => { const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); const sec = s%60; return `${h>0?h+':':''}${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; };
-const calculateProgress = (r?: number, t?: number) => (t && t > 0) ? Math.round(((r || 0) / t) * 100) : 0;
