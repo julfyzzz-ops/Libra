@@ -2,13 +2,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart2, Library as LibraryIcon, PlusCircle, Calendar as CalendarIcon, Settings as SettingsIcon, Book as BookIcon } from 'lucide-react';
 import { ViewType, Book, LibraryState, BookFormat } from './types';
-import { Statistics } from './components/Statistics';
-import { Library } from './components/Library';
-import { AddBook } from './components/AddBook';
-import { Calendar } from './components/Calendar';
-import { Settings } from './components/Settings';
-import { ReadingList } from './components/ReadingList';
-import { loadLibrary, saveLibrary, loadSettings } from './services/storageService';
+import { Statistics } from '../src/components/Statistics';
+import { Library } from '../src/components/Library';
+import { AddBook } from '../src/components/AddBook';
+import { Calendar } from '../src/components/Calendar';
+import { Settings } from '../src/components/Settings';
+import { ReadingList } from '../src/components/ReadingList';
+import { loadLibrary, saveLibrary, loadSettings } from '../src/services/storageService';
 import { applyTheme } from './utils';
 
 const App: React.FC = () => {

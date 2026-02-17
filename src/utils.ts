@@ -1,5 +1,5 @@
 
-import { Book, BookFormat, BookStatus, AccentColor, BackgroundTone } from './types';
+import { Book, BookFormat, BookStatus, AccentColor, BackgroundTone } from '../src/types';
 
 export const FORMAT_LABELS: Record<BookFormat, string> = {
   'Paper': 'Паперова',
