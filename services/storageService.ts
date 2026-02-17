@@ -1,8 +1,9 @@
 
-import { LibraryState, Book, BookFormat, BookStatus, AppSettings } from "../types";
+import { LibraryState, Book, BookFormat, BookStatus, AppSettings, SortKey, SortDirection } from "../types";
 
 const STORAGE_KEY = 'booktracker_library_data';
 const SETTINGS_KEY = 'booktracker_settings';
+const SORT_PREFS_KEY = 'booktracker_sort_prefs';
 
 // --- Settings Storage ---
 
@@ -19,6 +20,23 @@ export const loadSettings = (): AppSettings => {
 
 export const saveSettings = (settings: AppSettings): void => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+};
+
+// --- Sort Preferences ---
+
+export const loadSortPrefs = (): { key: SortKey, direction: SortDirection } => {
+  const defaultSort: { key: SortKey, direction: SortDirection } = { key: 'addedAt', direction: 'desc' };
+  try {
+      const data = localStorage.getItem(SORT_PREFS_KEY);
+      if (!data) return defaultSort;
+      return JSON.parse(data);
+  } catch {
+      return defaultSort;
+  }
+};
+
+export const saveSortPrefs = (key: SortKey, direction: SortDirection): void => {
+  localStorage.setItem(SORT_PREFS_KEY, JSON.stringify({ key, direction }));
 };
 
 // --- Local Storage Helpers ---

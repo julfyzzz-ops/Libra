@@ -1,11 +1,12 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-import { Book, BookFormat, BookStatus } from '../types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Book, BookFormat, BookStatus, SortKey, SortDirection } from '../types';
 import { Search, BookOpen, Headphones, Tablet, Clock, ShoppingCart, Ghost, CheckCircle2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Lock, Unlock, Plus } from 'lucide-react';
 import { Wishlist } from './Wishlist';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
 import { FORMAT_LABELS, STATUS_LABELS, getRatingColor } from '../utils';
+import { loadSortPrefs, saveSortPrefs } from '../services/storageService';
 
 interface LibraryProps {
   books: Book[];
@@ -16,9 +17,6 @@ interface LibraryProps {
   onAddClick: () => void;
 }
 
-type SortKey = 'title' | 'author' | 'addedAt' | 'custom';
-type SortDirection = 'asc' | 'desc';
-
 export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus, onAddClick }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
   const [search, setSearch] = useState('');
@@ -26,9 +24,9 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
   
-  // Sorting State
-  const [sortKey, setSortKey] = useState<SortKey>('addedAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  // Sorting State - Load from storage
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadSortPrefs().key);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => loadSortPrefs().direction);
 
   // Filter State
   const [selectedFormats, setSelectedFormats] = useState<BookFormat[]>([]);
@@ -38,6 +36,11 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+
+  // Persist sort changes
+  useEffect(() => {
+    saveSortPrefs(sortKey, sortDirection);
+  }, [sortKey, sortDirection]);
 
   // Unified search suggestions logic
   const suggestions = useMemo(() => {

@@ -44,3 +44,6 @@ export interface AppSettings {
   accent: AccentColor;
   bg: BackgroundTone;
 }
+
+export type SortKey = 'title' | 'author' | 'addedAt' | 'custom';
+export type SortDirection = 'asc' | 'desc';

@@ -98,7 +98,13 @@ const App: React.FC = () => {
         />
       );
       case 'add': return <AddBook onAdd={addBook} />;
-      case 'calendar': return <Calendar books={state.books} />;
+      case 'calendar': return (
+        <Calendar 
+          books={state.books} 
+          onUpdateBook={updateBook} 
+          onDeleteBook={deleteBook}
+        />
+      );
       case 'wishlist': return null; 
       case 'settings': return <Settings />;
     }

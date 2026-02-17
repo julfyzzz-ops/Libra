@@ -2,16 +2,22 @@
 import React, { useMemo, useState } from 'react';
 import { Book } from '../types';
 import { ChevronLeft, ChevronRight, BookOpen, Calendar as CalendarIcon, Grid, ArrowLeft } from 'lucide-react';
+import { BookDetails } from './BookDetails';
+import { ReadingMode } from './ReadingMode';
 
 interface CalendarProps {
   books: Book[];
+  onUpdateBook: (book: Book) => void;
+  onDeleteBook: (id: string) => void;
 }
 
 type ViewMode = 'month' | 'year';
 
-export const Calendar: React.FC<CalendarProps> = ({ books }) => {
+export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDeleteBook }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [readingModeOpen, setReadingModeOpen] = useState(false);
 
   // --- Helpers for Dates ---
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -260,7 +266,11 @@ export const Calendar: React.FC<CalendarProps> = ({ books }) => {
             ) : (
                <div className="grid grid-cols-1 gap-2">
                    {booksInPeriod.map(book => (
-                      <div key={book.id} className="flex items-center gap-4 p-2.5 bg-gray-50 rounded-2xl group">
+                      <div 
+                        key={book.id} 
+                        onClick={() => setSelectedBook(book)}
+                        className="flex items-center gap-4 p-2.5 bg-gray-50 rounded-2xl group cursor-pointer active:scale-95 transition-all hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
+                      >
                         <div className="w-10 h-14 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
                           {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-200"><BookOpen size={16} /></div>}
                         </div>
@@ -279,6 +289,26 @@ export const Calendar: React.FC<CalendarProps> = ({ books }) => {
             )}
          </div>
       </div>
+
+      {/* Details Modal */}
+      {selectedBook && !readingModeOpen && (
+        <BookDetails 
+          book={selectedBook}
+          onClose={() => setSelectedBook(null)}
+          onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
+          onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
+          onOpenReadingMode={() => setReadingModeOpen(true)}
+        />
+      )}
+
+      {/* Reading Mode */}
+      {readingModeOpen && selectedBook && (
+        <ReadingMode 
+          book={selectedBook}
+          onClose={() => setReadingModeOpen(false)}
+          onUpdateBook={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
+        />
+      )}
     </div>
   );
 };
