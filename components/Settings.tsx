@@ -37,7 +37,7 @@ export const Settings: React.FC = () => {
       const link = document.createElement('a');
       const timestamp = new Date().toISOString().split('T')[0];
       link.href = url;
-      link.download = `booktracker_library_${timestamp}.json`;
+      link.download = `libra_library_${timestamp}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -67,7 +67,7 @@ export const Settings: React.FC = () => {
       alert("Бібліотека успішно відновлена з резервної копії!");
       window.location.reload();
     } catch (error) {
-      alert("Не вдалося прочитати файл. Переконайтеся, що це коректний JSON файл BookTracker.");
+      alert("Не вдалося прочитати файл. Переконайтеся, що це коректний JSON файл Libra.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -202,7 +202,7 @@ export const Settings: React.FC = () => {
           <div className="flex items-center gap-3">
              <CheckCircle2 className="text-emerald-500" size={20} />
              <div className="text-sm">
-               <p className="font-bold text-gray-800">BookTracker v2.0</p>
+               <p className="font-bold text-gray-800">Libra v2.0</p>
                <p className="text-gray-500 text-xs">Твій розумний помічник для читання</p>
              </div>
           </div>

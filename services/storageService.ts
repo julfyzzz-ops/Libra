@@ -70,7 +70,7 @@ export const importLibraryFromJSON = async (file: File): Promise<boolean> => {
 
         // Basic validation
         if (!parsedData || !Array.isArray(parsedData.books)) {
-          throw new Error("Невірний формат файлу BookTracker");
+          throw new Error("Невірний формат файлу Libra");
         }
 
         await saveLibrary(parsedData);
