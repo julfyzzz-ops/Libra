@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Book, ReadingSessionData } from '../types';
-import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy } from 'lucide-react';
+import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText } from 'lucide-react';
 import { calculateProgress, formatTime, getRemainingTimeText } from '../utils';
 
 interface ReadingModeProps {
@@ -137,140 +137,198 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     setShowRatingDialog(false);
   };
 
+  // Helper component for Diary Cards
+  const DiaryCardItem = ({ icon: Icon, label, value, colorClass }: any) => (
+    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 flex-1 min-w-0">
+        <div className="flex items-center gap-1 mb-0.5">
+            <Icon size={10} className="text-gray-400" />
+            <span className="text-[9px] text-gray-400 uppercase font-bold truncate">{label}</span>
+        </div>
+        <span className={`text-xs font-black truncate ${colorClass}`}>{value}</span>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-[100] bg-[#323238] flex flex-col items-center animate-in fade-in duration-300">
-       {/* Header */}
-       <div className="w-full flex justify-end items-center p-6 text-white/70 z-10 flex-shrink-0">
-         <button onClick={onClose}><X size={28} /></button>
-       </div>
+    <div className="fixed inset-0 z-[100] bg-[#323238] flex flex-col animate-in fade-in duration-300">
        
-       {/* Scrollable Content */}
-       <div className="flex-1 w-full overflow-y-auto no-scrollbar flex flex-col items-center pb-4">
-           <div className="w-full flex flex-col items-center justify-start px-8">
-               <div className="w-36 h-56 rounded-lg overflow-hidden shadow-2xl mb-8 relative flex-shrink-0">
-                  {book.coverUrl ? (
-                      <img src={book.coverUrl} className="w-full h-full object-cover" />
-                  ) : (
-                      <div className="w-full h-full bg-gray-700 flex items-center justify-center text-gray-500"><BookOpen size={48} /></div>
-                  )}
+       {/* TOP SECTION: Compact & Non-scrollable */}
+       <div className="flex-none flex flex-col items-center px-4 pt-4 pb-2 w-full h-[55%] min-h-[300px]">
+           {/* Header */}
+           <div className="w-full flex justify-end items-center mb-2">
+             <button onClick={onClose} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"><X size={20} /></button>
+           </div>
+           
+           {/* Book Info (Compact) */}
+           <div className="flex flex-col items-center justify-center flex-1 w-full gap-3">
+               <div className="flex items-center gap-6 w-full max-w-sm justify-center">
+                   <div className="w-20 h-28 rounded-lg overflow-hidden shadow-2xl relative flex-shrink-0 border border-white/10">
+                      {book.coverUrl ? (
+                          <img src={book.coverUrl} className="w-full h-full object-cover" />
+                      ) : (
+                          <div className="w-full h-full bg-gray-700 flex items-center justify-center text-gray-500"><BookOpen size={32} /></div>
+                      )}
+                   </div>
+                   
+                   <div className="flex flex-col justify-center">
+                       <div className="text-4xl font-bold text-white leading-none mb-2">
+                         {calculateProgress(book.pagesRead, book.pagesTotal)}%
+                       </div>
+                       <p className="text-xs font-medium text-gray-400 mb-3 max-w-[140px] leading-tight">
+                           {getRemainingTimeText(book)}
+                       </p>
+                       
+                       {/* Compact Progress Bar */}
+                       <div className="w-32 h-1.5 bg-gray-600 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-indigo-500 rounded-full transition-all duration-300" 
+                            style={{ width: `${calculateProgress(book.pagesRead, book.pagesTotal)}%` }} 
+                          />
+                       </div>
+                   </div>
                </div>
-               
-               <div className="text-5xl font-bold text-white mb-6">
-                 {calculateProgress(book.pagesRead, book.pagesTotal)}%
-               </div>
+           </div>
 
-               <div className="w-full h-1.5 bg-gray-600 rounded-full mb-4 overflow-hidden">
-                  <div 
-                    className="h-full bg-gray-300 rounded-full transition-all duration-300" 
-                    style={{ width: `${calculateProgress(book.pagesRead, book.pagesTotal)}%` }} 
-                  />
-               </div>
-
-               <p className="text-sm font-bold text-white mb-12">
-                   {getRemainingTimeText(book)}
-               </p>
-
-               {/* Control Center */}
-               <div className="flex flex-col items-center gap-4 mb-8">
-                  {!session.isActive ? (
-                    <button 
-                      onClick={handleStartRecordClick} 
-                      disabled={book.status === 'Completed'}
-                      className={`w-24 h-24 rounded-full border-[5px] border-white flex items-center justify-center shadow-xl active:scale-95 transition-all ${book.status === 'Completed' ? 'bg-gray-500 opacity-50 cursor-not-allowed' : 'bg-red-600'}`}
-                    >
-                        {book.status === 'Completed' && <CheckCircle2 size={32} className="text-white" />}
+           {/* Controls (Fixed at bottom of top section) */}
+           <div className="w-full flex justify-center pb-4">
+              {!session.isActive ? (
+                <button 
+                  onClick={handleStartRecordClick} 
+                  disabled={book.status === 'Completed'}
+                  className={`w-20 h-20 rounded-full border-[4px] border-white/10 flex items-center justify-center shadow-xl active:scale-95 transition-all ${book.status === 'Completed' ? 'bg-gray-500 opacity-50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}`}
+                >
+                    {book.status === 'Completed' ? <CheckCircle2 size={28} className="text-white" /> : <div className="w-6 h-6 bg-white rounded-sm" />} 
+                </button>
+              ) : (
+                <div className="flex items-center gap-4 bg-black/30 p-2 rounded-[2.5rem] backdrop-blur-md border border-white/5">
+                    <button onClick={handlePauseToggle} className="w-14 h-14 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
+                        {session.isPaused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
                     </button>
-                  ) : (
-                    <div className="flex items-center gap-6">
-                        <button onClick={handlePauseToggle} className="w-16 h-16 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
-                            {session.isPaused ? <Play size={24} fill="currentColor" /> : <Pause size={24} fill="currentColor" />}
-                        </button>
-                        
-                        <div className="text-white font-mono text-3xl font-bold min-w-[120px] text-center">{formatTime(session.seconds)}</div>
+                    
+                    <div className="text-white font-mono text-2xl font-bold w-24 text-center tracking-wider">{formatTime(session.seconds)}</div>
 
-                        <button onClick={handleStopRecordClick} className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
-                            <Square size={24} fill="currentColor" />
-                        </button>
-                    </div>
-                  )}
-               </div>
+                    <button onClick={handleStopRecordClick} className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
+                        <Square size={18} fill="currentColor" />
+                    </button>
+                </div>
+              )}
            </div>
        </div>
 
-       {/* Diary / History Bottom Sheet */}
-       <div className="w-full bg-white rounded-t-[2.5rem] p-6 h-[35vh] flex flex-col z-20 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
-          <div className="flex justify-between items-center mb-4 px-2">
-             <h3 className="text-xl font-bold text-gray-800">Щоденник</h3>
+       {/* BOTTOM SECTION: Diary (Scrollable) */}
+       <div className="flex-1 bg-white rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col w-full">
+          <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-white z-10">
+             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <BookOpen size={18} className="text-indigo-600" /> 
+                Щоденник
+             </h3>
           </div>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-4">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2.5">
               {book.sessions && book.sessions.length > 0 ? (
                   [...book.sessions].reverse().map((s) => {
                       const speed = s.duration > 0 ? Math.round(s.pages / (s.duration / 3600)) : 0;
                       const isEditing = editingSessionId === s.id;
                       
                       return (
-                          <div key={s.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
-                              <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                                  {isEditing ? (
-                                      <input type="date" className="bg-white px-2 py-1 rounded-lg text-xs font-bold outline-none border border-gray-200" value={s.date} onChange={(e) => updateSession(s.id, 'date', e.target.value)} />
-                                  ) : (
-                                      <span className="text-xs font-bold text-gray-500">{new Date(s.date).toLocaleDateString('uk-UA')}</span>
-                                  )}
-                                  
-                                  <div className="flex gap-2">
-                                      <button onClick={() => setEditingSessionId(isEditing ? null : s.id)} className={`p-1.5 rounded-lg transition-colors ${isEditing ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-gray-400 hover:text-indigo-600'}`}>
-                                          {isEditing ? <Save size={14} /> : <Edit3 size={14} />}
-                                      </button>
-                                      <button onClick={() => deleteSession(s.id)} className="p-1.5 bg-white text-gray-400 hover:text-red-500 rounded-lg transition-colors">
-                                          <Trash2 size={14} />
-                                      </button>
+                          <div key={s.id} className="bg-white border border-gray-100 rounded-2xl p-2 shadow-sm flex items-stretch gap-2">
+                              {/* 4 Cards Container */}
+                              <div className="flex-1 grid grid-cols-4 gap-2">
+                                  {/* Date Card */}
+                                  <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 min-w-0">
+                                      <div className="flex items-center gap-1 mb-0.5">
+                                          <Calendar size={10} className="text-gray-400" />
+                                          <span className="text-[9px] text-gray-400 uppercase font-bold truncate">Дата</span>
+                                      </div>
+                                      {isEditing ? (
+                                        <input type="date" className="w-full bg-white text-[10px] rounded border border-gray-200 p-0.5" value={s.date} onChange={(e) => updateSession(s.id, 'date', e.target.value)} />
+                                      ) : (
+                                        <span className="text-xs font-bold text-gray-700 truncate">{new Date(s.date).toLocaleDateString('uk-UA', {day: '2-digit', month: '2-digit'})}</span>
+                                      )}
                                   </div>
+
+                                  {/* Pages Card */}
+                                  <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 min-w-0">
+                                      <div className="flex items-center gap-1 mb-0.5">
+                                          <FileText size={10} className="text-gray-400" />
+                                          <span className="text-[9px] text-gray-400 uppercase font-bold truncate">Стор</span>
+                                      </div>
+                                      {isEditing ? (
+                                        <input type="number" className="w-full text-center bg-white text-xs rounded border border-gray-200 p-0.5" value={s.pages} onChange={(e) => updateSession(s.id, 'pages', parseInt(e.target.value) || 0)} />
+                                      ) : (
+                                        <span className="text-xs font-black text-indigo-600">{s.pages}</span>
+                                      )}
+                                  </div>
+
+                                  {/* Time Card */}
+                                  <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 min-w-0">
+                                      <div className="flex items-center gap-1 mb-0.5">
+                                          <Clock size={10} className="text-gray-400" />
+                                          <span className="text-[9px] text-gray-400 uppercase font-bold truncate">Хв</span>
+                                      </div>
+                                      {isEditing ? (
+                                        <input type="number" className="w-full text-center bg-white text-xs rounded border border-gray-200 p-0.5" value={Math.round(s.duration / 60)} onChange={(e) => updateSession(s.id, 'duration', (parseInt(e.target.value) || 0) * 60)} />
+                                      ) : (
+                                        <span className="text-xs font-black text-gray-700">{Math.round(s.duration / 60)}</span>
+                                      )}
+                                  </div>
+
+                                  {/* Speed Card */}
+                                  <DiaryCardItem 
+                                    icon={Zap} 
+                                    label="Швидк" 
+                                    value={`${speed}`} 
+                                    colorClass="text-amber-500" 
+                                  />
                               </div>
-                              <div className="grid grid-cols-3 gap-2">
-                                  <div className="flex flex-col items-center p-2 bg-white rounded-xl">
-                                      <span className="text-[9px] text-gray-400 uppercase font-bold mb-1">Сторінок</span>
-                                      {isEditing ? <input type="number" className="w-16 text-center bg-gray-50 rounded text-sm font-bold outline-none" value={s.pages} onChange={(e) => updateSession(s.id, 'pages', parseInt(e.target.value) || 0)} /> : <span className="text-sm font-black text-indigo-600">{s.pages}</span>}
-                                  </div>
-                                  <div className="flex flex-col items-center p-2 bg-white rounded-xl">
-                                      <span className="text-[9px] text-gray-400 uppercase font-bold mb-1">Хвилин</span>
-                                      {isEditing ? <input type="number" className="w-16 text-center bg-gray-50 rounded text-sm font-bold outline-none" value={Math.round(s.duration / 60)} onChange={(e) => updateSession(s.id, 'duration', (parseInt(e.target.value) || 0) * 60)} /> : <span className="text-sm font-black text-gray-700">{Math.round(s.duration / 60)}</span>}
-                                  </div>
-                                  <div className="flex flex-col items-center p-2 bg-white rounded-xl">
-                                      <span className="text-[9px] text-gray-400 uppercase font-bold mb-1">Швидкість</span>
-                                      <span className="text-sm font-black text-amber-500">{speed} <span className="text-[9px] text-gray-300 font-medium">ст/г</span></span>
-                                  </div>
+
+                              {/* Actions Column */}
+                              <div className="flex flex-col gap-1 w-8 flex-shrink-0">
+                                  <button 
+                                      onClick={() => setEditingSessionId(isEditing ? null : s.id)} 
+                                      className={`flex-1 flex items-center justify-center rounded-lg transition-colors ${isEditing ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:text-indigo-600'}`}
+                                  >
+                                      {isEditing ? <Save size={14} /> : <Edit3 size={14} />}
+                                  </button>
+                                  <button 
+                                      onClick={() => deleteSession(s.id)} 
+                                      className="flex-1 flex items-center justify-center bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  >
+                                      <Trash2 size={14} />
+                                  </button>
                               </div>
                           </div>
                       );
                   })
               ) : (
-                  <div className="text-center text-gray-400 text-sm mt-10">Історія читання порожня</div>
+                  <div className="flex flex-col items-center justify-center py-10 text-gray-300 gap-2">
+                    <Clock size={32} opacity={0.2} />
+                    <p className="text-xs font-medium">Історія читання порожня</p>
+                  </div>
               )}
           </div>
        </div>
 
        {/* Numpad Dialog */}
        {numpadMode && (
-         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-               <h3 className="text-lg font-bold text-gray-800 text-center mb-8">
+         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
+               <h3 className="text-lg font-bold text-gray-800 text-center mb-6">
                    {numpadMode === 'start' ? 'З якої сторінки почали?' : 'На якій сторінці зупинились?'}
                </h3>
-               <div className="flex justify-center mb-8">
-                   <div className="text-5xl font-bold text-gray-800 flex items-center">{numpadValue || '0'}<span className="animate-pulse text-indigo-500 ml-1">|</span></div>
+               <div className="flex justify-center mb-6">
+                   <div className="text-5xl font-black text-gray-800 flex items-center tracking-tight">{numpadValue || '0'}<span className="animate-pulse text-indigo-500 ml-1">|</span></div>
                </div>
-               <div className="grid grid-cols-3 gap-4 mb-4">
+               <div className="grid grid-cols-3 gap-3 mb-4">
                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                       <button key={num} onClick={() => handleNumpadPress(num)} className="h-16 rounded-2xl text-2xl font-bold text-gray-800 hover:bg-gray-50 active:bg-gray-100 transition-colors">{num}</button>
+                       <button key={num} onClick={() => handleNumpadPress(num)} className="h-14 rounded-2xl text-xl font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm">{num}</button>
                    ))}
                    <div />
-                   <button onClick={() => handleNumpadPress(0)} className="h-16 rounded-2xl text-2xl font-bold text-gray-800 hover:bg-gray-50 active:bg-gray-100 transition-colors">0</button>
-                   <button onClick={handleNumpadBackspace} className="h-16 rounded-2xl flex items-center justify-center text-gray-800 hover:bg-gray-50 active:bg-gray-100 transition-colors"><Delete size={24} /></button>
+                   <button onClick={() => handleNumpadPress(0)} className="h-14 rounded-2xl text-xl font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm">0</button>
+                   <button onClick={handleNumpadBackspace} className="h-14 rounded-2xl flex items-center justify-center text-gray-800 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"><Delete size={20} /></button>
                </div>
-               <div className="flex gap-4">
-                   <button onClick={() => setNumpadMode(null)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600">Скасувати</button>
-                   <button onClick={handleNumpadConfirm} className="flex-[2] py-4 bg-black text-white rounded-2xl font-bold">OK</button>
+               <div className="flex gap-3">
+                   <button onClick={() => setNumpadMode(null)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold text-gray-600 active:scale-95 transition-all">Скасувати</button>
+                   <button onClick={handleNumpadConfirm} className="flex-[2] py-4 bg-black text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-all">OK</button>
                </div>
             </div>
          </div>
