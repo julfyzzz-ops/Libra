@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Book, BookFormat, BookStatus } from '../types';
-import { Search, BookOpen, Headphones, Tablet, Clock, ShoppingCart, Ghost, CheckCircle2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Lock, Unlock } from 'lucide-react';
+import { Search, BookOpen, Headphones, Tablet, Clock, ShoppingCart, Ghost, CheckCircle2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Lock, Unlock, Plus } from 'lucide-react';
 import { Wishlist } from './Wishlist';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
@@ -13,12 +13,13 @@ interface LibraryProps {
   onDeleteBook: (id: string) => void;
   onReorderBooks?: (books: Book[]) => void;
   onUpdateStatus: (id: string, status: 'Reading' | 'Completed', formats?: BookFormat[]) => void;
+  onAddClick: () => void;
 }
 
-type SortKey = 'title' | 'author' | 'addedAt';
+type SortKey = 'title' | 'author' | 'addedAt' | 'custom';
 type SortDirection = 'asc' | 'desc';
 
-export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus }) => {
+export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus, onAddClick }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
   const [search, setSearch] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -55,6 +56,12 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
   }, [search, books]);
 
   const toggleSort = (key: SortKey) => {
+    if (key === 'custom') {
+      setSortKey('custom');
+      setIsSortLocked(false); // Auto unlock for custom
+      return;
+    }
+    
     if (sortKey === key) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
@@ -76,6 +83,10 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
       
       return matchStatus && matchFormat && matchSearch;
     });
+
+    if (sortKey === 'custom') {
+        return result; // Return as is (assuming books are stored in custom order)
+    }
 
     return result.sort((a, b) => {
       let valA: string | number = '';
@@ -131,6 +142,50 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     }
   };
 
+  // --- Touch Logic for Mobile Sorting ---
+  const touchItem = useRef<number | null>(null);
+
+  const handleTouchStart = (idx: number) => {
+    if (isSortLocked || sortKey !== 'custom') return;
+    touchItem.current = idx;
+    setDraggedItemIndex(idx);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+     if (isSortLocked || sortKey !== 'custom' || touchItem.current === null) return;
+     // Prevent scrolling while dragging
+     // e.preventDefault(); // Commented out because it might block all scroll, aggressive.
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isSortLocked || sortKey !== 'custom' || touchItem.current === null) {
+        setDraggedItemIndex(null);
+        return;
+    }
+
+    const changedTouch = e.changedTouches[0];
+    const element = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+    const targetRow = element?.closest('[data-book-index]');
+    
+    if (targetRow) {
+        const targetIndex = parseInt(targetRow.getAttribute('data-book-index') || '-1');
+        if (targetIndex !== -1 && targetIndex !== touchItem.current) {
+             const newBooks = [...books];
+             // Need to map filtered indices back to original indices if filtered?
+             // For simplicity, Drag & Drop should only be allowed when NO text filter is active
+             if (search === '') {
+                 const dragged = newBooks[touchItem.current];
+                 newBooks.splice(touchItem.current, 1);
+                 newBooks.splice(targetIndex, 0, dragged);
+                 onReorderBooks?.(newBooks);
+             }
+        }
+    }
+    
+    touchItem.current = null;
+    setDraggedItemIndex(null);
+  };
+
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800">
       <header className="flex justify-between items-center">
@@ -148,19 +203,29 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
             Бажанки
           </h1>
         </div>
-        <button 
-          onClick={() => setIsSortLocked(!isSortLocked)}
-          className={`p-3 rounded-2xl transition-all ${isSortLocked ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'}`}
-        >
-          {isSortLocked ? <Lock size={20} /> : <Unlock size={20} />}
-        </button>
+        {sortKey === 'custom' && (
+            <button 
+            onClick={() => setIsSortLocked(!isSortLocked)}
+            className={`p-3 rounded-2xl transition-all ${isSortLocked ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'}`}
+            >
+            {isSortLocked ? <Lock size={20} /> : <Unlock size={20} />}
+            </button>
+        )}
       </header>
 
       {activeTab === 'library' ? (
         <>
           <div className="space-y-3">
-            {/* Search Bar */}
+            {/* Search Bar & Controls */}
             <div className="flex gap-2">
+                {/* Add Button */}
+                <button 
+                  onClick={onAddClick}
+                  className="w-12 h-12 flex-shrink-0 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
+                >
+                    <Plus size={24} />
+                </button>
+
                 <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
@@ -205,11 +270,12 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                 <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 animate-in slide-in-from-top-2">
                   <div className="space-y-2">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Сортувати за</span>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         { key: 'title', label: 'Назва' },
                         { key: 'author', label: 'Автор' },
-                        { key: 'addedAt', label: 'Дата' }
+                        { key: 'addedAt', label: 'Дата' },
+                        { key: 'custom', label: 'Свій порядок' }
                       ].map((opt) => (
                         <button
                           key={opt.key}
@@ -221,7 +287,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                           }`}
                         >
                           {opt.label}
-                          {sortKey === opt.key && (
+                          {sortKey === opt.key && sortKey !== 'custom' && (
                             sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
                           )}
                         </button>
@@ -279,15 +345,16 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
             {filteredBooks.map((book, idx) => (
               <div 
                 key={book.id}
-                draggable={!isSortLocked}
+                data-book-index={idx}
+                draggable={!isSortLocked && sortKey === 'custom' && search === ''}
                 onDragStart={(e) => {
-                  if (isSortLocked) return;
+                  if (isSortLocked || sortKey !== 'custom') return;
                   setDraggedItemIndex(idx);
                   e.dataTransfer.effectAllowed = 'move';
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
-                  if (isSortLocked || draggedItemIndex === null || draggedItemIndex === idx) return;
+                  if (isSortLocked || sortKey !== 'custom' || draggedItemIndex === null || draggedItemIndex === idx) return;
                   const newBooks = [...books];
                   const draggedItem = newBooks[draggedItemIndex];
                   newBooks.splice(draggedItemIndex, 1);
@@ -296,8 +363,12 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                   onReorderBooks?.(newBooks);
                 }}
                 onDragEnd={() => setDraggedItemIndex(null)}
+                // Touch Handlers
+                onTouchStart={() => handleTouchStart(idx)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 onClick={() => { setSelectedBook(book); }}
-                className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-start group relative ${draggedItemIndex === idx ? 'opacity-50 scale-95' : ''}`}
+                className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-start group relative ${draggedItemIndex === idx ? 'opacity-50 scale-95 z-50 shadow-xl' : ''} ${!isSortLocked && sortKey === 'custom' ? 'draggable-item' : ''}`}
               >
                 {/* Completed Badge with Rating */}
                 {book.status === 'Completed' && (
@@ -316,8 +387,9 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                     </div>
                 )}
 
-                <div className="w-16 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                <div className="w-16 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 relative">
                   {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={20} /></div>}
+                  {!isSortLocked && sortKey === 'custom' && <div className="absolute inset-0 bg-black/10 flex items-center justify-center"><ArrowUpDown className="text-white drop-shadow-md" /></div>}
                 </div>
                 
                 <div className="min-w-0 flex-1 flex flex-col justify-between h-24 py-0.5">

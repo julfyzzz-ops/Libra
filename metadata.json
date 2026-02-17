@@ -1,7 +1,5 @@
 {
   "name": "Libra",
   "description": "Smart reading assistant with sync and analytics",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

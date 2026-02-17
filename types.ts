@@ -31,7 +31,7 @@ export interface Book {
   sessions: ReadingSessionData[]; // Detailed history
 }
 
-export type ViewType = 'statistics' | 'library' | 'add' | 'calendar' | 'wishlist' | 'settings';
+export type ViewType = 'statistics' | 'library' | 'reading' | 'add' | 'calendar' | 'wishlist' | 'settings';
 
 export interface LibraryState {
   books: Book[];
