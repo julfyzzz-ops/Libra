@@ -8,7 +8,8 @@ import { AddBook } from './components/AddBook';
 import { Calendar } from './components/Calendar';
 import { Settings } from './components/Settings';
 import { ReadingList } from './components/ReadingList';
-import { loadLibrary, saveLibrary } from './services/storageService';
+import { loadLibrary, saveLibrary, loadSettings } from './services/storageService';
+import { applyTheme } from './utils';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('library');
@@ -17,6 +18,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
+      // Load Theme
+      const settings = loadSettings();
+      applyTheme(settings.accent, settings.bg);
+
+      // Load Data
       const data = await loadLibrary();
       setState(data);
       setIsLoading(false);
@@ -99,7 +105,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 overflow-x-hidden relative">
+    <div className="w-full min-h-screen bg-slate-50 overflow-x-hidden relative transition-colors duration-300">
       <main className="min-h-screen">{renderView()}</main>
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] glass-morphism rounded-[2.5rem] shadow-2xl p-2 z-50 flex justify-between items-center px-4">
         <NavButton active={activeView === 'library' || activeView === 'add'} onClick={() => setActiveView('library')} icon={<LibraryIcon size={20} />} label="Книги" />

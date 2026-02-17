@@ -1,5 +1,5 @@
 
-import { Book, BookFormat, BookStatus } from './types';
+import { Book, BookFormat, BookStatus, AccentColor, BackgroundTone } from './types';
 
 export const FORMAT_LABELS: Record<BookFormat, string> = {
   'Paper': 'Паперова',
@@ -68,4 +68,73 @@ export const getRemainingTimeText = (book: Book) => {
   } else {
       return `Залишилось ${minutes} хвилин`;
   }
+};
+
+// --- THEME SYSTEM ---
+
+export const ACCENT_COLORS: Record<AccentColor, { label: string, hex: string, shades: Record<number, string> }> = {
+  indigo: {
+    label: 'Індиго (Стандарт)',
+    hex: '#4f46e5',
+    shades: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+  },
+  rose: {
+    label: 'Троянда',
+    hex: '#e11d48',
+    shades: { 50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c' }
+  },
+  amber: {
+    label: 'Бурштин',
+    hex: '#d97706',
+    shades: { 50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 500: '#f59e0b', 600: '#d97706', 700: '#b45309' }
+  },
+  emerald: {
+    label: 'Смарагд',
+    hex: '#059669',
+    shades: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 500: '#10b981', 600: '#059669', 700: '#047857' }
+  },
+  violet: {
+    label: 'Фіолетовий',
+    hex: '#7c3aed',
+    shades: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9' }
+  },
+  sky: {
+    label: 'Небо',
+    hex: '#0284c7',
+    shades: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' }
+  }
+};
+
+export const BACKGROUND_TONES: Record<BackgroundTone, { label: string, hex: string, vars: { main: string, card: string, element: string } }> = {
+  cool: {
+    label: 'Холодний (Стандарт)',
+    hex: '#f8fafc',
+    vars: { main: '#f8fafc', card: '#f9fafb', element: '#f3f4f6' } // slate-50, gray-50, gray-100
+  },
+  warm: {
+    label: 'Теплий',
+    hex: '#fafaf9',
+    vars: { main: '#fafaf9', card: '#f5f5f4', element: '#e7e5e4' } // stone-50, stone-100, stone-200
+  },
+  neutral: {
+    label: 'Нейтральний',
+    hex: '#fafafa',
+    vars: { main: '#fafafa', card: '#f4f4f5', element: '#e4e4e7' } // zinc-50, zinc-100, zinc-200
+  }
+};
+
+export const applyTheme = (accent: AccentColor, bg: BackgroundTone) => {
+  const root = document.documentElement;
+  const accentData = ACCENT_COLORS[accent];
+  const bgData = BACKGROUND_TONES[bg];
+
+  // Apply Accent Shades
+  Object.entries(accentData.shades).forEach(([shade, value]) => {
+    root.style.setProperty(`--accent-${shade}`, value);
+  });
+
+  // Apply Backgrounds
+  root.style.setProperty('--bg-main', bgData.vars.main);
+  root.style.setProperty('--bg-card', bgData.vars.card);
+  root.style.setProperty('--bg-element', bgData.vars.element);
 };

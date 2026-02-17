@@ -1,7 +1,25 @@
 
-import { LibraryState, Book, BookFormat, BookStatus } from "../types";
+import { LibraryState, Book, BookFormat, BookStatus, AppSettings } from "../types";
 
 const STORAGE_KEY = 'booktracker_library_data';
+const SETTINGS_KEY = 'booktracker_settings';
+
+// --- Settings Storage ---
+
+export const loadSettings = (): AppSettings => {
+    const defaultSettings: AppSettings = { accent: 'indigo', bg: 'cool' };
+    try {
+        const data = localStorage.getItem(SETTINGS_KEY);
+        if (!data) return defaultSettings;
+        return { ...defaultSettings, ...JSON.parse(data) };
+    } catch {
+        return defaultSettings;
+    }
+};
+
+export const saveSettings = (settings: AppSettings): void => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+};
 
 // --- Local Storage Helpers ---
 

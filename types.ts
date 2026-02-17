@@ -36,3 +36,11 @@ export type ViewType = 'statistics' | 'library' | 'reading' | 'add' | 'calendar'
 export interface LibraryState {
   books: Book[];
 }
+
+export type AccentColor = 'indigo' | 'rose' | 'amber' | 'emerald' | 'violet' | 'sky';
+export type BackgroundTone = 'cool' | 'warm' | 'neutral';
+
+export interface AppSettings {
+  accent: AccentColor;
+  bg: BackgroundTone;
+}
