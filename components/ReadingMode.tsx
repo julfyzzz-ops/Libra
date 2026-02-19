@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Book, ReadingSessionData, BookFormat } from '../types';
 import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText, Smartphone, Headphones, Tablet } from 'lucide-react';
 import { calculateProgress, formatTime, getRemainingTimeText, getBookPageTotal, FORMAT_LABELS } from '../utils';
@@ -13,14 +13,43 @@ interface ReadingModeProps {
 interface ReadingSessionState {
   isActive: boolean;
   isPaused: boolean;
-  seconds: number;
   startPage: number;
+  
+  // Timer robust logic
+  startTime: number | null; // Timestamp when current segment started (Date.now())
+  accumulatedTime: number; // Seconds accumulated before the current segment (e.g. before pause)
+  displaySeconds: number; // For UI rendering only
 }
 
 type SetupStep = 'none' | 'select-format' | 'confirm-pages';
 
 export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdateBook }) => {
-  const [session, setSession] = useState<ReadingSessionState>({ isActive: false, isPaused: false, seconds: 0, startPage: book.pagesRead || 0 });
+  // Initialize state, trying to recover from localStorage if available
+  const [session, setSession] = useState<ReadingSessionState>(() => {
+    const saved = localStorage.getItem(`libra_session_${book.id}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Recalculate display seconds immediately on load
+        let currentSecs = parsed.accumulatedTime;
+        if (!parsed.isPaused && parsed.startTime) {
+            currentSecs += Math.floor((Date.now() - parsed.startTime) / 1000);
+        }
+        return { ...parsed, displaySeconds: currentSecs };
+      } catch (e) {
+        console.error("Failed to restore session", e);
+      }
+    }
+    return { 
+      isActive: false, 
+      isPaused: false, 
+      startPage: book.pagesRead || 0,
+      startTime: null,
+      accumulatedTime: 0,
+      displaySeconds: 0
+    };
+  });
+
   const [numpadMode, setNumpadMode] = useState<'start' | 'stop' | null>(null);
   const [numpadValue, setNumpadValue] = useState<string>('');
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -38,33 +67,48 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     return () => { document.body.style.overflow = ''; };
   }, []);
 
+  // Save session state to localStorage whenever it changes
+  useEffect(() => {
+    if (session.isActive) {
+        // We don't save displaySeconds as it is derived
+        const { displaySeconds, ...stateToSave } = session;
+        localStorage.setItem(`libra_session_${book.id}`, JSON.stringify(stateToSave));
+    } else {
+        localStorage.removeItem(`libra_session_${book.id}`);
+    }
+  }, [session, book.id]);
+
   // Initial Check for Format Setup
   useEffect(() => {
-     // Trigger setup if:
-     // 1. Book has multiple formats
-     // 2. No specific reading format selected yet
-     // 3. Book is not completed (optional, but logical)
      if (book.formats.length > 1 && !book.selectedReadingFormat && book.status !== 'Completed') {
          setSetupStep('select-format');
      }
   }, [book.formats, book.selectedReadingFormat, book.status]);
 
-  // Timer logic
+  // Robust Timer Logic
   useEffect(() => {
     let interval: any;
-    if (session.isActive && !session.isPaused) {
+    if (session.isActive && !session.isPaused && session.startTime) {
       interval = setInterval(() => {
-        setSession(prev => ({ ...prev, seconds: prev.seconds + 1 }));
-      }, 1000);
+        setSession(prev => {
+            if (!prev.startTime) return prev;
+            const now = Date.now();
+            const elapsedInCurrentSegment = Math.floor((now - prev.startTime) / 1000);
+            return { 
+                ...prev, 
+                displaySeconds: prev.accumulatedTime + elapsedInCurrentSegment 
+            };
+        });
+      }, 500); // Update twice a second for smoothness, though calc is in seconds
     }
     return () => clearInterval(interval);
-  }, [session.isActive, session.isPaused]);
+  }, [session.isActive, session.isPaused, session.startTime]);
 
   // --- Wizard Handlers ---
 
   const handleFormatSelect = (format: BookFormat) => {
       setTempFormat(format);
-      setTempPagesTotal(book.pagesTotal || 0); // Reset to default total
+      setTempPagesTotal(book.pagesTotal || 0);
       setSetupStep('confirm-pages');
   };
 
@@ -88,13 +132,49 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
   };
 
   const handlePauseToggle = () => {
-    setSession(prev => ({ ...prev, isPaused: !prev.isPaused }));
+    if (session.isPaused) {
+        // Resume
+        setSession(prev => ({ 
+            ...prev, 
+            isPaused: false, 
+            startTime: Date.now() 
+        }));
+    } else {
+        // Pause
+        setSession(prev => {
+            if (!prev.startTime) return { ...prev, isPaused: true };
+            const now = Date.now();
+            const elapsed = Math.floor((now - prev.startTime) / 1000);
+            return {
+                ...prev,
+                isPaused: true,
+                startTime: null,
+                accumulatedTime: prev.accumulatedTime + elapsed,
+                displaySeconds: prev.accumulatedTime + elapsed
+            };
+        });
+    }
   };
 
   const handleStopRecordClick = () => {
     setNumpadValue((book.pagesRead || session.startPage).toString());
     setNumpadMode('stop');
-    setSession(prev => ({ ...prev, isPaused: true }));
+    
+    // Force pause logic to calculate final time
+    setSession(prev => {
+        if (prev.isPaused) return prev; // Already paused
+        if (!prev.startTime) return { ...prev, isPaused: true };
+        
+        const now = Date.now();
+        const elapsed = Math.floor((now - prev.startTime) / 1000);
+        return {
+            ...prev,
+            isPaused: true,
+            startTime: null,
+            accumulatedTime: prev.accumulatedTime + elapsed,
+            displaySeconds: prev.accumulatedTime + elapsed
+        };
+    });
   };
 
   const handleNumpadPress = (num: number) => {
@@ -109,7 +189,15 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     const pageVal = parseInt(numpadValue) || 0;
     
     if (numpadMode === 'start') {
-        setSession(prev => ({ ...prev, isActive: true, isPaused: false, seconds: 0, startPage: pageVal }));
+        // START NEW SESSION
+        setSession({ 
+            isActive: true, 
+            isPaused: false, 
+            startPage: pageVal,
+            startTime: Date.now(),
+            accumulatedTime: 0,
+            displaySeconds: 0
+        });
         setNumpadMode(null);
     } else if (numpadMode === 'stop') {
         confirmSession(pageVal);
@@ -122,10 +210,13 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     const pagesCount = Math.max(0, finalPage - session.startPage);
     const today = new Date().toISOString().split('T')[0];
     
+    // Final check on duration (should be stored in accumulatedTime since we paused on Stop Click)
+    const finalDuration = session.accumulatedTime;
+
     const newSession: ReadingSessionData = {
       id: crypto.randomUUID(),
       date: today,
-      duration: session.seconds,
+      duration: finalDuration,
       pages: pagesCount
     };
 
@@ -146,8 +237,16 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
 
     onUpdateBook(updatedBook);
     
-    // Reset session state but keep reading mode open
-    setSession({ isActive: false, isPaused: false, seconds: 0, startPage: 0 });
+    // Clear Session
+    localStorage.removeItem(`libra_session_${book.id}`);
+    setSession({ 
+        isActive: false, 
+        isPaused: false, 
+        startPage: 0, 
+        startTime: null, 
+        accumulatedTime: 0, 
+        displaySeconds: 0 
+    });
     setNumpadMode(null);
 
     if (isCompleted) {
@@ -275,7 +374,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
                         {session.isPaused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
                     </button>
                     
-                    <div className="text-white font-mono text-2xl font-bold w-24 text-center tracking-wider">{formatTime(session.seconds)}</div>
+                    <div className="text-white font-mono text-2xl font-bold w-24 text-center tracking-wider">{formatTime(session.displaySeconds)}</div>
 
                     <button onClick={handleStopRecordClick} className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
                         <Square size={18} fill="currentColor" />

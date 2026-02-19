@@ -45,8 +45,8 @@ export interface LibraryState {
   books: Book[];
 }
 
-export type AccentColor = 'indigo' | 'rose' | 'amber' | 'emerald' | 'violet' | 'sky';
-export type BackgroundTone = 'cool' | 'warm' | 'neutral';
+export type AccentColor = 'indigo' | 'rose' | 'amber' | 'emerald' | 'violet' | 'sky' | 'pink' | 'gold' | 'black' | 'white';
+export type BackgroundTone = 'cool' | 'warm' | 'neutral' | 'peach' | 'mint' | 'dark' | 'midnight' | 'forest';
 
 export interface AppSettings {
   accent: AccentColor;
