@@ -57,11 +57,11 @@ export const BookView: React.FC<BookViewProps> = ({
             {/* Info Column */}
             <div className="flex-1 min-w-0 flex flex-col justify-end pb-1">
                {book.status === 'Wishlist' ? (
-                    <button onClick={onStartReadingWishlist} className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-200 active:scale-95 transition-all">
+                    <button onClick={onStartReadingWishlist} className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-500/40 active:scale-95 transition-all">
                         <BookOpen size={16} fill="currentColor" /> <span className="text-sm">Почати читати</span>
                     </button>
                 ) : (
-                    <button onClick={onOpenReadingMode} className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-200 active:scale-95 transition-all">
+                    <button onClick={onOpenReadingMode} className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-500/40 active:scale-95 transition-all">
                         <Play size={16} fill="currentColor" /> <span className="text-sm">Читання</span>
                     </button>
                 )}
@@ -167,9 +167,9 @@ export const BookView: React.FC<BookViewProps> = ({
             {(book.notes || book.comment) && (
                 <div className="space-y-3 pt-2">
                     {book.notes && (
-                        <div className="bg-amber-50/50 p-4 rounded-3xl border border-amber-100">
-                            <div className="flex items-center gap-2 mb-2"><Smile size={14} className="text-amber-500" /><span className="text-[10px] font-bold text-amber-400 uppercase">Примітки</span></div>
-                            <div className="text-2xl tracking-widest leading-relaxed">{book.notes}</div>
+                        <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100">
+                            <div className="flex items-center gap-2 mb-2"><Smile size={14} className="text-gray-400" /><span className="text-[10px] font-bold text-gray-400 uppercase">Примітки</span></div>
+                            <div className="text-2xl tracking-widest leading-relaxed text-gray-800">{book.notes}</div>
                         </div>
                     )}
                     {book.comment && (
