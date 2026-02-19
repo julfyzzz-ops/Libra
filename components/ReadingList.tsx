@@ -4,15 +4,16 @@ import { Book } from '../types';
 import { BookOpen, Book as BookIcon } from 'lucide-react';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
-import { calculateProgress } from '../utils';
+import { calculateProgress, getBookPageTotal } from '../utils';
 
 interface ReadingListProps {
   books: Book[];
   onUpdateBook: (book: Book) => void;
   onDeleteBook: (id: string) => void;
+  onFilterByTag?: (tag: string) => void;
 }
 
-export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, onDeleteBook }) => {
+export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, onDeleteBook, onFilterByTag }) => {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
 
@@ -35,7 +36,7 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, o
       ) : (
         <div className="space-y-4">
           {readingBooks.map((book) => {
-             const progress = calculateProgress(book.pagesRead, book.pagesTotal);
+             const progress = calculateProgress(book.pagesRead, getBookPageTotal(book));
              return (
                 <div 
                   key={book.id}
@@ -68,7 +69,7 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, o
                           />
                        </div>
                        <p className="text-[10px] text-gray-400 text-right font-medium">
-                          {book.pagesRead} / {book.pagesTotal} ст.
+                          {book.pagesRead} / {getBookPageTotal(book)} ст.
                        </p>
                     </div>
                   </div>
@@ -85,6 +86,8 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, o
           onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
           onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
           onOpenReadingMode={() => setReadingModeOpen(true)}
+          existingBooks={books}
+          onFilterByTag={onFilterByTag}
         />
       )}
 

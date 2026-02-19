@@ -18,12 +18,20 @@ export interface Book {
   isbn?: string;
   genre?: string;
   publisher?: string;
-  seriesPart?: string;
+  series?: string; // Series Name (e.g. Harry Potter)
+  seriesPart?: string; // Series Number (e.g. Vol 1)
   coverUrl?: string;
   pagesTotal?: number;
   pagesRead?: number;
   rating?: number;
   description?: string;
+  notes?: string; // Emoji only notes
+  comment?: string; // Text comment
+  
+  // Reading tracking specifics
+  selectedReadingFormat?: BookFormat; // The format user is currently reading
+  readingPagesTotal?: number; // Specific page count for the selected format (e.g. e-book pages differ from paper)
+
   addedAt: string;
   readingStartedAt?: string;
   completedAt?: string;

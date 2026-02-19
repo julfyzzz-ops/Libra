@@ -5,7 +5,7 @@ import { Search, BookOpen, Headphones, Tablet, Clock, ShoppingCart, Ghost, Check
 import { Wishlist } from './Wishlist';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
-import { FORMAT_LABELS, STATUS_LABELS, getRatingColor } from '../utils';
+import { FORMAT_LABELS, STATUS_LABELS, getRatingColor, calculateProgress, getBookPageTotal } from '../utils';
 import { loadSortPrefs, saveSortPrefs } from '../services/storageService';
 
 interface LibraryProps {
@@ -15,11 +15,14 @@ interface LibraryProps {
   onReorderBooks?: (books: Book[]) => void;
   onUpdateStatus: (id: string, status: 'Reading' | 'Completed', formats?: BookFormat[]) => void;
   onAddClick: () => void;
+  onAddBook: (book: Book) => void;
+  initialSearch?: string;
+  onFilterByTag?: (tag: string) => void;
 }
 
-export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus, onAddClick }) => {
+export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus, onAddClick, onAddBook, initialSearch, onFilterByTag }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
@@ -42,6 +45,16 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     saveSortPrefs(sortKey, sortDirection);
   }, [sortKey, sortDirection]);
 
+  // Sync initial search if provided
+  useEffect(() => {
+      if (initialSearch !== undefined) {
+          setSearch(initialSearch);
+          if (initialSearch) {
+              setActiveTab('library');
+          }
+      }
+  }, [initialSearch]);
+
   // Unified search suggestions logic
   const suggestions = useMemo(() => {
     if (search.length < 2) return [];
@@ -52,7 +65,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
       if (b.title.toLowerCase().includes(lowerSearch)) set.add(b.title);
       if (b.author.toLowerCase().includes(lowerSearch)) set.add(b.author);
       if (b.publisher?.toLowerCase().includes(lowerSearch)) set.add(b.publisher);
-      if (b.seriesPart?.toLowerCase().includes(lowerSearch)) set.add(b.seriesPart);
+      if (b.series?.toLowerCase().includes(lowerSearch)) set.add(b.series);
     });
     
     return Array.from(set).slice(0, 5);
@@ -82,6 +95,8 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
         b.title.toLowerCase().includes(s) || 
         b.author.toLowerCase().includes(s) || 
         (b.publisher?.toLowerCase().includes(s)) || 
+        (b.genre?.toLowerCase().includes(s)) ||
+        (b.series?.toLowerCase().includes(s)) ||
         (b.seriesPart?.toLowerCase().includes(s));
       
       return matchStatus && matchFormat && matchSearch;
@@ -132,6 +147,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     setSelectedFormats([]);
     setSelectedStatuses(['Reading', 'Unread', 'Completed']);
     setSearch('');
+    // Optionally clear parent filter via callback if needed, but local clear is fine
   };
 
   const FormatIcon = ({ format }: { format: BookFormat }) => {
@@ -156,8 +172,6 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
 
   const handleTouchMove = (e: React.TouchEvent) => {
      if (isSortLocked || sortKey !== 'custom' || touchItem.current === null) return;
-     // Prevent scrolling while dragging
-     // e.preventDefault(); // Commented out because it might block all scroll, aggressive.
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -174,8 +188,6 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
         const targetIndex = parseInt(targetRow.getAttribute('data-book-index') || '-1');
         if (targetIndex !== -1 && targetIndex !== touchItem.current) {
              const newBooks = [...books];
-             // Need to map filtered indices back to original indices if filtered?
-             // For simplicity, Drag & Drop should only be allowed when NO text filter is active
              if (search === '') {
                  const dragged = newBooks[touchItem.current];
                  newBooks.splice(touchItem.current, 1);
@@ -206,7 +218,7 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
             Бажанки
           </h1>
         </div>
-        {sortKey === 'custom' && (
+        {sortKey === 'custom' && activeTab === 'library' && (
             <button 
             onClick={() => setIsSortLocked(!isSortLocked)}
             className={`p-3 rounded-2xl transition-all ${isSortLocked ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'}`}
@@ -362,61 +374,45 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
                   const draggedItem = newBooks[draggedItemIndex];
                   newBooks.splice(draggedItemIndex, 1);
                   newBooks.splice(idx, 0, draggedItem);
-                  setDraggedItemIndex(idx);
                   onReorderBooks?.(newBooks);
+                  setDraggedItemIndex(idx);
                 }}
                 onDragEnd={() => setDraggedItemIndex(null)}
-                // Touch Handlers
                 onTouchStart={() => handleTouchStart(idx)}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                onClick={() => { setSelectedBook(book); }}
-                className={`bg-white p-3 rounded-2xl shadow-sm border border-transparent hover:border-indigo-500 transition-all cursor-pointer flex gap-4 items-start group relative ${draggedItemIndex === idx ? 'opacity-50 scale-95 z-50 shadow-xl' : ''} ${!isSortLocked && sortKey === 'custom' ? 'draggable-item' : ''}`}
+                onClick={() => setSelectedBook(book)}
+                className={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-center active:scale-95 transition-all cursor-pointer select-none ${draggedItemIndex === idx ? 'opacity-50 scale-95 ring-2 ring-indigo-500' : ''}`}
               >
-                {/* Completed Badge with Rating */}
-                {book.status === 'Completed' && (
-                    <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
-                        <div className="bg-white rounded-full p-0.5 shadow-sm">
-                            <CheckCircle2 className="text-emerald-500" size={18} fill="white" />
-                        </div>
-                        {book.rating && book.rating > 0 && (
-                            <span 
-                                className="px-1.5 py-0.5 bg-white/95 backdrop-blur-sm rounded-md shadow-sm border border-gray-100 text-[9px] font-black"
-                                style={{ color: getRatingColor(book.rating) }}
-                            >
-                                {book.rating}/10
-                            </span>
-                        )}
+                <div className="w-12 h-16 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                  {book.coverUrl ? (
+                    <img src={book.coverUrl} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                      <BookOpen size={20} />
                     </div>
-                )}
-
-                <div className="w-16 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 relative">
-                  {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><BookOpen size={20} /></div>}
-                  {!isSortLocked && sortKey === 'custom' && <div className="absolute inset-0 bg-black/10 flex items-center justify-center"><ArrowUpDown className="text-white drop-shadow-md" /></div>}
+                  )}
                 </div>
-                
-                <div className="min-w-0 flex-1 flex flex-col justify-between h-24 py-0.5">
-                  <div>
-                    <h3 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{book.title}</h3>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">{book.author}</p>
-                    {(book.publisher || book.seriesPart) && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                        {book.publisher && <span className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded font-medium">{book.publisher}</span>}
-                        {book.seriesPart && <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-medium">{book.seriesPart}</span>}
-                        </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-800 text-sm truncate">{book.title}</h3>
+                  <p className="text-[10px] text-gray-500 truncate">{book.author}</p>
+                  <div className="flex gap-2 mt-1.5">
+                    {book.formats.map(f => (
+                       <span key={f} className={f === 'Sold' ? "text-red-500" : "text-gray-400"}>{FormatIcon({format: f})}</span>
+                    ))}
+                    {(book.rating || 0) > 0 && (
+                        <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 bg-gray-50 rounded text-gray-600">★ {book.rating}</span>
                     )}
                   </div>
-                  
-                  <div className="flex gap-1 opacity-40">
-                    {book.formats.slice(0, 3).map(f => <span key={f}><FormatIcon format={f} /></span>)}
-                  </div>
                 </div>
+                <div className={`w-2 h-2 rounded-full ${book.status === 'Completed' ? 'bg-emerald-500' : book.status === 'Reading' ? 'bg-indigo-600' : 'bg-gray-200'}`} />
               </div>
             ))}
+            
             {filteredBooks.length === 0 && (
-              <div className="text-center py-12 text-gray-300 flex flex-col items-center">
-                <Search size={48} className="mb-2 opacity-20" />
-                <p className="text-sm font-medium">Нічого не знайдено</p>
+              <div className="flex flex-col items-center justify-center py-12 text-gray-300">
+                <BookOpen size={48} className="mb-2 opacity-20" />
+                <p className="text-sm">Книг не знайдено</p>
               </div>
             )}
           </div>
@@ -425,9 +421,11 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
         <Wishlist 
           books={books} 
           onUpdateStatus={onUpdateStatus} 
-          onDelete={onDeleteBook} 
+          onDelete={onDeleteBook}
           onReorderBooks={onReorderBooks}
           isSortLocked={isSortLocked}
+          onAddBook={onAddBook}
+          onFilterByTag={onFilterByTag}
         />
       )}
 
@@ -438,6 +436,8 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
           onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
           onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
           onOpenReadingMode={() => setReadingModeOpen(true)}
+          existingBooks={books}
+          onFilterByTag={onFilterByTag}
         />
       )}
 
@@ -448,6 +448,9 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
           onUpdateBook={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
         />
       )}
+      
+      {/* Hack to support Wishlist updates via closure if needed, though onUpdateBook passed above solves it */}
+      <div className="hidden" ref={el => { if(el) (window as any).tempUpdateBook = onUpdateBook; }}></div>
     </div>
   );
 };

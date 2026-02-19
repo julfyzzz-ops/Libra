@@ -9,15 +9,44 @@ interface CalendarProps {
   books: Book[];
   onUpdateBook: (book: Book) => void;
   onDeleteBook: (id: string) => void;
+  onFilterByTag?: (tag: string) => void;
 }
 
 type ViewMode = 'month' | 'year';
 
-export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDeleteBook }) => {
+export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDeleteBook, onFilterByTag }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
+
+  // --- Swipe Logic ---
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      handleNext();
+    }
+    if (isRightSwipe) {
+      handlePrev();
+    }
+  };
 
   // --- Helpers for Dates ---
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -126,7 +155,7 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
                     reads.length > 0 ? 'border-indigo-200 bg-white shadow-sm' : 'border-gray-50 bg-gray-50/50'
                     }`}
                 >
-                    <span className={`text-[10px] absolute top-1 left-1 font-bold z-10 ${reads.length > 0 ? 'text-indigo-600' : 'text-gray-300'}`}>
+                    <span className={`text-[10px] absolute top-1 left-1 font-bold z-10 ${reads.length > 0 ? 'text-indigo-700 bg-white/90 backdrop-blur-[1px] px-1 rounded-md shadow-sm' : 'text-gray-300'}`}>
                     {day}
                     </span>
                     {reads.length > 0 && (
@@ -134,7 +163,7 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
                         {reads[0].coverUrl ? (
                         <img 
                             src={reads[0].coverUrl} 
-                            className="w-full h-full object-cover opacity-40"
+                            className="w-full h-full object-cover"
                             alt={reads[0].title}
                         />
                         ) : (
@@ -220,7 +249,12 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
       </header>
 
       {/* Main Calendar Card */}
-      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-all duration-300">
+      <div 
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-all duration-300 select-none"
+      >
         <div className="flex justify-between items-center mb-6">
           <button onClick={handlePrev} className="p-3 hover:bg-gray-50 rounded-2xl transition-colors text-gray-600">
             <ChevronLeft size={20} />
@@ -278,7 +312,7 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
                           <h4 className="font-bold text-xs text-gray-800 truncate">{book.title}</h4>
                           <p className="text-[10px] text-gray-500 truncate">{book.author}</p>
                         </div>
-                        {book.rating && book.rating > 0 && (
+                        {(book.rating || 0) > 0 && (
                             <div className="px-2 py-1 bg-white rounded-lg shadow-sm text-[10px] font-black text-indigo-600 border border-gray-100">
                                 {book.rating}
                             </div>
@@ -298,6 +332,8 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
           onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
           onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
           onOpenReadingMode={() => setReadingModeOpen(true)}
+          existingBooks={books}
+          onFilterByTag={onFilterByTag}
         />
       )}
 

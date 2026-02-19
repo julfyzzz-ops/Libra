@@ -1,0 +1,159 @@
+
+import React, { useState, useRef } from 'react';
+import { Image as ImageIcon, Save, Loader2, Wand2, Link, ArrowLeft } from 'lucide-react';
+import { Book } from '../types';
+import { processImage, fetchBookCover } from '../services/storageService';
+
+interface AddWishlistProps {
+  onAdd: (book: Book) => void;
+  onCancel: () => void;
+}
+
+export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingImg, setIsProcessingImg] = useState(false);
+  const [isMagicLoading, setIsMagicLoading] = useState(false);
+  
+  const [formData, setFormData] = useState<Partial<Book>>({
+    title: '',
+    author: '',
+    coverUrl: ''
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsProcessingImg(true);
+      try {
+        const compressedImage = await processImage(file);
+        setFormData({ ...formData, coverUrl: compressedImage });
+      } catch (error) {
+        console.error("Image processing failed", error);
+        alert("Не вдалося обробити зображення");
+      } finally {
+        setIsProcessingImg(false);
+      }
+    }
+  };
+
+  const handleMagicSearch = async () => {
+    if (!formData.title) {
+        alert("Будь ласка, введіть назву для пошуку.");
+        return;
+    }
+    setIsMagicLoading(true);
+    try {
+        const url = await fetchBookCover(formData.title, formData.author || '');
+        if (url) {
+            setFormData({ ...formData, coverUrl: url });
+        } else {
+            alert("Обкладинку не знайдено.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Помилка пошуку");
+    } finally {
+        setIsMagicLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title || !formData.author) {
+      alert("Назва та автор є обов'язковими");
+      return;
+    }
+    
+    const newBook: Book = {
+      id: crypto.randomUUID(),
+      title: formData.title as string,
+      author: formData.author as string,
+      genre: '',
+      publisher: '',
+      seriesPart: '',
+      pagesTotal: 0,
+      pagesRead: 0,
+      isbn: '',
+      formats: ['Paper'],
+      status: 'Wishlist',
+      addedAt: new Date().toISOString(),
+      readingDates: [],
+      coverUrl: formData.coverUrl || '',
+      sessions: []
+    };
+    
+    onAdd(newBook);
+  };
+
+  return (
+    <div className="space-y-6 pb-24 text-gray-800 animate-in slide-in-from-right duration-300">
+      <div className="space-y-4">
+        <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
+            <ArrowLeft size={20} /> <span className="text-sm font-bold">Назад</span>
+        </button>
+
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl shadow-sm space-y-5 border border-gray-100">
+            <div className="flex justify-center mb-2 relative">
+                <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessingImg}
+                className="relative w-28 aspect-[2/3] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden hover:bg-gray-100 transition-colors disabled:opacity-50"
+                >
+                {isProcessingImg ? (
+                    <Loader2 className="animate-spin text-indigo-600" />
+                ) : formData.coverUrl ? (
+                    <img src={formData.coverUrl} className="w-full h-full object-cover" />
+                ) : (
+                    <>
+                    <ImageIcon className="text-gray-300 mb-2" size={28} />
+                    <span className="text-[9px] font-bold text-gray-400 uppercase">Обкладинка</span>
+                    </>
+                )}
+                </button>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+                
+                <button
+                    type="button"
+                    onClick={handleMagicSearch}
+                    disabled={isMagicLoading}
+                    className="absolute top-0 right-16 translate-x-full bg-white p-3 rounded-2xl text-indigo-600 shadow-lg border border-indigo-50 active:scale-95 transition-all disabled:opacity-50"
+                    title="Знайти обкладинку"
+                >
+                    {isMagicLoading ? <Loader2 className="animate-spin" size={20} /> : <Wand2 size={20} />}
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Назва</label>
+                    <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+                </div>
+                
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Автор</label>
+                    <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">URL Обкладинки</label>
+                    <div className="relative">
+                        <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+                        <input 
+                            placeholder="https://example.com/image.jpg" 
+                            className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
+                            value={formData.coverUrl || ''} 
+                            onChange={e => setFormData({...formData, coverUrl: e.target.value})} 
+                        />
+                    </div>
+                </div>
+
+                <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 mt-2 active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <Save size={18} /> Зберегти бажанку
+                </button>
+            </div>
+        </form>
+      </div>
+    </div>
+  );
+};

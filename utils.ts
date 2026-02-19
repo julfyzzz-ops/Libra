@@ -1,5 +1,5 @@
 
-import { Book, BookFormat, BookStatus, AccentColor, BackgroundTone } from '../src/types';
+import { Book, BookFormat, BookStatus, AccentColor, BackgroundTone } from './types';
 
 export const FORMAT_LABELS: Record<BookFormat, string> = {
   'Paper': 'Паперова',
@@ -15,6 +15,11 @@ export const STATUS_LABELS: Record<BookStatus, string> = {
   'Completed': 'Прочитано',
   'Unread': 'Не прочитано',
   'Wishlist': 'Бажанка'
+};
+
+// Helper to get the effective total pages (using reading specific total if set)
+export const getBookPageTotal = (book: Book) => {
+    return book.readingPagesTotal || book.pagesTotal || 0;
 };
 
 export const calculateProgress = (read?: number, total?: number) => {
@@ -55,8 +60,9 @@ export const calculateTotalReadingTime = (book: Book) => {
 
 export const getRemainingTimeText = (book: Book) => {
   const speed = calculateAverageSpeed(book); // pages per hour
-  if (speed === 0 || !book.pagesTotal) return "Невідомо";
-  const remainingPages = (book.pagesTotal || 0) - (book.pagesRead || 0);
+  const total = getBookPageTotal(book);
+  if (speed === 0 || !total) return "Невідомо";
+  const remainingPages = total - (book.pagesRead || 0);
   if (remainingPages <= 0) return "Завершено";
   
   const hoursDecimal = remainingPages / speed;

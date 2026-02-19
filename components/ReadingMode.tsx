@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Book, ReadingSessionData } from '../types';
-import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText } from 'lucide-react';
-import { calculateProgress, formatTime, getRemainingTimeText } from '../utils';
+import { Book, ReadingSessionData, BookFormat } from '../types';
+import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText, Smartphone, Headphones, Tablet } from 'lucide-react';
+import { calculateProgress, formatTime, getRemainingTimeText, getBookPageTotal, FORMAT_LABELS } from '../utils';
 
 interface ReadingModeProps {
   book: Book;
@@ -17,6 +17,8 @@ interface ReadingSessionState {
   startPage: number;
 }
 
+type SetupStep = 'none' | 'select-format' | 'confirm-pages';
+
 export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdateBook }) => {
   const [session, setSession] = useState<ReadingSessionState>({ isActive: false, isPaused: false, seconds: 0, startPage: book.pagesRead || 0 });
   const [numpadMode, setNumpadMode] = useState<'start' | 'stop' | null>(null);
@@ -25,11 +27,27 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
   const [showRatingDialog, setShowRatingDialog] = useState(false);
   const [tempRating, setTempRating] = useState<number>(10);
 
+  // Setup Wizard State
+  const [setupStep, setSetupStep] = useState<SetupStep>('none');
+  const [tempFormat, setTempFormat] = useState<BookFormat | null>(null);
+  const [tempPagesTotal, setTempPagesTotal] = useState<number>(book.pagesTotal || 0);
+
   // Lock scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  // Initial Check for Format Setup
+  useEffect(() => {
+     // Trigger setup if:
+     // 1. Book has multiple formats
+     // 2. No specific reading format selected yet
+     // 3. Book is not completed (optional, but logical)
+     if (book.formats.length > 1 && !book.selectedReadingFormat && book.status !== 'Completed') {
+         setSetupStep('select-format');
+     }
+  }, [book.formats, book.selectedReadingFormat, book.status]);
 
   // Timer logic
   useEffect(() => {
@@ -41,6 +59,27 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     }
     return () => clearInterval(interval);
   }, [session.isActive, session.isPaused]);
+
+  // --- Wizard Handlers ---
+
+  const handleFormatSelect = (format: BookFormat) => {
+      setTempFormat(format);
+      setTempPagesTotal(book.pagesTotal || 0); // Reset to default total
+      setSetupStep('confirm-pages');
+  };
+
+  const handlePagesConfirm = () => {
+      if (tempFormat && tempPagesTotal > 0) {
+          onUpdateBook({
+              ...book,
+              selectedReadingFormat: tempFormat,
+              readingPagesTotal: tempPagesTotal
+          });
+      }
+      setSetupStep('none');
+  };
+
+  // --- Reading Logic ---
 
   const handleStartRecordClick = () => {
     if (book.status === 'Completed') return;
@@ -78,7 +117,8 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
   };
 
   const confirmSession = (finalPage: number) => {
-    const isCompleted = book.pagesTotal && finalPage >= book.pagesTotal;
+    const total = getBookPageTotal(book);
+    const isCompleted = total > 0 && finalPage >= total;
     const pagesCount = Math.max(0, finalPage - session.startPage);
     const today = new Date().toISOString().split('T')[0];
     
@@ -119,16 +159,30 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     const updatedSessions = book.sessions.map(s => 
       s.id === sessionId ? { ...s, [field]: value } : s
     );
-    const totalPagesRead = updatedSessions.reduce((acc, s) => acc + Number(s.pages), 0);
-    const updatedBook = { ...book, sessions: updatedSessions, pagesRead: totalPagesRead };
+    const updatedBook = { ...book, sessions: updatedSessions };
     onUpdateBook(updatedBook);
   };
 
-  const deleteSession = (sessionId: string) => {
-    if (!confirm('Видалити цю сесію?')) return;
+  const deleteSession = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (!window.confirm('Видалити цю сесію?')) return;
+    
+    const sessionToDelete = book.sessions.find(s => s.id === sessionId);
     const updatedSessions = book.sessions.filter(s => s.id !== sessionId);
-    const totalPagesRead = updatedSessions.reduce((acc, s) => acc + Number(s.pages), 0);
-    const updatedBook = { ...book, sessions: updatedSessions, pagesRead: totalPagesRead };
+    
+    let newPagesRead = book.pagesRead || 0;
+    if (sessionToDelete) {
+        newPagesRead = Math.max(0, newPagesRead - (sessionToDelete.pages || 0));
+    }
+    
+    const total = getBookPageTotal(book);
+    const updatedBook = { ...book, sessions: updatedSessions, pagesRead: newPagesRead };
+    
+    if (book.status === 'Completed' && total > 0 && newPagesRead < total) {
+        updatedBook.status = 'Reading';
+        updatedBook.completedAt = undefined;
+    }
+
     onUpdateBook(updatedBook);
   };
 
@@ -137,7 +191,6 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
     setShowRatingDialog(false);
   };
 
-  // Helper component for Diary Cards
   const DiaryCardItem = ({ icon: Icon, label, value, colorClass }: any) => (
     <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 flex-1 min-w-0">
         <div className="flex items-center gap-1 mb-0.5">
@@ -147,6 +200,18 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
         <span className={`text-xs font-black truncate ${colorClass}`}>{value}</span>
     </div>
   );
+
+  const getFormatIcon = (format: BookFormat) => {
+      switch(format) {
+          case 'Paper': return <BookOpen size={24} />;
+          case 'E-book': return <Tablet size={24} />;
+          case 'Audio': return <Headphones size={24} />;
+          case 'Pirate': return <FileText size={24} />;
+          default: return <BookOpen size={24} />;
+      }
+  };
+
+  const effectiveTotal = getBookPageTotal(book);
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#323238] flex flex-col animate-in fade-in duration-300">
@@ -167,11 +232,17 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
                       ) : (
                           <div className="w-full h-full bg-gray-700 flex items-center justify-center text-gray-500"><BookOpen size={32} /></div>
                       )}
+                      {/* Format Badge */}
+                      {book.selectedReadingFormat && (
+                          <div className="absolute top-1 right-1 bg-black/60 backdrop-blur rounded p-1 text-white">
+                              {getFormatIcon(book.selectedReadingFormat)}
+                          </div>
+                      )}
                    </div>
                    
                    <div className="flex flex-col justify-center">
                        <div className="text-4xl font-bold text-white leading-none mb-2">
-                         {calculateProgress(book.pagesRead, book.pagesTotal)}%
+                         {calculateProgress(book.pagesRead, effectiveTotal)}%
                        </div>
                        <p className="text-xs font-medium text-gray-400 mb-3 max-w-[140px] leading-tight">
                            {getRemainingTimeText(book)}
@@ -181,7 +252,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
                        <div className="w-32 h-1.5 bg-gray-600 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-indigo-500 rounded-full transition-all duration-300" 
-                            style={{ width: `${calculateProgress(book.pagesRead, book.pagesTotal)}%` }} 
+                            style={{ width: `${calculateProgress(book.pagesRead, effectiveTotal)}%` }} 
                           />
                        </div>
                    </div>
@@ -196,7 +267,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
                   disabled={book.status === 'Completed'}
                   className={`w-20 h-20 rounded-full border-[4px] border-white/10 flex items-center justify-center shadow-xl active:scale-95 transition-all ${book.status === 'Completed' ? 'bg-gray-500 opacity-50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500'}`}
                 >
-                    {book.status === 'Completed' ? <CheckCircle2 size={28} className="text-white" /> : <div className="w-6 h-6 bg-white rounded-sm" />} 
+                    {book.status === 'Completed' ? <CheckCircle2 size={28} className="text-white" /> : <div className="w-6 h-6 bg-white rounded-full" />} 
                 </button>
               ) : (
                 <div className="flex items-center gap-4 bg-black/30 p-2 rounded-[2.5rem] backdrop-blur-md border border-white/5">
@@ -284,13 +355,13 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
                               {/* Actions Column */}
                               <div className="flex flex-col gap-1 w-8 flex-shrink-0">
                                   <button 
-                                      onClick={() => setEditingSessionId(isEditing ? null : s.id)} 
+                                      onClick={(e) => { e.stopPropagation(); setEditingSessionId(isEditing ? null : s.id); }} 
                                       className={`flex-1 flex items-center justify-center rounded-lg transition-colors ${isEditing ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:text-indigo-600'}`}
                                   >
                                       {isEditing ? <Save size={14} /> : <Edit3 size={14} />}
                                   </button>
                                   <button 
-                                      onClick={() => deleteSession(s.id)} 
+                                      onClick={(e) => deleteSession(e, s.id)} 
                                       className="flex-1 flex items-center justify-center bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                                   >
                                       <Trash2 size={14} />
@@ -307,6 +378,60 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose, onUpdat
               )}
           </div>
        </div>
+
+       {/* SETUP WIZARD (Format Selection) */}
+       {setupStep === 'select-format' && (
+           <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+               <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+                   <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">Формат читання</h3>
+                   <p className="text-gray-500 text-sm mb-6 text-center">Оберіть, в якому форматі ви будете читати цю книгу зараз.</p>
+                   
+                   <div className="space-y-3">
+                       {book.formats.map(f => (
+                           <button 
+                             key={f}
+                             onClick={() => handleFormatSelect(f)}
+                             className="w-full p-4 bg-gray-50 hover:bg-indigo-50 active:bg-indigo-100 rounded-2xl flex items-center gap-4 transition-all border border-gray-100 hover:border-indigo-200"
+                           >
+                               <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm">
+                                   {getFormatIcon(f)}
+                               </div>
+                               <span className="font-bold text-gray-700">{FORMAT_LABELS[f]}</span>
+                           </button>
+                       ))}
+                   </div>
+               </div>
+           </div>
+       )}
+
+       {/* SETUP WIZARD (Page Count) */}
+       {setupStep === 'confirm-pages' && (
+           <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+               <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+                   <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">Кількість сторінок</h3>
+                   <p className="text-gray-500 text-sm mb-6 text-center">
+                       Скільки сторінок у форматі <span className="text-indigo-600 font-bold">{tempFormat && FORMAT_LABELS[tempFormat]}</span>?
+                   </p>
+                   
+                   <div className="mb-6">
+                       <input 
+                         type="number" 
+                         className="w-full text-center text-4xl font-black text-gray-800 bg-gray-50 border-2 border-gray-100 rounded-2xl py-4 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                         value={tempPagesTotal}
+                         onChange={(e) => setTempPagesTotal(parseInt(e.target.value) || 0)}
+                       />
+                       <p className="text-center text-xs text-gray-400 mt-2">За замовчуванням: {book.pagesTotal}</p>
+                   </div>
+
+                   <button 
+                     onClick={handlePagesConfirm}
+                     className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 active:scale-95 transition-all"
+                   >
+                       Зберегти
+                   </button>
+               </div>
+           </div>
+       )}
 
        {/* Numpad Dialog */}
        {numpadMode && (

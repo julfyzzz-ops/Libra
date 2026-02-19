@@ -100,7 +100,7 @@ const searchGoogleBooks = async (query: string): Promise<string | null> => {
     }
     return null;
   } catch (e) {
-    console.warn("Google Books search failed", e);
+    // console.warn("Google Books search failed", e);
     return null;
   }
 };
@@ -121,7 +121,7 @@ const searchOpenLibrary = async (title: string, author: string): Promise<string 
     }
     return null;
   } catch (e) {
-    console.warn("Open Library search failed", e);
+    // console.warn("Open Library search failed", e);
     return null;
   }
 };
@@ -144,35 +144,40 @@ const searchITunes = async (query: string): Promise<string | null> => {
     return null;
   } catch (e) {
     // iTunes often blocks CORS from localhost, so this might fail in development but work in production or with a proxy
-    console.warn("iTunes search failed", e);
+    // console.warn("iTunes search failed", e);
     return null;
   }
 };
 
-export const fetchBookCover = async (title: string, author: string): Promise<string> => {
+export const fetchBookCover = async (title: string, author: string, isbn?: string): Promise<string> => {
   const cleanTitle = title.trim();
   const cleanAuthor = author === 'Невідомий автор' ? '' : author.trim();
-  const combinedQuery = `${cleanTitle} ${cleanAuthor}`.trim();
+  const cleanIsbn = isbn ? isbn.replace(/[^0-9X]/gi, '') : '';
+  
+  // 0. Try ISBN (Google Books) - Most Accurate
+  if (cleanIsbn) {
+      const cover = await searchGoogleBooks(`isbn:${cleanIsbn}`);
+      if (cover) return cover;
+  }
 
+  const combinedQuery = `${cleanTitle} ${cleanAuthor}`.trim();
   if (!combinedQuery) return '';
 
-  console.log(`Searching cover for: ${combinedQuery}`);
-
-  // 1. Try Google Books (Best general coverage)
+  // 1. Google Books (Title + Author)
   let cover = await searchGoogleBooks(combinedQuery);
   if (cover) return cover;
 
-  // 2. Try Open Library (Good for older books / English editions)
+  // 2. Open Library
   if (cleanTitle) {
       cover = await searchOpenLibrary(cleanTitle, cleanAuthor);
       if (cover) return cover;
   }
 
-  // 3. Try iTunes (Apple Books) (High quality images, good for new releases)
+  // 3. iTunes (Apple Books)
   cover = await searchITunes(combinedQuery);
   if (cover) return cover;
   
-  // 4. Fallback: Try Google Books again but just with Title (fuzzy search if author mismatch caused fail)
+  // 4. Fallback: Google Books (Title only)
   if (cleanAuthor) {
       cover = await searchGoogleBooks(cleanTitle);
       if (cover) return cover;
@@ -319,15 +324,17 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
                 if (!book.author) book.author = "Невідомий автор";
                 
                 // --- MAGIC: Multi-API Cover Search ---
-                // If we don't have a cover from the CSV, try to find one using our improved function
-                if (!book.coverUrl) {
+                // If we don't have a cover from the CSV, try to find one
+                if (!book.coverUrl || !book.coverUrl.trim()) {
                     try {
-                        const foundCover = await fetchBookCover(book.title as string, book.author as string);
+                        // Pass ISBN if available for better accuracy
+                        const foundCover = await fetchBookCover(book.title as string, book.author as string, book.isbn);
                         if (foundCover) {
                             book.coverUrl = foundCover;
                         }
                     } catch (e) {
                         // Ignore errors to keep import running
+                        console.warn(`Could not fetch cover for ${book.title}`, e);
                     }
                 }
                 

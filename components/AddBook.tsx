@@ -1,11 +1,12 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2, Wand2, Link } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../types';
 import { processImage, fetchBookCover } from '../services/storageService';
 
 interface AddBookProps {
   onAdd: (book: Book) => void;
+  existingBooks: Book[];
 }
 
 const FormatToggle: React.FC<{ 
@@ -25,16 +26,20 @@ const FormatToggle: React.FC<{
   </div>
 );
 
-export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
+export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
+  
+  // Publisher Autocomplete State
+  const [showPubSuggestions, setShowPubSuggestions] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
     author: '',
     genre: '',
     publisher: '',
+    series: '',
     seriesPart: '',
     pagesTotal: 0,
     isbn: '',
@@ -42,6 +47,22 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
     status: 'Unread',
     coverUrl: ''
   });
+
+  // Extract unique publishers
+  const uniquePublishers = useMemo(() => {
+    const pubs = new Set<string>();
+    existingBooks.forEach(b => {
+      if (b.publisher && b.publisher.trim()) pubs.add(b.publisher.trim());
+    });
+    return Array.from(pubs).sort();
+  }, [existingBooks]);
+
+  const filteredPublishers = useMemo(() => {
+    if (!formData.publisher) return uniquePublishers;
+    return uniquePublishers.filter(p => 
+      p.toLowerCase().includes((formData.publisher || '').toLowerCase())
+    );
+  }, [uniquePublishers, formData.publisher]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,6 +125,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
       author: formData.author as string,
       genre: formData.genre as string,
       publisher: formData.publisher as string,
+      series: formData.series as string,
       seriesPart: formData.seriesPart as string,
       pagesTotal: Number(formData.pagesTotal) || 0,
       pagesRead: 0,
@@ -117,7 +139,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
     };
     
     onAdd(newBook);
-    setFormData({ title: '', author: '', genre: '', publisher: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '' });
+    setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '' });
   };
 
   return (
@@ -184,18 +206,52 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
            </div>
 
            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+              <div className="space-y-1 relative">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Видавництво</label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
-                  <input placeholder="Видавець" className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.publisher} onChange={e => setFormData({...formData, publisher: e.target.value})} />
+                  <input 
+                    placeholder="Видавець" 
+                    className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none focus:ring-1 focus:ring-indigo-500" 
+                    value={formData.publisher} 
+                    onChange={e => {
+                        setFormData({...formData, publisher: e.target.value});
+                        setShowPubSuggestions(true);
+                    }}
+                    onFocus={() => setShowPubSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowPubSuggestions(false), 200)}
+                  />
+                  
+                  {/* Suggestions Dropdown */}
+                  {showPubSuggestions && filteredPublishers.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto">
+                          {filteredPublishers.map((pub, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                    setFormData({...formData, publisher: pub});
+                                    setShowPubSuggestions(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                              >
+                                {pub}
+                              </button>
+                          ))}
+                      </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Серія / Частина</label>
-                <div className="relative">
-                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
-                  <input placeholder="Напр. Том 1" className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.seriesPart} onChange={e => setFormData({...formData, seriesPart: e.target.value})} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Серія / Номер</label>
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+                        <input placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => setFormData({...formData, series: e.target.value})} />
+                    </div>
+                    <div className="w-16">
+                        <input placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => setFormData({...formData, seriesPart: e.target.value})} />
+                    </div>
                 </div>
               </div>
            </div>
@@ -226,7 +282,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd }) => {
                 <option value="Unread">Не прочитано</option>
                 <option value="Reading">Читаю</option>
                 <option value="Completed">Прочитано</option>
-                <option value="Wishlist">Бажанка</option>
+                {/* Wishlist option removed */}
               </select>
            </div>
 

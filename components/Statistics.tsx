@@ -74,7 +74,7 @@ export const Statistics: React.FC<StatisticsProps> = ({ books }) => {
       case 'Audio': return <Headphones size={20} className="text-amber-500" />;
       case 'Pirate': return <Ghost size={20} className="text-gray-500" />;
       case 'Expected': return <Clock size={20} className="text-blue-400" />;
-      case 'Sold': return <ShoppingCart size={20} className="text-emerald-500" />;
+      case 'Sold': return <ShoppingCart size={20} className="text-red-500" />;
     }
   };
 
