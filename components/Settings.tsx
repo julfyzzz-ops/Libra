@@ -1,14 +1,18 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet, Loader2, Palette } from 'lucide-react';
-import { loadLibrary, importLibraryFromJSON, importLibraryFromCSV, loadSettings, saveSettings } from '../services/storageService';
+import { loadLibrary, loadSettings, saveSettings, exportLibraryToJSON } from '../services/storageService';
+import { importLibraryFromJSON, importLibraryFromCSV } from '../services/importers';
 import { ACCENT_COLORS, BACKGROUND_TONES, applyTheme } from '../utils';
 import { AccentColor, BackgroundTone, AppSettings } from '../types';
+import { useUI } from '../contexts/UIContext';
 
 export const Settings: React.FC = () => {
+  const { toast, confirm } = useUI();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool' });
 
   useEffect(() => {
@@ -30,26 +34,27 @@ export const Settings: React.FC = () => {
   };
 
   const handleExport = async () => {
+    setIsExporting(true);
     try {
-      const data = await loadLibrary();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const timestamp = new Date().toISOString().split('T')[0];
-      link.href = url;
-      link.download = `libra_library_${timestamp}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await exportLibraryToJSON();
+      toast.show("Експорт успішний", "success");
     } catch (error) {
       console.error('Failed to export library:', error);
-      alert('Помилка при експорті даних.');
+      toast.show("Помилка при експорті", "error");
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const handleImportClick = () => {
-    if (confirm("Увага! Імпорт JSON повністю замінить вашу поточну бібліотеку. Продовжити?")) {
+  const handleImportClick = async () => {
+    const isConfirmed = await confirm({
+        title: "Замінити бібліотеку?",
+        message: "Імпорт JSON повністю замінить вашу поточну бібліотеку. Цю дію неможливо скасувати.",
+        confirmText: "Замінити",
+        type: "danger"
+    });
+
+    if (isConfirmed) {
       fileInputRef.current?.click();
     }
   };
@@ -64,10 +69,10 @@ export const Settings: React.FC = () => {
 
     try {
       await importLibraryFromJSON(file);
-      alert("Бібліотека успішно відновлена з резервної копії!");
-      window.location.reload();
+      toast.show("Бібліотеку відновлено!", "success");
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
-      alert("Не вдалося прочитати файл. Переконайтеся, що це коректний JSON файл Libra.");
+      toast.show("Невірний формат файлу", "error");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -80,11 +85,11 @@ export const Settings: React.FC = () => {
     setIsImporting(true);
     try {
       const count = await importLibraryFromCSV(file);
-      alert(`Успішно імпортовано ${count} книг! Обкладинки знайдено через Google Books.`);
-      window.location.reload();
+      toast.show(`Імпортовано ${count} книг`, "success");
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error: any) {
       console.error(error);
-      alert(error.message || "Помилка імпорту CSV. Перевірте формат файлу (потрібні колонки: Назва, Автор).");
+      toast.show("Помилка імпорту CSV", "error");
     } finally {
       setIsImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = '';
@@ -146,16 +151,16 @@ export const Settings: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
             <button 
               onClick={handleExport}
-              disabled={isImporting}
+              disabled={isImporting || isExporting}
               className="bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
             >
-              <Download size={24} />
-              <span className="text-xs">Експорт (JSON)</span>
+              {isExporting ? <Loader2 className="animate-spin" size={24} /> : <Download size={24} />}
+              <span className="text-xs">{isExporting ? 'Експорт...' : 'Експорт (JSON)'}</span>
             </button>
 
             <button 
               onClick={handleImportClick}
-              disabled={isImporting}
+              disabled={isImporting || isExporting}
               className="bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100 disabled:opacity-50"
             >
               <Upload size={24} />
@@ -164,7 +169,7 @@ export const Settings: React.FC = () => {
 
             <button 
               onClick={handleCsvImportClick}
-              disabled={isImporting}
+              disabled={isImporting || isExporting}
               className="col-span-2 bg-emerald-50 text-emerald-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
             >
               {isImporting ? <Loader2 className="animate-spin" size={24} /> : <FileSpreadsheet size={24} />}

@@ -2,7 +2,8 @@
 import React, { useState, useRef } from 'react';
 import { Image as ImageIcon, Save, Loader2, Wand2, Link, ArrowLeft } from 'lucide-react';
 import { Book } from '../types';
-import { processImage, fetchBookCover } from '../services/storageService';
+import { processImage } from '../services/imageUtils';
+import { fetchBookCover } from '../services/api';
 
 interface AddWishlistProps {
   onAdd: (book: Book) => void;
@@ -17,7 +18,8 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
     author: '',
-    coverUrl: ''
+    coverUrl: '',
+    coverBlob: undefined
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,8 +27,9 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
     if (file) {
       setIsProcessingImg(true);
       try {
-        const compressedImage = await processImage(file);
-        setFormData({ ...formData, coverUrl: compressedImage });
+        const compressedBlob = await processImage(file);
+        const previewUrl = URL.createObjectURL(compressedBlob);
+        setFormData({ ...formData, coverBlob: compressedBlob, coverUrl: previewUrl });
       } catch (error) {
         console.error("Image processing failed", error);
         alert("Не вдалося обробити зображення");
@@ -45,7 +48,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
     try {
         const url = await fetchBookCover(formData.title, formData.author || '');
         if (url) {
-            setFormData({ ...formData, coverUrl: url });
+            setFormData({ ...formData, coverUrl: url, coverBlob: undefined });
         } else {
             alert("Обкладинку не знайдено.");
         }
@@ -77,8 +80,8 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
       formats: ['Paper'],
       status: 'Wishlist',
       addedAt: new Date().toISOString(),
-      readingDates: [],
       coverUrl: formData.coverUrl || '',
+      coverBlob: formData.coverBlob,
       sessions: []
     };
     
@@ -143,7 +146,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
                             placeholder="https://example.com/image.jpg" 
                             className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
                             value={formData.coverUrl || ''} 
-                            onChange={e => setFormData({...formData, coverUrl: e.target.value})} 
+                            onChange={e => setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined})} 
                         />
                     </div>
                 </div>

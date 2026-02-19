@@ -1,61 +1,86 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Book, BookFormat, BookStatus, SortKey, SortDirection } from '../types';
-import { Search, BookOpen, Headphones, Tablet, Clock, ShoppingCart, Ghost, CheckCircle2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Lock, Unlock, Plus } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Book } from '../types';
+import { BookOpen, Lock, Unlock, Loader2 } from 'lucide-react';
 import { Wishlist } from './Wishlist';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
-import { FORMAT_LABELS, STATUS_LABELS, getRatingColor, calculateProgress, getBookPageTotal } from '../utils';
 import { loadSortPrefs, saveSortPrefs } from '../services/storageService';
+import { useLibrary } from '../contexts/LibraryContext';
+import { useBookFilter } from '../hooks/useBookFilter';
+import { useBookSort } from '../hooks/useBookSort';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { LibraryControls } from './LibraryControls';
+import { BookCard } from './BookCard';
 
 interface LibraryProps {
-  books: Book[];
-  onUpdateBook: (book: Book) => void;
-  onDeleteBook: (id: string) => void;
-  onReorderBooks?: (books: Book[]) => void;
-  onUpdateStatus: (id: string, status: 'Reading' | 'Completed', formats?: BookFormat[]) => void;
   onAddClick: () => void;
-  onAddBook: (book: Book) => void;
-  initialSearch?: string;
-  onFilterByTag?: (tag: string) => void;
 }
 
-export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteBook, onReorderBooks, onUpdateStatus, onAddClick, onAddBook, initialSearch, onFilterByTag }) => {
-  const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
-  const [search, setSearch] = useState(initialSearch || '');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [showSort, setShowSort] = useState(false);
+export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
+  const { books, reorderBooks, filterTag, setFilterTag } = useLibrary();
   
-  // Sorting State - Load from storage
-  const [sortKey, setSortKey] = useState<SortKey>(() => loadSortPrefs().key);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(() => loadSortPrefs().direction);
+  const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
+  
+  // Isolate Library Books (No Wishlist)
+  const libraryBooks = useMemo(() => books.filter(b => b.status !== 'Wishlist'), [books]);
 
-  // Filter State
-  const [selectedFormats, setSelectedFormats] = useState<BookFormat[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<BookStatus[]>(['Reading', 'Unread', 'Completed']);
+  // --- Custom Hooks ---
+  const { 
+    filteredBooks, 
+    search, 
+    setSearch, 
+    selectedStatuses, 
+    selectedFormats,
+    toggleStatusFilter, 
+    toggleFormatFilter, 
+    clearFilters: resetFilters 
+  } = useBookFilter(libraryBooks, ['Reading', 'Unread', 'Completed'], []);
+
+  const { 
+    sortedBooks, 
+    sortKey, 
+    sortDirection, 
+    toggleSort 
+  } = useBookSort(filteredBooks, loadSortPrefs().key, loadSortPrefs().direction);
+
+  // Infinite Scroll Hook
+  const { visibleItems: visibleBooks, observerTarget, hasMore } = useInfiniteScroll(sortedBooks, 20);
   
   const [isSortLocked, setIsSortLocked] = useState(true);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
+  // Sync with Global Filter (e.g. clicking a tag in BookDetails)
+  useEffect(() => {
+    if (filterTag !== search) {
+        setSearch(filterTag);
+    }
+  }, [filterTag]);
+
   // Persist sort changes
   useEffect(() => {
     saveSortPrefs(sortKey, sortDirection);
   }, [sortKey, sortDirection]);
 
-  // Sync initial search if provided
-  useEffect(() => {
-      if (initialSearch !== undefined) {
-          setSearch(initialSearch);
-          if (initialSearch) {
-              setActiveTab('library');
-          }
-      }
-  }, [initialSearch]);
+  // Wrappers
+  const handleSearchUpdate = (term: string) => {
+    setSearch(term);
+    if (term === '') setFilterTag('');
+  };
 
-  // Unified search suggestions logic
+  const handleClearFilters = () => {
+    resetFilters();
+    setFilterTag('');
+  };
+
+  const toggleSortWrapper = (key: any) => {
+     if (key === 'custom') setIsSortLocked(false);
+     toggleSort(key);
+  };
+
+  // Search suggestions logic
   const suggestions = useMemo(() => {
     if (search.length < 2) return [];
     const lowerSearch = search.toLowerCase();
@@ -71,135 +96,29 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
     return Array.from(set).slice(0, 5);
   }, [search, books]);
 
-  const toggleSort = (key: SortKey) => {
-    if (key === 'custom') {
-      setSortKey('custom');
-      setIsSortLocked(false); // Auto unlock for custom
-      return;
-    }
-    
-    if (sortKey === key) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
-
-  const filteredBooks = useMemo(() => {
-    const result = books.filter(b => {
-      const matchStatus = selectedStatuses.includes(b.status);
-      const matchFormat = selectedFormats.length === 0 || b.formats.some(f => selectedFormats.includes(f));
-      const s = search.toLowerCase();
-      const matchSearch = 
-        b.title.toLowerCase().includes(s) || 
-        b.author.toLowerCase().includes(s) || 
-        (b.publisher?.toLowerCase().includes(s)) || 
-        (b.genre?.toLowerCase().includes(s)) ||
-        (b.series?.toLowerCase().includes(s)) ||
-        (b.seriesPart?.toLowerCase().includes(s));
+  // --- Drag and Drop Logic ---
+  // Note: Polyfill handles touch events, so we use standard onDrag* events
+  const handleReorderDrop = (targetIndex: number) => {
+      if (draggedItemIndex === null) return;
       
-      return matchStatus && matchFormat && matchSearch;
-    });
-
-    if (sortKey === 'custom') {
-        return result; // Return as is (assuming books are stored in custom order)
-    }
-
-    return result.sort((a, b) => {
-      let valA: string | number = '';
-      let valB: string | number = '';
-
-      switch (sortKey) {
-        case 'title':
-          valA = a.title.toLowerCase();
-          valB = b.title.toLowerCase();
-          break;
-        case 'author':
-          valA = a.author.toLowerCase();
-          valB = b.author.toLowerCase();
-          break;
-        case 'addedAt':
-          valA = new Date(a.addedAt).getTime();
-          valB = new Date(b.addedAt).getTime();
-          break;
+      const draggedBook = sortedBooks[draggedItemIndex];
+      const targetBook = sortedBooks[targetIndex];
+      
+      if (draggedBook && targetBook && draggedBook.id !== targetBook.id) {
+          const newGlobal = [...books];
+          const fromIdx = newGlobal.findIndex(b => b.id === draggedBook.id);
+          const toIdx = newGlobal.findIndex(b => b.id === targetBook.id);
+          
+          if (fromIdx !== -1 && toIdx !== -1) {
+              const [removed] = newGlobal.splice(fromIdx, 1);
+              newGlobal.splice(toIdx, 0, removed);
+              reorderBooks(newGlobal);
+          }
       }
-
-      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [books, search, selectedFormats, selectedStatuses, sortKey, sortDirection]);
-
-  const toggleFormatFilter = (format: BookFormat) => {
-    setSelectedFormats(prev => 
-      prev.includes(format) ? prev.filter(f => f !== format) : [...prev, format]
-    );
+      setDraggedItemIndex(null);
   };
 
-  const toggleStatusFilter = (status: BookStatus) => {
-    setSelectedStatuses(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedFormats([]);
-    setSelectedStatuses(['Reading', 'Unread', 'Completed']);
-    setSearch('');
-    // Optionally clear parent filter via callback if needed, but local clear is fine
-  };
-
-  const FormatIcon = ({ format }: { format: BookFormat }) => {
-    switch (format) {
-      case 'Paper': return <BookOpen size={14} />;
-      case 'Audio': return <Headphones size={14} />;
-      case 'E-book': return <Tablet size={14} />;
-      case 'Pirate': return <Ghost size={14} />;
-      case 'Expected': return <Clock size={14} />;
-      case 'Sold': return <ShoppingCart size={14} />;
-    }
-  };
-
-  // --- Touch Logic for Mobile Sorting ---
-  const touchItem = useRef<number | null>(null);
-
-  const handleTouchStart = (idx: number) => {
-    if (isSortLocked || sortKey !== 'custom') return;
-    touchItem.current = idx;
-    setDraggedItemIndex(idx);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-     if (isSortLocked || sortKey !== 'custom' || touchItem.current === null) return;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (isSortLocked || sortKey !== 'custom' || touchItem.current === null) {
-        setDraggedItemIndex(null);
-        return;
-    }
-
-    const changedTouch = e.changedTouches[0];
-    const element = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-    const targetRow = element?.closest('[data-book-index]');
-    
-    if (targetRow) {
-        const targetIndex = parseInt(targetRow.getAttribute('data-book-index') || '-1');
-        if (targetIndex !== -1 && targetIndex !== touchItem.current) {
-             const newBooks = [...books];
-             if (search === '') {
-                 const dragged = newBooks[touchItem.current];
-                 newBooks.splice(touchItem.current, 1);
-                 newBooks.splice(targetIndex, 0, dragged);
-                 onReorderBooks?.(newBooks);
-             }
-        }
-    }
-    
-    touchItem.current = null;
-    setDraggedItemIndex(null);
-  };
+  const canDrag = !isSortLocked && sortKey === 'custom' && search === '';
 
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800">
@@ -230,214 +149,61 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
 
       {activeTab === 'library' ? (
         <>
-          <div className="space-y-3">
-            {/* Search Bar & Controls */}
-            <div className="flex gap-2">
-                {/* Add Button */}
-                <button 
-                  onClick={onAddClick}
-                  className="w-12 h-12 flex-shrink-0 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
-                >
-                    <Plus size={24} />
-                </button>
-
-                <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                    type="text"
-                    placeholder="Пошук..."
-                    className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
-                    value={search}
-                    onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 glass-morphism rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    {suggestions.map((s, i) => (
-                        <button 
-                        key={i} 
-                        onClick={() => { setSearch(s); setShowSuggestions(false); }}
-                        className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 suggestion-item transition-colors border-b border-gray-100 last:border-none"
-                        >
-                        {s}
-                        </button>
-                    ))}
-                    </div>
-                )}
-                </div>
-                <button 
-                    onClick={() => { setShowSort(!showSort); setShowFilters(false); }}
-                    className={`px-3 rounded-2xl flex items-center gap-2 transition-all ${showSort ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
-                >
-                    <ArrowUpDown size={18} />
-                </button>
-                <button 
-                    onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}
-                    className={`px-3 rounded-2xl flex items-center gap-2 transition-all ${showFilters || selectedFormats.length > 0 || selectedStatuses.length < 3 ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
-                >
-                    <Filter size={18} />
-                </button>
-            </div>
-
-            {/* Sorting Panel */}
-            {showSort && (
-                <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 animate-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Сортувати за</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { key: 'title', label: 'Назва' },
-                        { key: 'author', label: 'Автор' },
-                        { key: 'addedAt', label: 'Дата' },
-                        { key: 'custom', label: 'Свій порядок' }
-                      ].map((opt) => (
-                        <button
-                          key={opt.key}
-                          onClick={() => toggleSort(opt.key as SortKey)}
-                          className={`flex items-center justify-center gap-1 py-3 rounded-xl text-xs font-bold transition-all ${
-                            sortKey === opt.key 
-                              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
-                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                          }`}
-                        >
-                          {opt.label}
-                          {sortKey === opt.key && sortKey !== 'custom' && (
-                            sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-            )}
-
-            {/* Filters Panel */}
-            {showFilters && (
-                <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
-                    <div className="space-y-2">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
-                        <div className="flex flex-wrap gap-2">
-                            {['Reading', 'Unread', 'Completed'].map((s) => (
-                                <button
-                                    key={s}
-                                    onClick={() => toggleStatusFilter(s as BookStatus)}
-                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedStatuses.includes(s as BookStatus) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                                >
-                                    {STATUS_LABELS[s as BookStatus]}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
-                        <div className="flex flex-wrap gap-2">
-                            {Object.keys(FORMAT_LABELS).map((f) => (
-                                <button
-                                    key={f}
-                                    onClick={() => toggleFormatFilter(f as BookFormat)}
-                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                                >
-                                    {FORMAT_LABELS[f as BookFormat]}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    
-                    {(selectedFormats.length > 0 || selectedStatuses.length !== 3 || search) && (
-                       <button 
-                         onClick={clearFilters}
-                         className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
-                       >
-                         <RotateCcw size={14} /> Очистити фільтри
-                       </button>
-                    )}
-                </div>
-            )}
-          </div>
+          <LibraryControls 
+            search={search}
+            onSearchChange={handleSearchUpdate}
+            suggestions={suggestions}
+            onAddClick={onAddClick}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onToggleSort={toggleSortWrapper}
+            selectedStatuses={selectedStatuses}
+            selectedFormats={selectedFormats}
+            onToggleStatus={toggleStatusFilter}
+            onToggleFormat={toggleFormatFilter}
+            onClearFilters={handleClearFilters}
+          />
 
           <div className="space-y-3">
-            {filteredBooks.map((book, idx) => (
-              <div 
+            {visibleBooks.map((book, idx) => (
+              <BookCard
                 key={book.id}
-                data-book-index={idx}
-                draggable={!isSortLocked && sortKey === 'custom' && search === ''}
-                onDragStart={(e) => {
-                  if (isSortLocked || sortKey !== 'custom') return;
-                  setDraggedItemIndex(idx);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (isSortLocked || sortKey !== 'custom' || draggedItemIndex === null || draggedItemIndex === idx) return;
-                  const newBooks = [...books];
-                  const draggedItem = newBooks[draggedItemIndex];
-                  newBooks.splice(draggedItemIndex, 1);
-                  newBooks.splice(idx, 0, draggedItem);
-                  onReorderBooks?.(newBooks);
-                  setDraggedItemIndex(idx);
-                }}
+                book={book}
+                index={idx}
+                isDraggable={canDrag}
+                isDragged={draggedItemIndex === idx}
+                onClick={setSelectedBook}
+                onDragStart={(e) => { setDraggedItemIndex(idx); e.dataTransfer.effectAllowed = 'move'; }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                onDrop={(e) => { e.preventDefault(); handleReorderDrop(idx); }}
                 onDragEnd={() => setDraggedItemIndex(null)}
-                onTouchStart={() => handleTouchStart(idx)}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onClick={() => setSelectedBook(book)}
-                className={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-center active:scale-95 transition-all cursor-pointer select-none ${draggedItemIndex === idx ? 'opacity-50 scale-95 ring-2 ring-indigo-500' : ''}`}
-              >
-                <div className="w-12 h-16 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
-                  {book.coverUrl ? (
-                    <img src={book.coverUrl} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                      <BookOpen size={20} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-800 text-sm truncate">{book.title}</h3>
-                  <p className="text-[10px] text-gray-500 truncate">{book.author}</p>
-                  <div className="flex gap-2 mt-1.5">
-                    {book.formats.map(f => (
-                       <span key={f} className={f === 'Sold' ? "text-red-500" : "text-gray-400"}>{FormatIcon({format: f})}</span>
-                    ))}
-                    {(book.rating || 0) > 0 && (
-                        <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 bg-gray-50 rounded text-gray-600">★ {book.rating}</span>
-                    )}
-                  </div>
-                </div>
-                <div className={`w-2 h-2 rounded-full ${book.status === 'Completed' ? 'bg-emerald-500' : book.status === 'Reading' ? 'bg-indigo-600' : 'bg-gray-200'}`} />
-              </div>
+              />
             ))}
             
-            {filteredBooks.length === 0 && (
+            {sortedBooks.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-gray-300">
                 <BookOpen size={48} className="mb-2 opacity-20" />
                 <p className="text-sm">Книг не знайдено</p>
               </div>
             )}
+
+            {/* Infinite Scroll Sentinel */}
+            {hasMore && (
+              <div ref={observerTarget} className="flex justify-center py-4">
+                <Loader2 className="animate-spin text-gray-300" size={20} />
+              </div>
+            )}
           </div>
         </>
       ) : (
-        <Wishlist 
-          books={books} 
-          onUpdateStatus={onUpdateStatus} 
-          onDelete={onDeleteBook}
-          onReorderBooks={onReorderBooks}
-          isSortLocked={isSortLocked}
-          onAddBook={onAddBook}
-          onFilterByTag={onFilterByTag}
-        />
+        <Wishlist isSortLocked={isSortLocked} />
       )}
 
       {selectedBook && !readingModeOpen && (
         <BookDetails 
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
-          onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
-          onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
           onOpenReadingMode={() => setReadingModeOpen(true)}
-          existingBooks={books}
-          onFilterByTag={onFilterByTag}
         />
       )}
 
@@ -445,12 +211,8 @@ export const Library: React.FC<LibraryProps> = ({ books, onUpdateBook, onDeleteB
         <ReadingMode 
           book={selectedBook}
           onClose={() => setReadingModeOpen(false)}
-          onUpdateBook={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
         />
       )}
-      
-      {/* Hack to support Wishlist updates via closure if needed, though onUpdateBook passed above solves it */}
-      <div className="hidden" ref={el => { if(el) (window as any).tempUpdateBook = onUpdateBook; }}></div>
     </div>
   );
 };

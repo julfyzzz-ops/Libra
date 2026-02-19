@@ -2,11 +2,14 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2, Wand2, Link } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../types';
-import { processImage, fetchBookCover } from '../services/storageService';
+import { processImage } from '../services/imageUtils';
+import { fetchBookCover } from '../services/api';
+import { useLibrary } from '../contexts/LibraryContext';
+import { useUI } from '../contexts/UIContext';
+import { Skeleton } from './ui/Skeleton';
 
 interface AddBookProps {
-  onAdd: (book: Book) => void;
-  existingBooks: Book[];
+  onAddSuccess: () => void;
 }
 
 const FormatToggle: React.FC<{ 
@@ -26,7 +29,10 @@ const FormatToggle: React.FC<{
   </div>
 );
 
-export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
+export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
+  const { addBook, books } = useLibrary();
+  const { toast } = useUI();
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
@@ -45,17 +51,17 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
     isbn: '',
     formats: ['Paper'],
     status: 'Unread',
-    coverUrl: ''
+    coverUrl: '',
+    coverBlob: undefined
   });
 
-  // Extract unique publishers
   const uniquePublishers = useMemo(() => {
     const pubs = new Set<string>();
-    existingBooks.forEach(b => {
+    books.forEach(b => {
       if (b.publisher && b.publisher.trim()) pubs.add(b.publisher.trim());
     });
     return Array.from(pubs).sort();
-  }, [existingBooks]);
+  }, [books]);
 
   const filteredPublishers = useMemo(() => {
     if (!formData.publisher) return uniquePublishers;
@@ -69,11 +75,13 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
     if (file) {
       setIsProcessingImg(true);
       try {
-        const compressedImage = await processImage(file);
-        setFormData({ ...formData, coverUrl: compressedImage });
+        const compressedBlob = await processImage(file);
+        const previewUrl = URL.createObjectURL(compressedBlob);
+        setFormData({ ...formData, coverBlob: compressedBlob, coverUrl: previewUrl });
+        toast.show("Фото завантажено", "success");
       } catch (error) {
         console.error("Image processing failed", error);
-        alert("Не вдалося обробити зображення");
+        toast.show("Не вдалося обробити зображення", "error");
       } finally {
         setIsProcessingImg(false);
       }
@@ -82,20 +90,21 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
 
   const handleMagicSearch = async () => {
     if (!formData.title) {
-        alert("Будь ласка, введіть назву книги для пошуку.");
+        toast.show("Введіть назву книги для пошуку", "info");
         return;
     }
     setIsMagicLoading(true);
     try {
         const url = await fetchBookCover(formData.title, formData.author || '');
         if (url) {
-            setFormData({ ...formData, coverUrl: url });
+            setFormData({ ...formData, coverUrl: url, coverBlob: undefined });
+            toast.show("Обкладинку знайдено", "success");
         } else {
-            alert("Обкладинку не знайдено. Спробуйте уточнити назву або автора.");
+            toast.show("Обкладинку не знайдено", "info");
         }
     } catch (e) {
         console.error(e);
-        alert("Помилка пошуку");
+        toast.show("Помилка пошуку", "error");
     } finally {
         setIsMagicLoading(false);
     }
@@ -115,7 +124,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.author) {
-      alert("Назва та автор є обов'язковими");
+      toast.show("Назва та автор обов'язкові", "error");
       return;
     }
     
@@ -133,13 +142,18 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
       formats: (formData.formats || ['Paper']) as BookFormat[],
       status: formData.status as BookStatus,
       addedAt: new Date().toISOString(),
-      readingDates: formData.status === 'Reading' ? [new Date().toISOString().split('T')[0]] : [],
+      readingStartedAt: formData.status === 'Reading' ? new Date().toISOString() : undefined,
+      
       coverUrl: formData.coverUrl || '',
+      coverBlob: formData.coverBlob,
+      
       sessions: []
     };
     
-    onAdd(newBook);
-    setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '' });
+    addBook(newBook);
+    toast.show("Книгу додано", "success");
+    onAddSuccess();
+    setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined });
   };
 
   return (
@@ -154,11 +168,11 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
             <button 
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isProcessingImg}
+              disabled={isProcessingImg || isMagicLoading}
               className="relative w-28 aspect-[2/3] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
-              {isProcessingImg ? (
-                <Loader2 className="animate-spin text-indigo-600" />
+              {isProcessingImg || isMagicLoading ? (
+                 <Skeleton className="w-full h-full" />
               ) : formData.coverUrl ? (
                 <img src={formData.coverUrl} className="w-full h-full object-cover" />
               ) : (
@@ -173,7 +187,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
             <button
                 type="button"
                 onClick={handleMagicSearch}
-                disabled={isMagicLoading}
+                disabled={isMagicLoading || isProcessingImg}
                 className="absolute top-0 right-16 translate-x-full bg-white p-3 rounded-2xl text-indigo-600 shadow-lg border border-indigo-50 active:scale-95 transition-all disabled:opacity-50"
                 title="Знайти обкладинку"
             >
@@ -200,7 +214,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
                   placeholder="https://example.com/image.jpg" 
                   className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
                   value={formData.coverUrl || ''} 
-                  onChange={e => setFormData({...formData, coverUrl: e.target.value})} 
+                  onChange={e => setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined})} 
                />
              </div>
            </div>
@@ -222,7 +236,6 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
                     onBlur={() => setTimeout(() => setShowPubSuggestions(false), 200)}
                   />
                   
-                  {/* Suggestions Dropdown */}
                   {showPubSuggestions && filteredPublishers.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto">
                           {filteredPublishers.map((pub, idx) => (
@@ -250,7 +263,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
                         <input placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => setFormData({...formData, series: e.target.value})} />
                     </div>
                     <div className="w-16">
-                        <input placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => setFormData({...formData, seriesPart: e.target.value})} />
+                        <input inputMode="numeric" pattern="[0-9]*" placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => setFormData({...formData, seriesPart: e.target.value})} />
                     </div>
                 </div>
               </div>
@@ -263,7 +276,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Сторінки</label>
-                <input type="number" placeholder="0" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.pagesTotal || ''} onChange={e => setFormData({...formData, pagesTotal: parseInt(e.target.value) || 0})} />
+                <input inputMode="numeric" pattern="[0-9]*" type="number" placeholder="0" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.pagesTotal || ''} onChange={e => setFormData({...formData, pagesTotal: parseInt(e.target.value) || 0})} />
               </div>
            </div>
 
@@ -282,7 +295,6 @@ export const AddBook: React.FC<AddBookProps> = ({ onAdd, existingBooks }) => {
                 <option value="Unread">Не прочитано</option>
                 <option value="Reading">Читаю</option>
                 <option value="Completed">Прочитано</option>
-                {/* Wishlist option removed */}
               </select>
            </div>
 

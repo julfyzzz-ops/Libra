@@ -20,7 +20,10 @@ export interface Book {
   publisher?: string;
   series?: string; // Series Name (e.g. Harry Potter)
   seriesPart?: string; // Series Number (e.g. Vol 1)
-  coverUrl?: string;
+  
+  coverUrl?: string; // Used for UI display (blob:...) OR external links (https:...)
+  coverBlob?: Blob;  // Stored in IndexedDB for optimized local images
+  
   pagesTotal?: number;
   pagesRead?: number;
   rating?: number;
@@ -35,7 +38,7 @@ export interface Book {
   addedAt: string;
   readingStartedAt?: string;
   completedAt?: string;
-  readingDates: string[]; // Kept for backward compatibility, but sessions is preferred now
+  // readingDates removed in favor of sessions
   sessions: ReadingSessionData[]; // Detailed history
 }
 

@@ -1,24 +1,26 @@
 
 import React, { useMemo, useState } from 'react';
 import { Book } from '../types';
-import { ChevronLeft, ChevronRight, BookOpen, Calendar as CalendarIcon, Grid, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, Calendar as CalendarIcon, Grid, Clock, FileText, Loader2 } from 'lucide-react';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
-
-interface CalendarProps {
-  books: Book[];
-  onUpdateBook: (book: Book) => void;
-  onDeleteBook: (id: string) => void;
-  onFilterByTag?: (tag: string) => void;
-}
+import { useLibrary } from '../contexts/LibraryContext';
+import { formatTime } from '../utils';
+import { BookCover } from './ui/BookCover';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 type ViewMode = 'month' | 'year';
 
-export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDeleteBook, onFilterByTag }) => {
+export const Calendar: React.FC = () => {
+  const { books } = useLibrary();
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
+  
+  // Specific date selection within a month
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   // --- Swipe Logic ---
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -48,66 +50,37 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
     }
   };
 
-  // --- Helpers for Dates ---
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-  const adjustedFirstDay = (firstDayOfMonth + 6) % 7; // Adjust for Monday start (0 = Mon, 6 = Sun)
+  const adjustedFirstDay = (firstDayOfMonth + 6) % 7; 
 
   const monthName = currentDate.toLocaleString('uk-UA', { month: 'long' });
   const year = currentDate.getFullYear();
 
-  // --- Data Processing ---
-  
-  // Helper to check if a book was read in a specific YYYY-MM
   const isBookReadInMonth = (book: Book, yearStr: number, monthIndex: number) => {
      const prefix = `${yearStr}-${String(monthIndex + 1).padStart(2, '0')}`;
      const hasSession = book.sessions?.some(s => s.date.startsWith(prefix));
-     const hasLegacyDate = book.readingDates?.some(d => d.startsWith(prefix));
-     // Also check completedAt for static completed books without sessions
      const completedInMonth = book.completedAt && book.completedAt.startsWith(prefix);
-     
-     return hasSession || hasLegacyDate || completedInMonth;
+     return hasSession || completedInMonth;
   };
 
-  // 1. For Month View: Map specific dates to books
   const dailyReadingMap = useMemo(() => {
     const map: Record<string, Book[]> = {};
     const monthPrefix = `${year}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
     books.forEach(book => {
-      // Sessions
       book.sessions?.forEach(session => {
         if (session.date.startsWith(monthPrefix)) {
             if (!map[session.date]) map[session.date] = [];
             if (!map[session.date].some(b => b.id === book.id)) map[session.date].push(book);
         }
       });
-      // Legacy dates
-      book.readingDates?.forEach(dateStr => {
-        if (dateStr.startsWith(monthPrefix)) {
-            if (!map[dateStr]) map[dateStr] = [];
-            if (!map[dateStr].some(b => b.id === book.id)) map[dateStr].push(book);
-        }
-      });
     });
     return map;
   }, [books, currentDate, year]);
 
-  // 2. Filter books for the currently selected Period (Month or Year) for the "Activity List"
-  const booksInPeriod = useMemo(() => {
-     if (viewMode === 'month') {
-         return books.filter(b => isBookReadInMonth(b, year, currentDate.getMonth()));
-     } else {
-         // Year mode: any book read in this year
-         return books.filter(b => {
-             return Array.from({length: 12}).some((_, i) => isBookReadInMonth(b, year, i));
-         });
-     }
-  }, [books, currentDate, viewMode, year]);
-
-  // --- Navigation Handlers ---
-
   const handlePrev = () => {
+    setSelectedDay(null);
     if (viewMode === 'month') {
         setCurrentDate(new Date(year, currentDate.getMonth() - 1, 1));
     } else {
@@ -116,6 +89,7 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
   };
 
   const handleNext = () => {
+    setSelectedDay(null);
     if (viewMode === 'month') {
         setCurrentDate(new Date(year, currentDate.getMonth() + 1, 1));
     } else {
@@ -126,9 +100,80 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
   const handleMonthClick = (monthIndex: number) => {
       setCurrentDate(new Date(year, monthIndex, 1));
       setViewMode('month');
+      setSelectedDay(null);
   };
 
-  // --- Renderers ---
+  // --- Daily Stats Calculation ---
+  const activeStats = useMemo(() => {
+    const targetDateStr = selectedDay 
+        ? `${year}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+        : null;
+
+    let totalPages = 0;
+    let totalSeconds = 0;
+    let activeBooks = new Set<string>();
+    let bookList: Book[] = [];
+
+    if (viewMode === 'month' && !targetDateStr) {
+        // Month total
+        const monthPrefix = `${year}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        books.forEach(b => {
+            let bookAdded = false;
+            b.sessions?.forEach(s => {
+                if (s.date.startsWith(monthPrefix)) {
+                    totalPages += Number(s.pages) || 0;
+                    totalSeconds += Number(s.duration) || 0;
+                    if (!bookAdded) {
+                        activeBooks.add(b.id);
+                        bookList.push(b);
+                        bookAdded = true;
+                    }
+                }
+            });
+        });
+    } else if (viewMode === 'month' && targetDateStr) {
+        // Specific day total
+        books.forEach(b => {
+             let bookAdded = false;
+             b.sessions?.forEach(s => {
+                 if (s.date === targetDateStr) {
+                     totalPages += Number(s.pages) || 0;
+                     totalSeconds += Number(s.duration) || 0;
+                     if (!bookAdded) {
+                        activeBooks.add(b.id);
+                        bookList.push(b);
+                        bookAdded = true;
+                     }
+                 }
+             });
+        });
+    } else {
+        // Year total
+        const yearPrefix = `${year}-`;
+        books.forEach(b => {
+            let bookAdded = false;
+            b.sessions?.forEach(s => {
+                if (s.date.startsWith(yearPrefix)) {
+                    if (!bookAdded) {
+                        activeBooks.add(b.id);
+                        bookList.push(b);
+                        bookAdded = true;
+                    }
+                }
+            });
+        });
+    }
+
+    return { 
+        count: activeBooks.size, 
+        pages: totalPages, 
+        time: totalSeconds,
+        list: bookList 
+    };
+  }, [books, viewMode, currentDate, year, selectedDay]);
+
+  // Apply Infinite Scroll to stats list (especially for Year view which can be long)
+  const { visibleItems: visibleStatsBooks, observerTarget, hasMore } = useInfiniteScroll(activeStats.list, 10);
 
   const renderMonthView = () => {
       const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -147,12 +192,18 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
             {days.map(day => {
                 const dateStr = `${year}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const reads = dailyReadingMap[dateStr] || [];
+                const isSelected = selectedDay === day;
                 
                 return (
                 <div 
                     key={day} 
-                    className={`aspect-square relative rounded-xl overflow-hidden border flex flex-col items-center justify-center transition-all ${
-                    reads.length > 0 ? 'border-indigo-200 bg-white shadow-sm' : 'border-gray-50 bg-gray-50/50'
+                    onClick={() => setSelectedDay(isSelected ? null : day)}
+                    className={`aspect-square relative rounded-xl overflow-hidden border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        isSelected 
+                            ? 'ring-2 ring-indigo-500 border-indigo-500 z-10 scale-105 shadow-md' 
+                            : reads.length > 0 
+                                ? 'border-indigo-200 bg-white shadow-sm hover:border-indigo-300' 
+                                : 'border-gray-50 bg-gray-50/50'
                     }`}
                 >
                     <span className={`text-[10px] absolute top-1 left-1 font-bold z-10 ${reads.length > 0 ? 'text-indigo-700 bg-white/90 backdrop-blur-[1px] px-1 rounded-md shadow-sm' : 'text-gray-300'}`}>
@@ -160,17 +211,7 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
                     </span>
                     {reads.length > 0 && (
                     <div className="w-full h-full relative">
-                        {reads[0].coverUrl ? (
-                        <img 
-                            src={reads[0].coverUrl} 
-                            className="w-full h-full object-cover"
-                            alt={reads[0].title}
-                        />
-                        ) : (
-                        <div className="w-full h-full bg-indigo-50 flex items-center justify-center">
-                            <BookOpen size={12} className="text-indigo-200" />
-                        </div>
-                        )}
+                        <BookCover book={reads[0]} className="w-full h-full" iconSize={12} />
                         {reads.length > 1 && (
                         <div className="absolute bottom-0 right-0 bg-indigo-600 px-1 rounded-tl-lg text-[8px] font-bold text-white shadow-sm">
                             +{reads.length - 1}
@@ -210,11 +251,7 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
                               <div className="grid grid-cols-2 gap-1 w-full flex-1 content-start">
                                   {booksInMonth.slice(0, 4).map(b => (
                                       <div key={b.id} className="aspect-[2/3] bg-white rounded-md overflow-hidden shadow-sm">
-                                          {b.coverUrl ? (
-                                              <img src={b.coverUrl} className="w-full h-full object-cover" />
-                                          ) : (
-                                              <div className="w-full h-full bg-indigo-100" />
-                                          )}
+                                          <BookCover book={b} className="w-full h-full" iconSize={12} />
                                       </div>
                                   ))}
                               </div>
@@ -277,36 +314,60 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
       </div>
 
       {/* Activity Stats */}
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-         <div className="flex justify-between items-end mb-6">
+      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 transition-all duration-300">
+         <div className="flex justify-between items-end mb-4">
              <div>
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Читацька активність</h3>
-                <p className="text-xs font-medium text-gray-500">
-                    {viewMode === 'month' ? `За ${monthName.toLowerCase()}` : `За ${year} рік`}
+                <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                    {selectedDay ? (
+                        <span className="text-indigo-600 font-bold">{selectedDay} {monthName}</span>
+                    ) : (
+                        <span>{viewMode === 'month' ? `За ${monthName.toLowerCase()}` : `За ${year} рік`}</span>
+                    )}
                 </p>
              </div>
              <div className="flex items-baseline gap-1">
-                 <span className="text-4xl font-black text-indigo-600 tracking-tighter">{booksInPeriod.length}</span>
+                 <span className="text-4xl font-black text-indigo-600 tracking-tighter">{activeStats.count}</span>
                  <span className="text-xs font-bold text-gray-400 uppercase">Книг</span>
              </div>
          </div>
 
+         {/* Detailed Stats Cards */}
+         {activeStats.pages > 0 && (
+             <div className="grid grid-cols-2 gap-3 mb-4 animate-in fade-in slide-in-from-bottom-2">
+                 <div className="bg-emerald-50 p-3 rounded-2xl flex items-center gap-3">
+                     <div className="p-2 bg-emerald-100 text-emerald-600 rounded-full"><FileText size={16} /></div>
+                     <div>
+                         <p className="text-[10px] font-bold text-emerald-400 uppercase">Прочитано</p>
+                         <p className="text-lg font-black text-emerald-700 leading-none">{activeStats.pages} <span className="text-[10px] font-medium opacity-70">стор.</span></p>
+                     </div>
+                 </div>
+                 <div className="bg-amber-50 p-3 rounded-2xl flex items-center gap-3">
+                     <div className="p-2 bg-amber-100 text-amber-600 rounded-full"><Clock size={16} /></div>
+                     <div>
+                         <p className="text-[10px] font-bold text-amber-400 uppercase">Час</p>
+                         <p className="text-lg font-black text-amber-700 leading-none">{activeStats.time > 0 ? Math.round(activeStats.time / 60) : 0} <span className="text-[10px] font-medium opacity-70">хв.</span></p>
+                     </div>
+                 </div>
+             </div>
+         )}
+
          <div className="space-y-3">
-            {booksInPeriod.length === 0 ? (
+            {activeStats.list.length === 0 ? (
                <div className="text-center py-6 text-gray-300 flex flex-col items-center">
                    <BookOpen size={32} className="mb-2 opacity-20" />
                    <p className="text-xs italic">Немає активності за цей період</p>
                </div>
             ) : (
                <div className="grid grid-cols-1 gap-2">
-                   {booksInPeriod.map(book => (
+                   {visibleStatsBooks.map(book => (
                       <div 
                         key={book.id} 
                         onClick={() => setSelectedBook(book)}
                         className="flex items-center gap-4 p-2.5 bg-gray-50 rounded-2xl group cursor-pointer active:scale-95 transition-all hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
                       >
                         <div className="w-10 h-14 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
-                          {book.coverUrl ? <img src={book.coverUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-200"><BookOpen size={16} /></div>}
+                           <BookCover book={book} className="w-full h-full" iconSize={16} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <h4 className="font-bold text-xs text-gray-800 truncate">{book.title}</h4>
@@ -319,30 +380,29 @@ export const Calendar: React.FC<CalendarProps> = ({ books, onUpdateBook, onDelet
                         )}
                       </div>
                     ))}
+                    
+                    {hasMore && (
+                        <div ref={observerTarget} className="flex justify-center py-2">
+                            <Loader2 className="animate-spin text-gray-300" size={16} />
+                        </div>
+                    )}
                </div>
             )}
          </div>
       </div>
 
-      {/* Details Modal */}
       {selectedBook && !readingModeOpen && (
         <BookDetails 
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
-          onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
-          onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
           onOpenReadingMode={() => setReadingModeOpen(true)}
-          existingBooks={books}
-          onFilterByTag={onFilterByTag}
         />
       )}
 
-      {/* Reading Mode */}
       {readingModeOpen && selectedBook && (
         <ReadingMode 
           book={selectedBook}
           onClose={() => setReadingModeOpen(false)}
-          onUpdateBook={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
         />
       )}
     </div>

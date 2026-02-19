@@ -5,15 +5,11 @@ import { BookOpen, Book as BookIcon } from 'lucide-react';
 import { BookDetails } from './BookDetails';
 import { ReadingMode } from './ReadingMode';
 import { calculateProgress, getBookPageTotal } from '../utils';
+import { useLibrary } from '../contexts/LibraryContext';
+import { BookCover } from './ui/BookCover';
 
-interface ReadingListProps {
-  books: Book[];
-  onUpdateBook: (book: Book) => void;
-  onDeleteBook: (id: string) => void;
-  onFilterByTag?: (tag: string) => void;
-}
-
-export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, onDeleteBook, onFilterByTag }) => {
+export const ReadingList: React.FC = () => {
+  const { books } = useLibrary();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
 
@@ -44,11 +40,7 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, o
                   className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-start active:scale-95 transition-all cursor-pointer"
                 >
                   <div className="w-20 h-28 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
-                    {book.coverUrl ? (
-                        <img src={book.coverUrl} className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300"><BookIcon size={24} /></div>
-                    )}
+                    <BookCover book={book} className="w-full h-full" iconSize={24} />
                   </div>
                   
                   <div className="flex-1 min-w-0 py-1 flex flex-col justify-between h-28">
@@ -83,11 +75,7 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, o
         <BookDetails 
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
-          onUpdate={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
-          onDelete={(id) => { onDeleteBook(id); setSelectedBook(null); }}
           onOpenReadingMode={() => setReadingModeOpen(true)}
-          existingBooks={books}
-          onFilterByTag={onFilterByTag}
         />
       )}
 
@@ -95,7 +83,6 @@ export const ReadingList: React.FC<ReadingListProps> = ({ books, onUpdateBook, o
         <ReadingMode 
           book={selectedBook}
           onClose={() => setReadingModeOpen(false)}
-          onUpdateBook={(updated) => { onUpdateBook(updated); setSelectedBook(updated); }}
         />
       )}
     </div>
