@@ -1,23 +1,20 @@
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Book, SortKey, SortDirection } from '../types';
 
 export const useBookSort = (
   books: Book[], 
-  initialKey: SortKey = 'addedAt', 
-  initialDirection: SortDirection = 'desc'
+  activeKey: SortKey, 
+  activeDirection: SortDirection
 ) => {
-  const [sortKey, setSortKey] = useState<SortKey>(initialKey);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(initialDirection);
-
   const sortedBooks = useMemo(() => {
-    if (sortKey === 'custom') return books;
+    if (activeKey === 'custom') return books;
 
     return [...books].sort((a, b) => {
       let valA: string | number = '';
       let valB: string | number = '';
 
-      switch (sortKey) {
+      switch (activeKey) {
         case 'title':
           valA = a.title.toLowerCase();
           valB = b.title.toLowerCase();
@@ -32,32 +29,11 @@ export const useBookSort = (
           break;
       }
 
-      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      if (valA < valB) return activeDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return activeDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [books, sortKey, sortDirection]);
+  }, [books, activeKey, activeDirection]);
 
-  const toggleSort = (key: SortKey) => {
-    if (key === 'custom') {
-      setSortKey('custom');
-      return;
-    }
-    
-    if (sortKey === key) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
-
-  return {
-    sortedBooks,
-    sortKey,
-    setSortKey,
-    sortDirection,
-    setSortDirection,
-    toggleSort
-  };
+  return { sortedBooks };
 };

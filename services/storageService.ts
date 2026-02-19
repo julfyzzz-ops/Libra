@@ -5,7 +5,6 @@ import { base64ToBlob, blobToBase64 } from "./imageUtils";
 
 const OLD_STORAGE_KEY = 'booktracker_library_data'; // For migration from LocalStorage
 const SETTINGS_KEY = 'booktracker_settings';
-const SORT_PREFS_KEY = 'booktracker_sort_prefs';
 
 // --- Settings Storage ---
 
@@ -26,10 +25,10 @@ export const saveSettings = (settings: AppSettings): void => {
 
 // --- Sort Preferences ---
 
-export const loadSortPrefs = (): { key: SortKey, direction: SortDirection } => {
+export const loadSortPrefs = (contextKey: string = 'booktracker_sort_prefs'): { key: SortKey, direction: SortDirection } => {
   const defaultSort: { key: SortKey, direction: SortDirection } = { key: 'addedAt', direction: 'desc' };
   try {
-      const data = localStorage.getItem(SORT_PREFS_KEY);
+      const data = localStorage.getItem(contextKey);
       if (!data) return defaultSort;
       return JSON.parse(data);
   } catch {
@@ -37,8 +36,8 @@ export const loadSortPrefs = (): { key: SortKey, direction: SortDirection } => {
   }
 };
 
-export const saveSortPrefs = (key: SortKey, direction: SortDirection): void => {
-  localStorage.setItem(SORT_PREFS_KEY, JSON.stringify({ key, direction }));
+export const saveSortPrefs = (contextKey: string, key: SortKey, direction: SortDirection): void => {
+  localStorage.setItem(contextKey, JSON.stringify({ key, direction }));
 };
 
 // --- Library Storage (IndexedDB) ---

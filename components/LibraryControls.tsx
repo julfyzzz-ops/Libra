@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, ArrowUpDown, Filter, RotateCcw, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
+import { Search, Filter, X, Plus, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
 import { BookFormat, BookStatus, SortKey, SortDirection } from '../types';
 import { FORMAT_LABELS, STATUS_LABELS } from '../utils';
 
@@ -13,7 +13,11 @@ interface LibraryControlsProps {
   // Sort Props
   sortKey: SortKey;
   sortDirection: SortDirection;
-  onToggleSort: (key: SortKey) => void;
+  onSortChange: (key: SortKey) => void;
+  
+  // Reorder Mode
+  isReordering: boolean;
+  onToggleReorder: () => void;
   
   // Filter Props
   selectedStatuses: BookStatus[];
@@ -30,7 +34,9 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
   onAddClick,
   sortKey,
   sortDirection,
-  onToggleSort,
+  onSortChange,
+  isReordering,
+  onToggleReorder,
   selectedStatuses,
   selectedFormats,
   onToggleStatus,
@@ -38,31 +44,18 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
   onClearFilters
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activePanel, setActivePanel] = useState<'none' | 'sort' | 'filter'>('none');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSortPanel, setShowSortPanel] = useState(false);
 
-  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearchChange(e.target.value);
-    setShowSuggestions(true);
-  };
-
-  const handleSuggestionClick = (s: string) => {
-    onSearchChange(s);
-    setShowSuggestions(false);
-  };
-
-  const togglePanel = (panel: 'sort' | 'filter') => {
-    setActivePanel(prev => prev === panel ? 'none' : panel);
-  };
-
-  const hasActiveFilters = selectedFormats.length > 0 || selectedStatuses.length !== 3 || search;
+  const hasActiveFilters = selectedFormats.length > 0 || selectedStatuses.length !== 3;
 
   return (
-    <div className="space-y-3">
-      {/* Top Bar */}
-      <div className="flex gap-2">
+    <div className="space-y-4">
+      {/* Top Row: Add, Search, Sort Toggle, Filter Toggle */}
+      <div className="flex gap-2 h-12">
         <button 
-          onClick={onAddClick}
-          className="w-12 h-12 flex-shrink-0 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
+            onClick={onAddClick}
+            className="h-12 w-12 flex-shrink-0 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
         >
             <Plus size={24} />
         </button>
@@ -72,30 +65,24 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
           <input
               type="text"
               placeholder="Пошук..."
-              className="w-full pl-10 pr-10 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
+              className="w-full h-full pl-10 pr-10 bg-white rounded-xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
               value={search}
-              onChange={handleSearchInput}
-              onFocus={() => setShowSuggestions(true)}
+              onChange={(e) => { onSearchChange(e.target.value); setShowSuggestions(true); }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           />
           {search.length > 0 && (
               <button 
                   onClick={() => onSearchChange('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1.5"
               >
                   <X size={16} />
               </button>
           )}
-          
-          {/* Suggestions Dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 glass-morphism rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+           {/* Suggestions Dropdown */}
+           {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl z-50 overflow-hidden border border-gray-100">
               {suggestions.map((s, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => handleSuggestionClick(s)}
-                    className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 suggestion-item transition-colors border-b border-gray-100 last:border-none"
-                  >
+                  <button key={i} onClick={() => { onSearchChange(s); setShowSuggestions(false); }} className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none">
                   {s}
                   </button>
               ))}
@@ -103,78 +90,80 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
           )}
         </div>
 
-        <button 
-            onClick={() => togglePanel('sort')}
-            className={`px-3 rounded-2xl flex items-center gap-2 transition-all ${activePanel === 'sort' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
+        <button
+            onClick={() => { setShowSortPanel(!showSortPanel); setShowFilters(false); }}
+            className={`h-12 w-12 flex-shrink-0 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all ${showSortPanel ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-indigo-600 text-white shadow-indigo-200'}`}
         >
-            <ArrowUpDown size={18} />
+            <ArrowDownUp size={20} />
         </button>
-        <button 
-            onClick={() => togglePanel('filter')}
-            className={`px-3 rounded-2xl flex items-center gap-2 transition-all ${activePanel === 'filter' || hasActiveFilters ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}
+
+        <button
+            onClick={() => { setShowFilters(!showFilters); setShowSortPanel(false); }}
+            className={`h-12 w-12 flex-shrink-0 border rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all ${showFilters || hasActiveFilters ? 'bg-white text-indigo-600 border-indigo-200' : 'bg-white text-gray-400 border-gray-100'}`}
         >
-            <Filter size={18} />
+            <Filter size={20} />
+            {hasActiveFilters && !showFilters && <div className="absolute top-3 right-3 w-2 h-2 bg-indigo-600 rounded-full border border-white" />}
         </button>
       </div>
 
-      {/* Sorting Panel */}
-      {activePanel === 'sort' && (
-          <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 animate-in slide-in-from-top-2">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Сортувати за</span>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'title', label: 'Назва' },
-                  { key: 'author', label: 'Автор' },
-                  { key: 'addedAt', label: 'Дата' },
-                  { key: 'custom', label: 'Свій порядок' }
-                ].map((opt) => (
+      {/* Sort Panel */}
+      {showSortPanel && (
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Сортувати за</h3>
+              <div className="grid grid-cols-2 gap-3">
+                  {(['title', 'author', 'addedAt'] as SortKey[]).map((key) => {
+                      // Active only if key matches AND we are not in reordering mode (unless custom sort without reordering?)
+                      const isActive = sortKey === key && !isReordering && sortKey !== 'custom';
+                      return (
+                        <button
+                            key={key}
+                            onClick={() => onSortChange(key)}
+                            className={`py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                                isActive 
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            {key === 'title' ? 'Назва' : key === 'author' ? 'Автор' : 'Дата'}
+                            {isActive && (
+                                sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                            )}
+                        </button>
+                      );
+                  })}
+                  
                   <button
-                    key={opt.key}
-                    onClick={() => onToggleSort(opt.key as SortKey)}
-                    className={`flex items-center justify-center gap-1 py-3 rounded-xl text-xs font-bold transition-all ${
-                      sortKey === opt.key 
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                    onClick={onToggleReorder}
+                    className={`py-4 rounded-2xl font-bold text-sm transition-all ${
+                        isReordering || sortKey === 'custom'
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    {opt.label}
-                    {sortKey === opt.key && sortKey !== 'custom' && (
-                      sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-                    )}
+                    Свій порядок
                   </button>
-                ))}
               </div>
-            </div>
           </div>
       )}
 
       {/* Filters Panel */}
-      {activePanel === 'filter' && (
-          <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
-              <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
+      {showFilters && (
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 space-y-5 animate-in slide-in-from-top-2">
+              <div className="space-y-3">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
                   <div className="flex flex-wrap gap-2">
                       {['Reading', 'Unread', 'Completed'].map((s) => (
-                          <button
-                              key={s}
-                              onClick={() => onToggleStatus(s as BookStatus)}
-                              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedStatuses.includes(s as BookStatus) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                          >
+                          <button key={s} onClick={() => onToggleStatus(s as BookStatus)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedStatuses.includes(s as BookStatus) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
                               {STATUS_LABELS[s as BookStatus]}
                           </button>
                       ))}
                   </div>
               </div>
-              <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
+              <div className="space-y-3">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
                   <div className="flex flex-wrap gap-2">
                       {Object.keys(FORMAT_LABELS).map((f) => (
-                          <button
-                              key={f}
-                              onClick={() => onToggleFormat(f as BookFormat)}
-                              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                          >
+                          <button key={f} onClick={() => onToggleFormat(f as BookFormat)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
                               {FORMAT_LABELS[f as BookFormat]}
                           </button>
                       ))}
@@ -182,11 +171,8 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
               </div>
               
               {hasActiveFilters && (
-                 <button 
-                   onClick={onClearFilters}
-                   className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
-                 >
-                   <RotateCcw size={14} /> Очистити фільтри
+                 <button onClick={onClearFilters} className="w-full py-3 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors">
+                   <X size={18} /> Очистити фільтри
                  </button>
               )}
           </div>

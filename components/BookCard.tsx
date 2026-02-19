@@ -7,14 +7,9 @@ import { BookCover } from './ui/BookCover';
 interface BookCardProps {
   book: Book;
   index: number;
-  isDraggable: boolean;
-  isDragged: boolean; // Is this specific item being dragged?
   onClick: (book: Book) => void;
-  // DnD Handlers
-  onDragStart?: (e: React.DragEvent, index: number) => void;
-  onDragOver?: (e: React.DragEvent) => void;
-  onDrop?: (e: React.DragEvent) => void;
-  onDragEnd?: () => void;
+  // Dragging state passed from parent wrapper
+  isDragging?: boolean;
 }
 
 const FormatIcon = ({ format }: { format: BookFormat }) => {
@@ -32,24 +27,14 @@ const FormatIcon = ({ format }: { format: BookFormat }) => {
 export const BookCard: React.FC<BookCardProps> = ({
   book,
   index,
-  isDraggable,
-  isDragged,
   onClick,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd
+  isDragging
 }) => {
   return (
     <div 
       data-book-index={index}
-      draggable={isDraggable}
-      onDragStart={(e) => isDraggable && onDragStart?.(e, index)}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
       onClick={() => onClick(book)}
-      className={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-center active:scale-95 transition-all cursor-pointer select-none ${isDragged ? 'opacity-50 scale-95 ring-2 ring-indigo-500' : ''}`}
+      className={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-center active:scale-95 transition-all cursor-pointer select-none ${isDragging ? 'opacity-50 scale-95 ring-2 ring-indigo-500 shadow-xl' : ''}`}
     >
       <div className="w-12 h-16 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 relative">
         <BookCover book={book} className="w-full h-full" iconSize={20} />

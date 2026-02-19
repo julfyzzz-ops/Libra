@@ -173,7 +173,11 @@ export const Calendar: React.FC = () => {
   }, [books, viewMode, currentDate, year, selectedDay]);
 
   // Apply Infinite Scroll to stats list (especially for Year view which can be long)
-  const { visibleItems: visibleStatsBooks, observerTarget, hasMore } = useInfiniteScroll(activeStats.list, 10);
+  const { visibleItems: visibleStatsBooks, observerTarget, hasMore } = useInfiniteScroll(
+      activeStats.list, 
+      10,
+      [viewMode, currentDate.toISOString(), selectedDay]
+  );
 
   const renderMonthView = () => {
       const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
