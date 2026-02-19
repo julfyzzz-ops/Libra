@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Book, BookFormat } from '../types';
-import { BookOpen, Headphones, Tablet, Ghost, Clock, ShoppingCart, ArrowUpDown } from 'lucide-react';
+import { BookOpen, Headphones, Tablet, Ghost, Clock, ShoppingCart } from 'lucide-react';
 import { BookCover } from './ui/BookCover';
 
 interface BookCardProps {
@@ -58,14 +58,21 @@ export const BookCard: React.FC<BookCardProps> = ({
       <div className="flex-1 min-w-0">
         <h3 className="font-bold text-gray-800 text-sm truncate">{book.title}</h3>
         <p className="text-[10px] text-gray-500 truncate">{book.author}</p>
-        <div className="flex gap-2 mt-1.5">
+        
+        <div className="flex gap-2 mt-1.5 items-center">
           {book.formats.map(f => (
              <span key={f} className={f === 'Sold' ? "text-red-500" : "text-gray-400"}>
                 <FormatIcon format={f} />
              </span>
           ))}
+          
+          {/* Notes (Emojis) displayed here */}
+          {book.notes && (
+             <span className="text-base leading-none truncate max-w-[120px]">{book.notes}</span>
+          )}
+
           {(book.rating || 0) > 0 && (
-              <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 bg-gray-50 rounded text-gray-600">★ {book.rating}</span>
+              <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 bg-gray-50 rounded text-gray-600 flex-shrink-0">★ {book.rating}</span>
           )}
         </div>
       </div>

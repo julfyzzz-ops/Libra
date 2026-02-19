@@ -52,7 +52,9 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
     formats: ['Paper'],
     status: 'Unread',
     coverUrl: '',
-    coverBlob: undefined
+    coverBlob: undefined,
+    notes: '',
+    comment: ''
   });
 
   const uniquePublishers = useMemo(() => {
@@ -147,13 +149,16 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
       coverUrl: formData.coverUrl || '',
       coverBlob: formData.coverBlob,
       
+      notes: formData.notes,
+      comment: formData.comment,
+      
       sessions: []
     };
     
     addBook(newBook);
     toast.show("Книгу додано", "success");
     onAddSuccess();
-    setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined });
+    setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined, notes: '', comment: '' });
   };
 
   return (
@@ -287,6 +292,26 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
                   <FormatToggle key={f} label={f} active={formData.formats?.includes(f as any) || false} onChange={() => toggleFormat(f as any)} />
                 ))}
               </div>
+           </div>
+           
+           <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Примітки (Емоджі)</label>
+              <input 
+                  placeholder="😍🤔⭐" 
+                  className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-lg font-bold placeholder:text-gray-300 placeholder:text-sm" 
+                  value={formData.notes || ''} 
+                  onChange={e => setFormData({...formData, notes: e.target.value})} 
+              />
+           </div>
+
+           <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Коментар</label>
+              <textarea 
+                  placeholder="Ваші думки про книгу..." 
+                  className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-sm font-medium resize-none h-20 placeholder:text-gray-300 placeholder:text-xs" 
+                  value={formData.comment || ''} 
+                  onChange={e => setFormData({...formData, comment: e.target.value})} 
+              />
            </div>
 
            <div className="space-y-1">
