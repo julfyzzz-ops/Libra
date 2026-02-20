@@ -240,7 +240,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
 
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Примітки</label>
-                <input className="w-full bg-gray-50 p-3 rounded-2xl text-lg font-bold border-none outline-none" value={editForm.notes || ''} onChange={handleEmojiInput} placeholder="🤔😍⭐" />
+                <input className="w-full bg-gray-50 p-3 rounded-2xl text-lg font-bold border-none outline-none" value={editForm.notes || ''} onChange={handleEmojiInput} placeholder={'\u263B\u2639\u2606'} />
             </div>
 
             <div className="space-y-1">
