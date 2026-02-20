@@ -24,6 +24,7 @@ type SetupStep = 'none' | 'select-format' | 'confirm-pages';
 
 export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
   const { updateBook } = useLibrary();
+  const [diarySessions, setDiarySessions] = useState<ReadingSessionData[]>(book.sessions || []);
 
   const [session, setSession] = useState<ReadingSessionState>(() => {
     const saved = localStorage.getItem(`libra_session_${book.id}`);
@@ -50,6 +51,10 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
   const [setupStep, setSetupStep] = useState<SetupStep>('none');
   const [tempFormat, setTempFormat] = useState<BookFormat | null>(null);
   const [tempPagesTotal, setTempPagesTotal] = useState<number>(book.pagesTotal || 0);
+
+  useEffect(() => {
+    setDiarySessions(book.sessions || []);
+  }, [book.id, book.sessions]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -184,6 +189,9 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
       pages: pagesCount
     };
 
+    // Optimistic UI: show new diary record immediately.
+    setDiarySessions(prev => [...prev, newSession]);
+
     let updatedBook: Book = {
         ...book,
         pagesRead: finalPage,
@@ -202,15 +210,17 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
   };
 
   const updateSession = (sessionId: string, field: keyof ReadingSessionData, value: any) => {
-    const updatedSessions = book.sessions.map(s => s.id === sessionId ? { ...s, [field]: value } : s);
+    const updatedSessions = diarySessions.map(s => s.id === sessionId ? { ...s, [field]: value } : s);
+    setDiarySessions(updatedSessions);
     updateBook({ ...book, sessions: updatedSessions });
   };
 
   const deleteSession = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     if (!window.confirm('Видалити цю сесію?')) return;
-    const sessionToDelete = book.sessions.find(s => s.id === sessionId);
-    const updatedSessions = book.sessions.filter(s => s.id !== sessionId);
+    const sessionToDelete = diarySessions.find(s => s.id === sessionId);
+    const updatedSessions = diarySessions.filter(s => s.id !== sessionId);
+    setDiarySessions(updatedSessions);
     let newPagesRead = book.pagesRead || 0;
     if (sessionToDelete) newPagesRead = Math.max(0, newPagesRead - (sessionToDelete.pages || 0));
     const total = getBookPageTotal(book);
@@ -289,8 +299,8 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><BookOpen size={18} className="text-indigo-600" /> Щоденник</h3>
           </div>
           <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2.5">
-              {book.sessions && book.sessions.length > 0 ? (
-                  [...book.sessions].reverse().map((s) => {
+              {diarySessions.length > 0 ? (
+                  [...diarySessions].reverse().map((s) => {
                       const speed = s.duration > 0 ? Math.round(s.pages / (s.duration / 3600)) : 0;
                       const isEditing = editingSessionId === s.id;
                       return (
