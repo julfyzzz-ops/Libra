@@ -297,7 +297,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
            <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Примітки (Емоджі)</label>
               <input 
-                  placeholder={'\u263B\u2639\u2606'} 
+                  placeholder="❄☮❤" 
                   className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-lg font-bold placeholder:text-gray-300 placeholder:text-sm" 
                   value={formData.notes || ''} 
                   onChange={e => setFormData({...formData, notes: e.target.value})} 
