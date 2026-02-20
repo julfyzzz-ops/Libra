@@ -6,7 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/drive/19e3tHypcxfNWFKT3EDQoQHkk9P2ArM-s
+View your app in AI Studio: https://ai.studio/apps/8499be92-05ff-4f31-b0b4-580ce8cfab59
 
 ## Run Locally
 
@@ -18,3 +18,14 @@ View your app in AI Studio: https://ai.studio/apps/drive/19e3tHypcxfNWFKT3EDQoQH
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Deploy To GitHub Pages
+
+This repo includes automatic deployment via GitHub Actions: `.github/workflows/deploy.yml`.
+
+1. Push your code to the `main` branch.
+2. In GitHub repo settings, open `Settings -> Pages`.
+3. Set `Source` to `GitHub Actions`.
+4. Wait for the `Deploy To GitHub Pages` workflow to complete.
+
+The workflow builds with the correct Vite `base` for project pages and publishes `dist` to GitHub Pages automatically.
