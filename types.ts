@@ -18,6 +18,7 @@ export interface Book {
   status: BookStatus;
   isbn?: string;
   genre?: string;
+  seasons?: string[];
   publisher?: string;
   series?: string; // Series Name (e.g. Harry Potter)
   seriesPart?: string; // Series Number (e.g. Vol 1)

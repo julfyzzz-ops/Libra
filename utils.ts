@@ -17,6 +17,34 @@ export const STATUS_LABELS: Record<BookStatus, string> = {
   'Wishlist': 'Бажанка'
 };
 
+
+export const SEASON_OPTIONS = ['Зима', 'Весна', 'Літо', 'Осінь'] as const;
+
+export const normalizeSeason = (value: string): string => {
+  const v = value.trim().toLowerCase();
+  if (!v) return '';
+  if (v === 'зима' || v === 'winter') return 'Зима';
+  if (v === 'весна' || v === 'spring') return 'Весна';
+  if (v === 'літо' || v === 'лето' || v === 'summer') return 'Літо';
+  if (v === 'осінь' || v === 'осень' || v === 'autumn' || v === 'fall') return 'Осінь';
+  return value.trim();
+};
+
+export const getSeasonColorClass = (season: string): string => {
+  switch (normalizeSeason(season)) {
+    case 'Зима':
+      return 'bg-sky-100 text-sky-700';
+    case 'Весна':
+      return 'bg-violet-100 text-violet-700';
+    case 'Літо':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'Осінь':
+      return 'bg-orange-100 text-orange-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
+
 // Helper to get the effective total pages (using reading specific total if set)
 export const getBookPageTotal = (book: Book) => {
     return book.readingPagesTotal || book.pagesTotal || 0;

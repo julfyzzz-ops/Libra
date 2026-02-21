@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { Book, BookFormat } from '../types';
 import { BookOpen, Headphones, Tablet, Ghost, Clock, ShoppingCart } from 'lucide-react';
 import { BookCover } from './ui/BookCover';
+import { getSeasonColorClass } from '../utils';
 
 interface BookCardProps {
   book: Book;
@@ -40,6 +41,15 @@ export const BookCard: React.FC<BookCardProps> = memo(({
       <div className="flex-1 min-w-0">
         <h3 className="font-bold text-gray-800 text-sm truncate">{book.title}</h3>
         <p className="text-[10px] text-gray-500 truncate">{book.author}</p>
+        {book.seasons && book.seasons.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {book.seasons.map((season) => (
+              <span key={season} className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${getSeasonColorClass(season)}`}>
+                {season}
+              </span>
+            ))}
+          </div>
+        )}
         
         <div className="flex gap-2 mt-1.5 items-center">
           {book.formats.map(f => (

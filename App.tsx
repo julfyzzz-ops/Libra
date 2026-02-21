@@ -38,7 +38,7 @@ const AppContent: React.FC = () => {
       case 'statistics': return <Statistics />;
       case 'library': return <Library onAddClick={() => setActiveView('add')} />;
       case 'reading': return <ReadingList />;
-      case 'add': return <AddBook onAddSuccess={() => setActiveView('library')} />;
+      case 'add': return <AddBook onAddSuccess={() => setActiveView('library')} onCancel={() => setActiveView('library')} />;
       case 'calendar': return <Calendar />;
       case 'wishlist': return null; 
       case 'settings': return <Settings />;

@@ -1,9 +1,9 @@
-
+﻿
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { Book, BookFormat, BookStatus } from '../types';
 import { X, Upload, Loader2, Wand2, Link, Save } from 'lucide-react';
 import { processImage, fetchBookCover } from '../services/storageService';
-import { FORMAT_LABELS, STATUS_LABELS } from '../utils';
+import { FORMAT_LABELS, STATUS_LABELS, SEASON_OPTIONS, normalizeSeason, getSeasonColorClass } from '../utils';
 
 interface BookEditProps {
   book: Book;
@@ -114,6 +114,15 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       onSave(editForm);
   };
 
+  const toggleSeason = (season: string) => {
+    const normalized = normalizeSeason(season);
+    const current = editForm.seasons || [];
+    const next = current.includes(normalized)
+      ? current.filter(s => s !== normalized)
+      : [...current, normalized];
+    updateEditForm({ seasons: next });
+  };
+
   return (
     <div className="flex flex-col h-full bg-white sm:rounded-[2.5rem] overflow-hidden">
       {/* STICKY HEADER - EDIT MODE */}
@@ -202,6 +211,26 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
                 <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.genre || ''} onChange={e => updateEditForm({ genre: e.target.value})} placeholder="Напр. Фентезі" />
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Сезон</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SEASON_OPTIONS.map(season => {
+                    const active = (editForm.seasons || []).includes(season);
+                    return (
+                      <button
+                        key={season}
+                        type="button"
+                        onClick={() => toggleSeason(season)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-between ${active ? 'border-transparent' : 'bg-gray-50 text-gray-500 border-gray-100'}`}
+                      >
+                        <span className={`px-2 py-0.5 rounded-full ${getSeasonColorClass(season)}`}>{season}</span>
+                        <span className={`w-3 h-3 rounded-full border-2 ${active ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300 bg-transparent'}`} />
+                      </button>
+                    );
+                  })}
+                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

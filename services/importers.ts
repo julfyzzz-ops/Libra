@@ -3,6 +3,27 @@ import { Book, BookFormat } from "../types";
 import { saveLibrary, loadLibrary } from "./storageService";
 import { fetchBookCover } from "./api";
 import { base64ToBlob } from "./imageUtils";
+import { normalizeSeason } from "../utils";
+
+const parseSeasonList = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+      .map((item) => normalizeSeason(item));
+    return Array.from(new Set(normalized));
+  }
+
+  if (typeof value !== "string") return [];
+
+  const normalized = value
+    .split(/[,;/\n]+/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => normalizeSeason(item));
+
+  return Array.from(new Set(normalized));
+};
 
 export const importLibraryFromJSON = async (file: File): Promise<boolean> => {
   return new Promise((resolve, reject) => {
@@ -20,6 +41,9 @@ export const importLibraryFromJSON = async (file: File): Promise<boolean> => {
             if (book.coverUrl && book.coverUrl.startsWith('data:image')) {
                 book.coverBlob = base64ToBlob(book.coverUrl);
                 book.coverUrl = ''; 
+            }
+            if (book.seasons !== undefined) {
+                book.seasons = parseSeasonList(book.seasons);
             }
             // Ensure sessions array exists
             if (!book.sessions) book.sessions = [];
@@ -128,6 +152,7 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
                 }
                 else if (header.includes('isbn')) book.isbn = value;
                 else if (header.includes('genre') || header.includes('жанр')) book.genre = value;
+                else if (header.includes('season') || header.includes('сезон')) book.seasons = parseSeasonList(value);
                 else if (header.includes('cover') || header.includes('фото')) book.coverUrl = value;
                 else if (header.includes('date') || header.includes('дата') || header.includes('finished')) {
                      let dateStr = value.trim();

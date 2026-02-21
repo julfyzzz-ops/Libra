@@ -1,15 +1,17 @@
-
+﻿
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2, Wand2, Link } from 'lucide-react';
+import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2, Wand2, Link, ArrowLeft } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../types';
 import { processImage } from '../services/imageUtils';
 import { fetchBookCover } from '../services/api';
 import { useLibrary } from '../contexts/LibraryContext';
 import { useUI } from '../contexts/UIContext';
 import { Skeleton } from './ui/Skeleton';
+import { SEASON_OPTIONS, normalizeSeason, getSeasonColorClass } from '../utils';
 
 interface AddBookProps {
   onAddSuccess: () => void;
+  onCancel: () => void;
 }
 
 const FormatToggle: React.FC<{ 
@@ -29,7 +31,7 @@ const FormatToggle: React.FC<{
   </div>
 );
 
-export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
+export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
   const { addBook, books } = useLibrary();
   const { toast } = useUI();
   
@@ -44,6 +46,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
     author: '',
+    seasons: [],
     genre: '',
     publisher: '',
     series: '',
@@ -138,6 +141,15 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
     }
   };
 
+  const toggleSeason = (season: string) => {
+    const normalized = normalizeSeason(season);
+    const current = formData.seasons || [];
+    const next = current.includes(normalized)
+      ? current.filter(s => s !== normalized)
+      : [...current, normalized];
+    setFormData({ ...formData, seasons: next });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.author) {
@@ -149,6 +161,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
       id: crypto.randomUUID(),
       title: formData.title as string,
       author: formData.author as string,
+      seasons: formData.seasons || [],
       genre: formData.genre as string,
       publisher: formData.publisher as string,
       series: formData.series as string,
@@ -174,11 +187,15 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
     toast.show("Книгу додано", "success");
     onAddSuccess();
     revokePreviewObjectUrl();
-    setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined, notes: '', comment: '' });
+    setFormData({ title: '', author: '', seasons: [], genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined, notes: '', comment: '' });
   };
 
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800">
+      <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
+        <ArrowLeft size={20} /> <span className="text-sm font-bold">Назад</span>
+      </button>
+
       <header>
         <h1 className="text-3xl font-bold text-gray-800">Нова книга</h1>
         <p className="text-xs text-gray-500 mt-1">Додайте нове видання до своєї колекції</p>
@@ -301,6 +318,26 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Сторінки</label>
                 <input inputMode="numeric" pattern="[0-9]*" type="number" placeholder="0" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.pagesTotal || ''} onChange={e => setFormData({...formData, pagesTotal: parseInt(e.target.value) || 0})} />
+              </div>
+           </div>
+
+           <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Сезон</label>
+              <div className="grid grid-cols-2 gap-2">
+                {SEASON_OPTIONS.map(season => {
+                  const active = (formData.seasons || []).includes(season);
+                  return (
+                    <button
+                      key={season}
+                      type="button"
+                      onClick={() => toggleSeason(season)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-between ${active ? 'border-transparent' : 'bg-gray-50 text-gray-500 border-gray-100'}`}
+                    >
+                      <span className={`px-2 py-0.5 rounded-full ${getSeasonColorClass(season)}`}>{season}</span>
+                      <span className={`w-3 h-3 rounded-full border-2 ${active ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300 bg-transparent'}`} />
+                    </button>
+                  );
+                })}
               </div>
            </div>
 

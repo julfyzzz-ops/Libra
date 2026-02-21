@@ -2,7 +2,7 @@
 import React from 'react';
 import { Book, BookStatus } from '../types';
 import { BookOpen, X, Play, Zap, Calendar as CalendarIcon, Building2, Clock, CalendarDays, Smile, MessageSquare, Tag, Layers, Trash2, Edit3 } from 'lucide-react';
-import { FORMAT_LABELS, STATUS_LABELS, calculateProgress, calculateTotalReadingTime, calculateAverageSpeed, getRatingColor, getBookPageTotal } from '../utils';
+import { FORMAT_LABELS, STATUS_LABELS, calculateProgress, calculateTotalReadingTime, calculateAverageSpeed, getRatingColor, getBookPageTotal, getSeasonColorClass } from '../utils';
 import { useUI } from '../contexts/UIContext';
 import { BookCover } from './ui/BookCover';
 
@@ -93,6 +93,23 @@ export const BookView: React.FC<BookViewProps> = ({
                 <div className="min-w-0">
                   <p className="text-[8px] text-gray-400 uppercase font-bold">Жанр</p>
                   <p className="text-[10px] font-bold text-gray-700 truncate">{book.genre || '—'}</p>
+                </div>
+              </button>
+              <button onClick={() => onTagClick(book.seasons?.join(', '))} className="col-span-2 bg-gray-50 p-3 rounded-2xl border border-gray-100 flex items-center gap-3 text-left hover:bg-indigo-50 hover:border-indigo-100 transition-all active:scale-95">
+                <CalendarDays size={16} className="text-gray-400" />
+                <div className="min-w-0">
+                  <p className="text-[8px] text-gray-400 uppercase font-bold">Сезон</p>
+                  {book.seasons && book.seasons.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {book.seasons.map((season) => (
+                        <span key={season} className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${getSeasonColorClass(season)}`}>
+                          {season}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold text-gray-700 truncate">—</p>
+                  )}
                 </div>
               </button>
               <button onClick={() => onTagClick(book.series)} className="col-span-2 bg-gray-50 p-3 rounded-2xl border border-gray-100 flex items-center gap-3 text-left hover:bg-indigo-50 hover:border-indigo-100 transition-all active:scale-95">
