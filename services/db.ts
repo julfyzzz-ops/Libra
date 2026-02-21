@@ -73,3 +73,33 @@ export const saveAllBooks = (db: IDBDatabase, books: Book[]): Promise<void> => {
     transaction.onabort = () => reject(transaction.error);
   });
 };
+
+export const saveBook = (db: IDBDatabase, book: Book): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+
+    const bookToSave = { ...book };
+    if (bookToSave.coverBlob && bookToSave.coverUrl?.startsWith('blob:')) {
+      bookToSave.coverUrl = '';
+    }
+
+    store.put(bookToSave);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+};
+
+export const deleteBookById = (db: IDBDatabase, id: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    store.delete(id);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+};

@@ -22,6 +22,9 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
     coverUrl: '',
     coverBlob: undefined
   });
+  const updateFormData = useCallback((patch: Partial<Book>) => {
+    setFormData((prev) => ({ ...prev, ...patch }));
+  }, []);
 
   const revokePreviewObjectUrl = useCallback(() => {
     if (previewObjectUrlRef.current) {
@@ -43,7 +46,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
         const previewUrl = URL.createObjectURL(compressedBlob);
         revokePreviewObjectUrl();
         previewObjectUrlRef.current = previewUrl;
-        setFormData({ ...formData, coverBlob: compressedBlob, coverUrl: previewUrl });
+        updateFormData({ coverBlob: compressedBlob, coverUrl: previewUrl });
       } catch (error) {
         console.error("Image processing failed", error);
         alert("Не вдалося обробити зображення");
@@ -63,7 +66,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
         const url = await fetchBookCover(formData.title, formData.author || '');
         if (url) {
             revokePreviewObjectUrl();
-            setFormData({ ...formData, coverUrl: url, coverBlob: undefined });
+            updateFormData({ coverUrl: url, coverBlob: undefined });
         } else {
             alert("Обкладинку не знайдено.");
         }
@@ -146,12 +149,12 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
             <div className="space-y-4">
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Назва</label>
-                    <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+                    <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => updateFormData({ title: e.target.value })} />
                 </div>
                 
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Автор</label>
-                    <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} />
+                    <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => updateFormData({ author: e.target.value })} />
                 </div>
 
                 <div className="space-y-1">
@@ -162,7 +165,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
                             placeholder="https://example.com/image.jpg" 
                             className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
                             value={formData.coverUrl || ''} 
-                            onChange={e => { revokePreviewObjectUrl(); setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined}); }} 
+                            onChange={e => { revokePreviewObjectUrl(); updateFormData({ coverUrl: e.target.value, coverBlob: undefined }); }} 
                         />
                     </div>
                 </div>

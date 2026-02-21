@@ -60,6 +60,9 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
     notes: '',
     comment: ''
   });
+  const updateFormData = useCallback((patch: Partial<Book>) => {
+    setFormData((prev) => ({ ...prev, ...patch }));
+  }, []);
 
   const uniquePublishers = useMemo(() => {
     const pubs = new Set<string>();
@@ -96,7 +99,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
         const previewUrl = URL.createObjectURL(compressedBlob);
         revokePreviewObjectUrl();
         previewObjectUrlRef.current = previewUrl;
-        setFormData({ ...formData, coverBlob: compressedBlob, coverUrl: previewUrl });
+        updateFormData({ coverBlob: compressedBlob, coverUrl: previewUrl });
         toast.show("Фото завантажено", "success");
       } catch (error) {
         console.error("Image processing failed", error);
@@ -117,7 +120,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
         const url = await fetchBookCover(formData.title, formData.author || '');
         if (url) {
             revokePreviewObjectUrl();
-            setFormData({ ...formData, coverUrl: url, coverBlob: undefined });
+            updateFormData({ coverUrl: url, coverBlob: undefined });
             toast.show("Обкладинку знайдено", "success");
         } else {
             toast.show("Обкладинку не знайдено", "info");
@@ -131,14 +134,14 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
   };
 
   const toggleFormat = (format: BookFormat) => {
-    const current = formData.formats || [];
-    if (current.includes(format)) {
-      if (current.length > 1) {
-        setFormData({ ...formData, formats: current.filter(f => f !== format) });
+    setFormData((prev) => {
+      const current = prev.formats || [];
+      if (current.includes(format)) {
+        if (current.length <= 1) return prev;
+        return { ...prev, formats: current.filter((f) => f !== format) };
       }
-    } else {
-      setFormData({ ...formData, formats: [...current, format] });
-    }
+      return { ...prev, formats: [...current, format] };
+    });
   };
 
   const toggleSeason = (season: string) => {
@@ -147,7 +150,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
     const next = current.includes(normalized)
       ? current.filter(s => s !== normalized)
       : [...current, normalized];
-    setFormData({ ...formData, seasons: next });
+    updateFormData({ seasons: next });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -236,12 +239,12 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
          <div className="space-y-4">
            <div className="space-y-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Назва</label>
-             <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+             <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => updateFormData({ title: e.target.value })} />
            </div>
            
            <div className="space-y-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Автор</label>
-             <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} />
+             <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => updateFormData({ author: e.target.value })} />
            </div>
 
            <div className="space-y-1">
@@ -254,7 +257,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                   value={formData.coverUrl || ''} 
                   onChange={e => {
                     revokePreviewObjectUrl();
-                    setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined});
+                    updateFormData({ coverUrl: e.target.value, coverBlob: undefined });
                   }} 
                />
              </div>
@@ -270,7 +273,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                     className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none focus:ring-1 focus:ring-indigo-500" 
                     value={formData.publisher} 
                     onChange={e => {
-                        setFormData({...formData, publisher: e.target.value});
+                        updateFormData({ publisher: e.target.value });
                         setShowPubSuggestions(true);
                     }}
                     onFocus={() => setShowPubSuggestions(true)}
@@ -284,7 +287,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                                 key={idx}
                                 type="button"
                                 onClick={() => {
-                                    setFormData({...formData, publisher: pub});
+                                    updateFormData({ publisher: pub });
                                     setShowPubSuggestions(false);
                                 }}
                                 className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
@@ -301,10 +304,10 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                 <div className="flex gap-2">
                     <div className="relative flex-1">
                         <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
-                        <input placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => setFormData({...formData, series: e.target.value})} />
+                        <input placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => updateFormData({ series: e.target.value })} />
                     </div>
                     <div className="w-16">
-                        <input inputMode="numeric" pattern="[0-9]*" placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => setFormData({...formData, seriesPart: e.target.value})} />
+                        <input inputMode="numeric" pattern="[0-9]*" placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => updateFormData({ seriesPart: e.target.value })} />
                     </div>
                 </div>
               </div>
@@ -313,11 +316,11 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
-                <input placeholder="Жанр" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.genre} onChange={e => setFormData({...formData, genre: e.target.value})} />
+                <input placeholder="Жанр" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.genre} onChange={e => updateFormData({ genre: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Сторінки</label>
-                <input inputMode="numeric" pattern="[0-9]*" type="number" placeholder="0" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.pagesTotal || ''} onChange={e => setFormData({...formData, pagesTotal: parseInt(e.target.value) || 0})} />
+                <input inputMode="numeric" pattern="[0-9]*" type="number" placeholder="0" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.pagesTotal || ''} onChange={e => updateFormData({ pagesTotal: parseInt(e.target.value) || 0 })} />
               </div>
            </div>
 
@@ -356,7 +359,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                   placeholder="тільки емодзі" 
                   className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-xs font-medium placeholder:text-gray-300" 
                   value={formData.notes || ''} 
-                  onChange={e => setFormData({...formData, notes: e.target.value})} 
+                  onChange={e => updateFormData({ notes: e.target.value })} 
               />
            </div>
 
@@ -366,13 +369,13 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                   placeholder="Ваші думки про книгу..." 
                   className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-sm font-medium resize-none h-20 placeholder:text-gray-300 placeholder:text-xs" 
                   value={formData.comment || ''} 
-                  onChange={e => setFormData({...formData, comment: e.target.value})} 
+                  onChange={e => updateFormData({ comment: e.target.value })} 
               />
            </div>
 
            <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Статус</label>
-              <select className="w-full bg-gray-50 p-3 rounded-2xl outline-none text-xs font-bold appearance-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as BookStatus})}>
+              <select className="w-full bg-gray-50 p-3 rounded-2xl outline-none text-xs font-bold appearance-none" value={formData.status} onChange={e => updateFormData({ status: e.target.value as BookStatus })}>
                 <option value="Unread">Не прочитано</option>
                 <option value="Reading">Читаю</option>
                 <option value="Completed">Прочитано</option>

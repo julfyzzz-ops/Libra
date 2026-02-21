@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Book, LibraryState } from '../types';
-import { loadLibrary, saveLibrary } from '../services/storageService';
+import { loadLibrary, saveLibrary, saveBook, removeBook } from '../services/storageService';
 
 interface LibraryContextType {
   books: Book[];
@@ -52,17 +52,21 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
   }, []);
 
-  const handleUpdate = useCallback((updater: (prev: LibraryState) => LibraryState) => {
-    setState((prev) => {
-      const next = updater(prev);
-      enqueueSave(next);
-      return next;
-    });
-  }, [enqueueSave]);
+  const enqueueTask = useCallback((task: () => Promise<void>) => {
+    writeQueueRef.current = writeQueueRef.current
+      .then(task)
+      .catch((e) => {
+        console.error('Queued save failed', e);
+      });
+  }, []);
 
   const addBook = useCallback((book: Book) => {
-    handleUpdate((prev) => ({ ...prev, books: [...prev.books, book] }));
-  }, [handleUpdate]);
+    setState((prev) => {
+      const orderedBook = { ...book, customOrder: prev.books.length };
+      enqueueTask(() => saveBook(orderedBook));
+      return { ...prev, books: [...prev.books, orderedBook] };
+    });
+  }, [enqueueTask]);
 
   const updateBook = useCallback((updatedBook: Book) => {
     let finalBook = { ...updatedBook };
@@ -84,18 +88,26 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         finalBook.rating = undefined; // Clear rating as it's not read
     }
 
-    handleUpdate((prev) => ({
-      ...prev,
-      books: prev.books.map(b => b.id === finalBook.id ? finalBook : b)
-    }));
-  }, [handleUpdate]);
+    setState((prev) => {
+      let bookToPersist: Book | null = null;
+      const nextBooks = prev.books.map((b) => {
+        if (b.id !== finalBook.id) return b;
+        bookToPersist = { ...b, ...finalBook, customOrder: b.customOrder };
+        return bookToPersist;
+      });
+
+      if (bookToPersist) {
+        enqueueTask(() => saveBook(bookToPersist as Book));
+      }
+
+      return { ...prev, books: nextBooks };
+    });
+  }, [enqueueTask]);
 
   const deleteBook = useCallback((id: string) => {
-    handleUpdate((prev) => ({
-      ...prev,
-      books: prev.books.filter(b => b.id !== id)
-    }));
-  }, [handleUpdate]);
+    setState((prev) => ({ ...prev, books: prev.books.filter((b) => b.id !== id) }));
+    enqueueTask(() => removeBook(id));
+  }, [enqueueTask]);
 
   const reorderBooks = useCallback((newBooks: Book[]) => {
     setState((prev) => ({ ...prev, books: newBooks }));

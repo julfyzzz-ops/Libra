@@ -1,6 +1,6 @@
 
 import { LibraryState, AppSettings, SortKey, SortDirection, Book } from "../types";
-import { openDB, getAllBooks, saveAllBooks } from "./db";
+import { openDB, getAllBooks, saveAllBooks, saveBook as saveBookRecord, deleteBookById as deleteBookRecord } from "./db";
 import { base64ToBlob, blobToBase64 } from "./imageUtils";
 
 const OLD_STORAGE_KEY = 'booktracker_library_data'; // For migration from LocalStorage
@@ -179,6 +179,38 @@ export const saveLibrary = async (state: LibraryState): Promise<void> => {
     if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         alert("Увага: Пам'ять пристрою переповнена.");
     }
+  }
+};
+
+export const saveBook = async (book: Book): Promise<void> => {
+  try {
+    const db = await openDB();
+    const preparedBook = { ...book };
+
+    if (preparedBook.coverBlob && preparedBook.coverUrl?.startsWith('blob:')) {
+      preparedBook.coverUrl = '';
+    }
+
+    if (preparedBook.coverUrl && preparedBook.coverUrl.startsWith('data:image')) {
+      preparedBook.coverBlob = base64ToBlob(preparedBook.coverUrl);
+      preparedBook.coverUrl = '';
+    }
+
+    await saveBookRecord(db, preparedBook);
+  } catch (e) {
+    console.error("Failed to save book to DB", e);
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      alert("Увага: Пам'ять пристрою переповнена.");
+    }
+  }
+};
+
+export const removeBook = async (id: string): Promise<void> => {
+  try {
+    const db = await openDB();
+    await deleteBookRecord(db, id);
+  } catch (e) {
+    console.error("Failed to remove book from DB", e);
   }
 };
 
