@@ -131,7 +131,7 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
 
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800">
-      <header className="flex justify-between items-center">
+      <header className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-[#f8fafc]/95 backdrop-blur-sm border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-baseline gap-4">
           <h1 onClick={() => setActiveTab('library')} className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}>Бібліотека</h1>
           <h1 onClick={() => setActiveTab('wishlist')} className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}>Бажанки</h1>

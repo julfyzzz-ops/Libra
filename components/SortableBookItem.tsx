@@ -80,7 +80,7 @@ export const SortableBookItem: React.FC<SortableBookItemProps> = ({ book, childr
         stopAutoScroll();
       }}
       className="relative mb-3"
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'pan-y' }}
     >
       {/* Content */}
       <div className="w-full relative z-0">
