@@ -34,6 +34,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [showPubSuggestions, setShowPubSuggestions] = useState(false);
   const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateEditForm = useCallback((patch: Partial<Book>) => {
     setEditForm(prev => ({ ...prev, ...patch }));
@@ -120,7 +121,11 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
   };
 
   const handleSaveClick = () => {
-      onSave(editForm);
+      if (isSaving) return;
+      setIsSaving(true);
+      setShowPubSuggestions(false);
+      setShowGenreSuggestions(false);
+      onSave({ ...editForm });
   };
 
   const toggleSeason = (season: string) => {
@@ -327,10 +332,22 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
             </div>
 
             <div className="flex gap-2 mt-4 pb-8">
-                <button onClick={handleSaveClick} className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg"><Save size={18} /> Зберегти</button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleSaveClick();
+                  }}
+                  onClick={handleSaveClick}
+                  className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg disabled:opacity-70"
+                >
+                  <Save size={18} /> {isSaving ? 'Збереження...' : 'Зберегти'}
+                </button>
             </div>
         </div>
       </div>
     </div>
   );
 };
+
