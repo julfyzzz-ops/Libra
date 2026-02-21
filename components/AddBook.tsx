@@ -42,6 +42,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
   
   // Publisher Autocomplete State
   const [showPubSuggestions, setShowPubSuggestions] = useState(false);
+  const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
@@ -78,6 +79,21 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
       p.toLowerCase().includes((formData.publisher || '').toLowerCase())
     );
   }, [uniquePublishers, formData.publisher]);
+
+  const uniqueGenres = useMemo(() => {
+    const genres = new Set<string>();
+    books.forEach((b) => {
+      const value = (b.genre || '').trim();
+      if (value) genres.add(value);
+    });
+    return Array.from(genres).sort((a, b) => a.localeCompare(b, 'uk'));
+  }, [books]);
+
+  const filteredGenres = useMemo(() => {
+    if (!formData.genre) return uniqueGenres;
+    const q = (formData.genre || '').toLowerCase();
+    return uniqueGenres.filter((g) => g.toLowerCase().includes(q));
+  }, [uniqueGenres, formData.genre]);
 
   const revokePreviewObjectUrl = useCallback(() => {
     if (previewObjectUrlRef.current) {
@@ -314,15 +330,37 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
            </div>
 
            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+              <div className="space-y-1 relative">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
                 <input
                   placeholder="Жанр"
                   className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none"
                   value={formData.genre}
                   maxLength={160}
-                  onChange={e => updateFormData({ genre: e.target.value.slice(0, 160) })}
+                  onChange={e => {
+                    updateFormData({ genre: e.target.value.slice(0, 160) });
+                    setShowGenreSuggestions(true);
+                  }}
+                  onFocus={() => setShowGenreSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowGenreSuggestions(false), 200)}
                 />
+                {showGenreSuggestions && filteredGenres.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto">
+                    {filteredGenres.map((genre, idx) => (
+                      <button
+                        key={`${genre}-${idx}`}
+                        type="button"
+                        onClick={() => {
+                          updateFormData({ genre });
+                          setShowGenreSuggestions(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Сторінки</label>

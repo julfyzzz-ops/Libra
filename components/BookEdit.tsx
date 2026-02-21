@@ -10,6 +10,7 @@ interface BookEditProps {
   onClose: () => void;
   onSave: (updatedBook: Book) => void;
   uniquePublishers: string[];
+  uniqueGenres: string[];
 }
 
 const FormatToggle: React.FC<{ 
@@ -27,11 +28,12 @@ const FormatToggle: React.FC<{
   </button>
 );
 
-export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniquePublishers }) => {
+export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniquePublishers, uniqueGenres }) => {
   const [editForm, setEditForm] = useState<Book>(book);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [showPubSuggestions, setShowPubSuggestions] = useState(false);
+  const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateEditForm = useCallback((patch: Partial<Book>) => {
     setEditForm(prev => ({ ...prev, ...patch }));
@@ -61,6 +63,13 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
         p.toLowerCase().includes((editForm.publisher || '').toLowerCase())
       );
   }, [uniquePublishers, editForm.publisher]);
+
+  const filteredGenres = useMemo(() => {
+      if (!editForm.genre) return uniqueGenres;
+      return uniqueGenres.filter(g =>
+        g.toLowerCase().includes((editForm.genre || '').toLowerCase())
+      );
+  }, [uniqueGenres, editForm.genre]);
 
   const handleEditFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -210,15 +219,34 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
                 <input
                   className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none"
                   value={editForm.genre || ''}
                   maxLength={160}
-                  onChange={e => updateEditForm({ genre: e.target.value.slice(0, 160) })}
+                  onChange={e => {
+                    updateEditForm({ genre: e.target.value.slice(0, 160) });
+                    setShowGenreSuggestions(true);
+                  }}
+                  onFocus={() => setShowGenreSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowGenreSuggestions(false), 200)}
                   placeholder="Напр. Фентезі"
                 />
+                {showGenreSuggestions && filteredGenres.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-32 overflow-y-auto">
+                    {filteredGenres.map((genre, idx) => (
+                      <button
+                        key={`${genre}-${idx}`}
+                        type="button"
+                        onClick={() => { updateEditForm({ genre }); setShowGenreSuggestions(false); }}
+                        className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                )}
             </div>
 
             <div className="space-y-2">

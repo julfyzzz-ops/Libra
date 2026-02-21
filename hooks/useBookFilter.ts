@@ -8,6 +8,8 @@ export const useBookFilter = (
   initialFormats: BookFormat[] = []
 ) => {
   const [search, setSearch] = useState('');
+  const [publisherFilter, setPublisherFilter] = useState('');
+  const [genreFilter, setGenreFilter] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<BookStatus[]>(initialStatuses);
   const [selectedFormats, setSelectedFormats] = useState<BookFormat[]>(initialFormats);
 
@@ -36,9 +38,21 @@ export const useBookFilter = (
          if (!matchSearch) return false;
       }
 
+      // 4. Publisher Filter
+      if (publisherFilter.trim()) {
+        const s = publisherFilter.toLowerCase().trim();
+        if (!(b.publisher || '').toLowerCase().includes(s)) return false;
+      }
+
+      // 5. Genre Filter
+      if (genreFilter.trim()) {
+        const s = genreFilter.toLowerCase().trim();
+        if (!(b.genre || '').toLowerCase().includes(s)) return false;
+      }
+
       return true;
     });
-  }, [books, search, selectedStatuses, selectedFormats]);
+  }, [books, search, selectedStatuses, selectedFormats, publisherFilter, genreFilter]);
 
   const toggleStatusFilter = (status: BookStatus) => {
     setSelectedStatuses(prev => 
@@ -54,6 +68,8 @@ export const useBookFilter = (
   
   const clearFilters = () => {
       setSearch('');
+      setPublisherFilter('');
+      setGenreFilter('');
       setSelectedStatuses(initialStatuses);
       setSelectedFormats(initialFormats);
   };
@@ -62,6 +78,10 @@ export const useBookFilter = (
     filteredBooks,
     search,
     setSearch,
+    publisherFilter,
+    setPublisherFilter,
+    genreFilter,
+    setGenreFilter,
     selectedStatuses,
     setSelectedStatuses,
     selectedFormats,

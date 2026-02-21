@@ -29,6 +29,15 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
     return Array.from(pubs).sort();
   }, [books]);
 
+  const uniqueGenres = useMemo(() => {
+    const genres = new Set<string>();
+    books.forEach((b) => {
+      const value = (b.genre || '').trim();
+      if (value) genres.add(value);
+    });
+    return Array.from(genres).sort((a, b) => a.localeCompare(b, 'uk'));
+  }, [books]);
+
   // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -95,6 +104,7 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
                 onClose={() => setIsEditing(false)} 
                 onSave={handleSave}
                 uniquePublishers={uniquePublishers}
+                uniqueGenres={uniqueGenres}
             />
         ) : (
             <BookView 

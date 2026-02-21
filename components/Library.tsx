@@ -31,6 +31,8 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
   const { 
     filteredBooks, 
     search, setSearch, 
+    publisherFilter, setPublisherFilter,
+    genreFilter, setGenreFilter,
     selectedStatuses, selectedFormats,
     toggleStatusFilter, toggleFormatFilter, 
     clearFilters: resetFilters 
@@ -125,6 +127,24 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
     });
     return Array.from(set).slice(0, 5);
   }, [search, books]);
+
+  const publisherSuggestions = useMemo(() => {
+    const unique = new Set<string>();
+    libraryBooks.forEach((b) => {
+      const value = (b.publisher || '').trim();
+      if (value) unique.add(value);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'uk'));
+  }, [libraryBooks]);
+
+  const genreSuggestions = useMemo(() => {
+    const unique = new Set<string>();
+    libraryBooks.forEach((b) => {
+      const value = (b.genre || '').trim();
+      if (value) unique.add(value);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'uk'));
+  }, [libraryBooks]);
 
   const handleToggleReorder = () => {
       if (isReordering) {
@@ -353,6 +373,12 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
               onToggleStatus={toggleStatusFilter}
               onToggleFormat={toggleFormatFilter}
               onClearFilters={resetFilters}
+              publisherFilter={publisherFilter}
+              onPublisherFilterChange={setPublisherFilter}
+              genreFilter={genreFilter}
+              onGenreFilterChange={setGenreFilter}
+              publisherSuggestions={publisherSuggestions}
+              genreSuggestions={genreSuggestions}
             />
           </div>
         )}

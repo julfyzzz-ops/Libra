@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Search, Filter, X, Plus, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
 import { BookFormat, BookStatus, SortKey, SortDirection } from '../types';
 import { FORMAT_LABELS, STATUS_LABELS } from '../utils';
@@ -18,6 +18,12 @@ interface LibraryControlsProps {
   onToggleStatus: (status: BookStatus) => void;
   onToggleFormat: (format: BookFormat) => void;
   onClearFilters: () => void;
+  publisherFilter: string;
+  onPublisherFilterChange: (value: string) => void;
+  genreFilter: string;
+  onGenreFilterChange: (value: string) => void;
+  publisherSuggestions: string[];
+  genreSuggestions: string[];
 }
 
 export const LibraryControls: React.FC<LibraryControlsProps> = ({
@@ -34,13 +40,37 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
   selectedFormats,
   onToggleStatus,
   onToggleFormat,
-  onClearFilters
+  onClearFilters,
+  publisherFilter,
+  onPublisherFilterChange,
+  genreFilter,
+  onGenreFilterChange,
+  publisherSuggestions,
+  genreSuggestions,
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showPublisherSuggestions, setShowPublisherSuggestions] = useState(false);
+  const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showSortPanel, setShowSortPanel] = useState(false);
 
-  const hasActiveFilters = selectedFormats.length > 0 || selectedStatuses.length !== 3;
+  const filteredPublisherSuggestions = useMemo(() => {
+    if (!publisherFilter.trim()) return publisherSuggestions.slice(0, 8);
+    const q = publisherFilter.toLowerCase().trim();
+    return publisherSuggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 8);
+  }, [publisherFilter, publisherSuggestions]);
+
+  const filteredGenreSuggestions = useMemo(() => {
+    if (!genreFilter.trim()) return genreSuggestions.slice(0, 8);
+    const q = genreFilter.toLowerCase().trim();
+    return genreSuggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 8);
+  }, [genreFilter, genreSuggestions]);
+
+  const hasActiveFilters =
+    selectedFormats.length > 0 ||
+    selectedStatuses.length !== 3 ||
+    publisherFilter.trim().length > 0 ||
+    genreFilter.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -180,6 +210,74 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="relative space-y-2">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Видавництво</span>
+              <input
+                type="text"
+                value={publisherFilter}
+                onChange={(e) => {
+                  onPublisherFilterChange(e.target.value);
+                  setShowPublisherSuggestions(true);
+                }}
+                onFocus={() => setShowPublisherSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowPublisherSuggestions(false), 200)}
+                placeholder="Фільтр за видавництвом"
+                className="w-full bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold border border-gray-100 outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              {showPublisherSuggestions && filteredPublisherSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl z-50 overflow-hidden border border-gray-100 max-h-36 overflow-y-auto">
+                  {filteredPublisherSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        onPublisherFilterChange(s);
+                        setShowPublisherSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative space-y-2">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Жанр</span>
+              <input
+                type="text"
+                value={genreFilter}
+                onChange={(e) => {
+                  onGenreFilterChange(e.target.value);
+                  setShowGenreSuggestions(true);
+                }}
+                onFocus={() => setShowGenreSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowGenreSuggestions(false), 200)}
+                placeholder="Фільтр за жанром"
+                className="w-full bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold border border-gray-100 outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              {showGenreSuggestions && filteredGenreSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl z-50 overflow-hidden border border-gray-100 max-h-36 overflow-y-auto">
+                  {filteredGenreSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        onGenreFilterChange(s);
+                        setShowGenreSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {hasActiveFilters && (
             <button onClick={onClearFilters} className="w-full py-3 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors">
               <X size={18} /> Очистити фільтри
@@ -190,3 +288,4 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
     </div>
   );
 };
+
