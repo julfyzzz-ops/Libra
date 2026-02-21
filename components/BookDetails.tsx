@@ -15,6 +15,10 @@ interface BookDetailsProps {
 export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenReadingMode }) => {
   const { updateBook, deleteBook, books, setFilterTag } = useLibrary();
   const [isEditing, setIsEditing] = useState(false);
+  const liveBook = useMemo(
+    () => books.find((b) => b.id === book.id) || book,
+    [books, book]
+  );
 
   // Extract unique publishers from context books for autocomplete in Edit Mode
   const uniquePublishers = useMemo(() => {
@@ -30,6 +34,13 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  // Close details if the book was deleted elsewhere.
+  useEffect(() => {
+    if (!books.some((b) => b.id === book.id)) {
+      onClose();
+    }
+  }, [books, book.id, onClose]);
 
   const handleSave = (updatedBook: Book) => {
     let finalBook = { ...updatedBook };
@@ -61,7 +72,7 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
 
   const handleStartReadingWishlist = () => {
       updateBook({
-          ...book,
+          ...liveBook,
           status: 'Reading',
           readingStartedAt: new Date().toISOString()
       });
@@ -80,18 +91,18 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
       <div className="w-full max-w-lg h-full sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom duration-300 bg-white overflow-hidden">
         {isEditing ? (
             <BookEdit 
-                book={book} 
+                book={liveBook} 
                 onClose={() => setIsEditing(false)} 
                 onSave={handleSave}
                 uniquePublishers={uniquePublishers}
             />
         ) : (
             <BookView 
-                book={book} 
+                book={liveBook} 
                 onClose={onClose} 
                 onOpenReadingMode={onOpenReadingMode}
                 onEdit={() => setIsEditing(true)}
-                onDelete={() => { deleteBook(book.id); onClose(); }}
+                onDelete={() => { deleteBook(liveBook.id); onClose(); }}
                 onTagClick={handleTagClick}
                 onStartReadingWishlist={handleStartReadingWishlist}
             />

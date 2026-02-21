@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { Book, BookFormat, BookStatus } from '../types';
 import { X, Upload, Loader2, Wand2, Link, Save } from 'lucide-react';
 import { processImage, fetchBookCover } from '../services/storageService';
@@ -33,6 +33,9 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [showPubSuggestions, setShowPubSuggestions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const updateEditForm = useCallback((patch: Partial<Book>) => {
+    setEditForm(prev => ({ ...prev, ...patch }));
+  }, []);
   
   // Local state for previewing the blob cover, as global URLs are gone
   const [previewUrl, setPreviewUrl] = useState<string | null>(editForm.coverUrl || null);
@@ -66,7 +69,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       try {
         const compressedBlob = await processImage(file);
         // We set coverUrl to empty so the useEffect picks up the new blob
-        setEditForm({ ...editForm, coverBlob: compressedBlob, coverUrl: '' });
+        updateEditForm({ coverBlob: compressedBlob, coverUrl: '' });
       } catch (err) {
         console.error(err);
         alert("Помилка обробки фото");
@@ -85,7 +88,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
     try {
         const url = await fetchBookCover(editForm.title, editForm.author || '');
         if (url) {
-            setEditForm({ ...editForm, coverUrl: url, coverBlob: undefined });
+            updateEditForm({ coverUrl: url, coverBlob: undefined });
         } else {
             alert("Обкладинку не знайдено.");
         }
@@ -101,9 +104,9 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
     const val = e.target.value;
     try {
         const clean = val.replace(/[^\p{Extended_Pictographic}\s]/gu, '');
-        setEditForm({ ...editForm, notes: clean });
+        updateEditForm({ notes: clean });
     } catch (error) {
-        setEditForm({ ...editForm, notes: val });
+        updateEditForm({ notes: val });
     }
   };
 
@@ -148,8 +151,8 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                </div>
                
                <div className="space-y-2">
-                   <input className="w-full text-lg font-bold bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} placeholder="Назва книги" />
-                   <input className="w-full text-sm text-gray-500 bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.author} onChange={e => setEditForm({...editForm, author: e.target.value})} placeholder="Автор" />
+                   <input className="w-full text-lg font-bold bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.title} onChange={e => updateEditForm({ title: e.target.value})} placeholder="Назва книги" />
+                   <input className="w-full text-sm text-gray-500 bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.author} onChange={e => updateEditForm({ author: e.target.value})} placeholder="Автор" />
                </div>
             </div>
          </div>
@@ -162,7 +165,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">URL Обкладинки</label>
                 <div className="relative">
                 <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={12} />
-                <input placeholder="https://..." className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.coverUrl || ''} onChange={e => setEditForm({...editForm, coverUrl: e.target.value, coverBlob: undefined})} />
+                <input placeholder="https://..." className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.coverUrl || ''} onChange={e => updateEditForm({ coverUrl: e.target.value, coverBlob: undefined})} />
                 </div>
             </div>
 
@@ -171,7 +174,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 <input 
                     className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none focus:ring-2 focus:ring-indigo-500" 
                     value={editForm.publisher || ''} 
-                    onChange={e => { setEditForm({...editForm, publisher: e.target.value}); setShowPubSuggestions(true); }} 
+                    onChange={e => { updateEditForm({ publisher: e.target.value}); setShowPubSuggestions(true); }} 
                     onFocus={() => setShowPubSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowPubSuggestions(false), 200)}
                     placeholder="Видавець"
@@ -179,7 +182,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 {showPubSuggestions && filteredPublishers.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-32 overflow-y-auto">
                         {filteredPublishers.map((pub, idx) => (
-                            <button key={idx} type="button" onClick={() => { setEditForm({...editForm, publisher: pub}); setShowPubSuggestions(false); }} className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none">{pub}</button>
+                            <button key={idx} type="button" onClick={() => { updateEditForm({ publisher: pub}); setShowPubSuggestions(false); }} className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none">{pub}</button>
                         ))}
                     </div>
                 )}
@@ -188,27 +191,27 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Серія</label>
-                    <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.series || ''} onChange={e => setEditForm({...editForm, series: e.target.value})} placeholder="Напр. Гаррі Поттер" />
+                    <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.series || ''} onChange={e => updateEditForm({ series: e.target.value})} placeholder="Напр. Гаррі Поттер" />
                 </div>
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Номер</label>
-                    <input type="text" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.seriesPart || ''} onChange={e => setEditForm({...editForm, seriesPart: e.target.value})} placeholder="Напр. Книга 1 / Том II" />
+                    <input type="text" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.seriesPart || ''} onChange={e => updateEditForm({ seriesPart: e.target.value})} placeholder="Напр. Книга 1 / Том II" />
                 </div>
             </div>
 
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
-                <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.genre || ''} onChange={e => setEditForm({...editForm, genre: e.target.value})} placeholder="Напр. Фентезі" />
+                <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.genre || ''} onChange={e => updateEditForm({ genre: e.target.value})} placeholder="Напр. Фентезі" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Всього ст.</label>
-                    <input inputMode="numeric" pattern="[0-9]*" type="number" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.pagesTotal || 0} onChange={e => setEditForm({...editForm, pagesTotal: parseInt(e.target.value) || 0})} />
+                    <input inputMode="numeric" pattern="[0-9]*" type="number" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.pagesTotal || 0} onChange={e => updateEditForm({ pagesTotal: parseInt(e.target.value) || 0})} />
                 </div>
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Статус</label>
-                    <select className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none" value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value as BookStatus})}>
+                    <select className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none" value={editForm.status} onChange={e => updateEditForm({ status: e.target.value as BookStatus})}>
                         <option value="Unread">Не прочитано</option>
                         <option value="Reading">Читаю</option>
                         <option value="Completed">Прочитано</option>
@@ -219,18 +222,18 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
             
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Дата додавання</label>
-                <input type="date" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.addedAt ? editForm.addedAt.substring(0, 10) : ''} onChange={e => setEditForm({...editForm, addedAt: e.target.value ? new Date(e.target.value).toISOString() : new Date().toISOString()})} />
+                <input type="date" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.addedAt ? editForm.addedAt.substring(0, 10) : ''} onChange={e => updateEditForm({ addedAt: e.target.value ? new Date(e.target.value).toISOString() : new Date().toISOString()})} />
             </div>
 
             {editForm.status === 'Completed' && (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
                     <div className="space-y-1">
                         <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Дата завершення</label>
-                        <input type="date" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.completedAt ? editForm.completedAt.substring(0, 10) : ''} onChange={e => setEditForm({...editForm, completedAt: e.target.value ? new Date(e.target.value).toISOString() : undefined})} />
+                        <input type="date" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.completedAt ? editForm.completedAt.substring(0, 10) : ''} onChange={e => updateEditForm({ completedAt: e.target.value ? new Date(e.target.value).toISOString() : undefined})} />
                     </div>
                     <div className="space-y-1">
                         <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Оцінка</label>
-                        <select className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none" value={editForm.rating || 0} onChange={e => setEditForm({...editForm, rating: parseInt(e.target.value)})}>
+                        <select className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none" value={editForm.rating || 0} onChange={e => updateEditForm({ rating: parseInt(e.target.value)})}>
                         <option value={0}>Без оцінки</option>
                         {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(r => (<option key={r} value={r}>{r}</option>))}
                         </select>
@@ -240,19 +243,19 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
 
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Примітки</label>
-                <input className="w-full bg-gray-50 p-3 rounded-2xl text-lg font-bold border-none outline-none" value={editForm.notes || ''} onChange={handleEmojiInput} placeholder="❄☮❤" />
+                <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-medium border-none outline-none placeholder:text-gray-300" value={editForm.notes || ''} onChange={handleEmojiInput} placeholder="тільки емодзі" />
             </div>
 
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Коментар</label>
-                <textarea className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-medium border-none outline-none resize-none h-24" value={editForm.comment || ''} onChange={e => setEditForm({...editForm, comment: e.target.value})} placeholder="Напишіть свої враження..." />
+                <textarea className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-medium border-none outline-none resize-none h-24" value={editForm.comment || ''} onChange={e => updateEditForm({ comment: e.target.value})} placeholder="Напишіть свої враження..." />
             </div>
 
             <div className="space-y-2">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Формати</label>
                 <div className="grid grid-cols-3 gap-2">
                     {Object.keys(FORMAT_LABELS).map(f => (
-                        <FormatToggle key={f} label={FORMAT_LABELS[f as BookFormat]} active={editForm.formats.includes(f as any)} onChange={() => { const cur = editForm.formats || []; const next = cur.includes(f as any) ? cur.filter(x => x !== f) : [...cur, f as any]; if (next.length > 0) setEditForm({...editForm, formats: next}); }} />
+                        <FormatToggle key={f} label={FORMAT_LABELS[f as BookFormat]} active={editForm.formats.includes(f as any)} onChange={() => { const cur = editForm.formats || []; const next = cur.includes(f as any) ? cur.filter(x => x !== f) : [...cur, f as any]; if (next.length > 0) updateEditForm({ formats: next}); }} />
                     ))}
                 </div>
             </div>

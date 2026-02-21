@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Book, SortKey, SortDirection } from '../types';
+import { Book, BookFormat, SortKey, SortDirection } from '../types';
 import { BookOpen, Loader2 } from 'lucide-react';
 
 import { Wishlist } from './Wishlist';
@@ -24,6 +24,7 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
   const { books, reorderBooks, filterTag, setFilterTag } = useLibrary();
   const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
   const libraryBooks = useMemo(() => books.filter(b => b.status !== 'Wishlist'), [books]);
+  const defaultEnabledFormats: BookFormat[] = ['Paper', 'E-book', 'Audio', 'Pirate', 'Expected'];
 
   // --- Filtering ---
   const { 
@@ -32,7 +33,7 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
     selectedStatuses, selectedFormats,
     toggleStatusFilter, toggleFormatFilter, 
     clearFilters: resetFilters 
-  } = useBookFilter(libraryBooks, ['Reading', 'Unread', 'Completed'], []);
+  } = useBookFilter(libraryBooks, ['Reading', 'Unread', 'Completed'], defaultEnabledFormats);
 
   // --- Sorting ---
   // Use a specific key for Library sort to distinguish from Wishlist

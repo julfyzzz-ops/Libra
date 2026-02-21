@@ -270,9 +270,9 @@ export const Wishlist: React.FC = () => {
       }
   };
 
-  if (isAdding) return <AddWishlist onAdd={(b) => { addBook(b); setIsAdding(false); }} onCancel={() => setIsAdding(false)} />;
-
   const handleNoopBookClick = useCallback((_book: Book) => {}, []);
+
+  if (isAdding) return <AddWishlist onAdd={(b) => { addBook(b); setIsAdding(false); }} onCancel={() => setIsAdding(false)} />;
 
   const WishlistCard = ({ book, onClick, performanceMode = false }: { book: Book, onClick?: () => void, performanceMode?: boolean }) => (
     <div 
