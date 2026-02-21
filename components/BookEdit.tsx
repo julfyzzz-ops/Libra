@@ -192,7 +192,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 </div>
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Номер</label>
-                    <input inputMode="numeric" pattern="[0-9]*" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.seriesPart || ''} onChange={e => setEditForm({...editForm, seriesPart: e.target.value})} placeholder="Напр. 1" />
+                    <input type="text" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.seriesPart || ''} onChange={e => setEditForm({...editForm, seriesPart: e.target.value})} placeholder="Напр. Книга 1 / Том II" />
                 </div>
             </div>
 

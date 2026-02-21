@@ -40,11 +40,17 @@ export const useBookSort = (
           result = new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
           break;
         case 'genre':
+          const hasGenreA = Boolean((a.genre || '').trim());
+          const hasGenreB = Boolean((b.genre || '').trim());
+          if (hasGenreA !== hasGenreB) {
+            return hasGenreA ? -1 : 1; // Books without genre are always last
+          }
           result =
             compareText(a.genre, b.genre) ||
             compareText(a.author, b.author) ||
             compareText(a.series, b.series) ||
-            compareSeriesPart(a.seriesPart, b.seriesPart);
+            compareSeriesPart(a.seriesPart, b.seriesPart) ||
+            compareText(a.title, b.title);
           break;
       }
 
