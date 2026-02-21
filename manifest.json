@@ -9,9 +9,16 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Cpath stroke='white' stroke-width='4' stroke-linecap='round' d='M50 20v65M30 90h40M20 32h60'/%3E%3Cpath fill='none' stroke='white' stroke-width='2' stroke-linejoin='round' d='M20 32L8 62h24L20 32M80 32L68 62h24L80 32'/%3E%3Crect x='10' y='56' width='20' height='5' rx='1' fill='white'/%3E%3Crect x='12' y='50' width='16' height='5' rx='1' fill='white' opacity='0.8'/%3E%3Crect x='70' y='56' width='20' height='5' rx='1' fill='white'/%3E%3Crect x='72' y='50' width='16' height='5' rx='1' fill='white' opacity='0.8'/%3E%3Crect x='74' y='44' width='12' height='5' rx='1' fill='white' opacity='0.6'/%3E%3C/svg%3E",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml"
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
