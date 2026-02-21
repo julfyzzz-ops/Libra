@@ -193,13 +193,15 @@ export const Wishlist: React.FC = () => {
 
       {/* List */}
       {isReordering ? (
-          <Reorder.Group axis="y" values={displayItems} onReorder={handleReorder} className="space-y-3 select-none">
-            {displayItems.map((book) => (
-                <SortableBookItem key={book.id} book={book} showHandle={true}>
-                    <WishlistCard book={book} onClick={() => {}} />
-                </SortableBookItem>
-            ))}
-          </Reorder.Group>
+          <div className="space-y-3 select-none">
+            <Reorder.Group axis="y" values={displayItems} onReorder={handleReorder}>
+              {displayItems.map((book) => (
+                  <SortableBookItem key={book.id} book={book} showHandle={true}>
+                      <WishlistCard book={book} onClick={() => {}} />
+                  </SortableBookItem>
+              ))}
+            </Reorder.Group>
+          </div>
       ) : (
           <div className="space-y-3">
              {displayItems.map((book) => (

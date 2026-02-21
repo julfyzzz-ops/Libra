@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, Loader2, Wand2, Link } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../types';
 import { processImage } from '../services/imageUtils';
@@ -34,6 +34,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
   const { toast } = useUI();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewObjectUrlRef = useRef<string | null>(null);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   
@@ -72,6 +73,17 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
     );
   }, [uniquePublishers, formData.publisher]);
 
+  const revokePreviewObjectUrl = useCallback(() => {
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current);
+      previewObjectUrlRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => revokePreviewObjectUrl();
+  }, [revokePreviewObjectUrl]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -79,6 +91,8 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
       try {
         const compressedBlob = await processImage(file);
         const previewUrl = URL.createObjectURL(compressedBlob);
+        revokePreviewObjectUrl();
+        previewObjectUrlRef.current = previewUrl;
         setFormData({ ...formData, coverBlob: compressedBlob, coverUrl: previewUrl });
         toast.show("Фото завантажено", "success");
       } catch (error) {
@@ -99,6 +113,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
     try {
         const url = await fetchBookCover(formData.title, formData.author || '');
         if (url) {
+            revokePreviewObjectUrl();
             setFormData({ ...formData, coverUrl: url, coverBlob: undefined });
             toast.show("Обкладинку знайдено", "success");
         } else {
@@ -158,6 +173,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
     addBook(newBook);
     toast.show("Книгу додано", "success");
     onAddSuccess();
+    revokePreviewObjectUrl();
     setFormData({ title: '', author: '', genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined, notes: '', comment: '' });
   };
 
@@ -219,7 +235,10 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess }) => {
                   placeholder="https://example.com/image.jpg" 
                   className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
                   value={formData.coverUrl || ''} 
-                  onChange={e => setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined})} 
+                  onChange={e => {
+                    revokePreviewObjectUrl();
+                    setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined});
+                  }} 
                />
              </div>
            </div>

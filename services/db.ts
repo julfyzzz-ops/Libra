@@ -37,22 +37,36 @@ export const saveAllBooks = (db: IDBDatabase, books: Book[]): Promise<void> => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
 
-    // Clear and rewrite strategy
-    store.clear();
-    
-    books.forEach(book => {
-      // PRE-SAVE CLEANUP:
-      // We do NOT want to store "blob:..." URLs in IndexedDB as they are temporary.
-      // We store the 'coverBlob'. The 'coverUrl' should be cleared if it was a blob URL.
-      // If 'coverUrl' is an external link (http...), keep it.
-      
-      const bookToSave = { ...book };
-      if (bookToSave.coverBlob && bookToSave.coverUrl?.startsWith('blob:')) {
+    // Incremental sync strategy:
+    // 1) Delete records that no longer exist in the new state
+    // 2) Upsert current records
+    const nextIds = new Set(books.map((b) => b.id));
+    const keysRequest = store.getAllKeys();
+
+    keysRequest.onsuccess = () => {
+      const existingKeys = keysRequest.result as IDBValidKey[];
+      existingKeys.forEach((key) => {
+        const id = String(key);
+        if (!nextIds.has(id)) {
+          store.delete(key);
+        }
+      });
+
+      books.forEach((book) => {
+        // PRE-SAVE CLEANUP:
+        // We do NOT want to store "blob:..." URLs in IndexedDB as they are temporary.
+        // We store the 'coverBlob'. The 'coverUrl' should be cleared if it was a blob URL.
+        // If 'coverUrl' is an external link (http...), keep it.
+        const bookToSave = { ...book };
+        if (bookToSave.coverBlob && bookToSave.coverUrl?.startsWith('blob:')) {
           bookToSave.coverUrl = ''; // Clean up temp URL before storage
-      }
-      
-      store.put(bookToSave);
-    });
+        }
+
+        store.put(bookToSave);
+      });
+    };
+
+    keysRequest.onerror = () => reject(keysRequest.error);
 
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);

@@ -1,14 +1,16 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet, Loader2, Palette } from 'lucide-react';
-import { loadLibrary, loadSettings, saveSettings, exportLibraryToJSON } from '../services/storageService';
+import { loadSettings, saveSettings, exportLibraryToJSON } from '../services/storageService';
 import { importLibraryFromJSON, importLibraryFromCSV } from '../services/importers';
 import { ACCENT_COLORS, BACKGROUND_TONES, applyTheme } from '../utils';
 import { AccentColor, BackgroundTone, AppSettings } from '../types';
 import { useUI } from '../contexts/UIContext';
+import { useLibrary } from '../contexts/LibraryContext';
 
 export const Settings: React.FC = () => {
   const { toast, confirm } = useUI();
+  const { refreshLibrary } = useLibrary();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -66,14 +68,16 @@ export const Settings: React.FC = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsImporting(true);
 
     try {
       await importLibraryFromJSON(file);
+      await refreshLibrary();
       toast.show("Бібліотеку відновлено!", "success");
-      setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
       toast.show("Невірний формат файлу", "error");
     } finally {
+      setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -85,8 +89,8 @@ export const Settings: React.FC = () => {
     setIsImporting(true);
     try {
       const count = await importLibraryFromCSV(file);
+      await refreshLibrary();
       toast.show(`Імпортовано ${count} книг`, "success");
-      setTimeout(() => window.location.reload(), 1000);
     } catch (error: any) {
       console.error(error);
       toast.show("Помилка імпорту CSV", "error");

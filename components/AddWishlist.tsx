@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Image as ImageIcon, Save, Loader2, Wand2, Link, ArrowLeft } from 'lucide-react';
 import { Book } from '../types';
 import { processImage } from '../services/imageUtils';
@@ -12,6 +12,7 @@ interface AddWishlistProps {
 
 export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewObjectUrlRef = useRef<string | null>(null);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   
@@ -22,6 +23,17 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
     coverBlob: undefined
   });
 
+  const revokePreviewObjectUrl = useCallback(() => {
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current);
+      previewObjectUrlRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => revokePreviewObjectUrl();
+  }, [revokePreviewObjectUrl]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -29,6 +41,8 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
       try {
         const compressedBlob = await processImage(file);
         const previewUrl = URL.createObjectURL(compressedBlob);
+        revokePreviewObjectUrl();
+        previewObjectUrlRef.current = previewUrl;
         setFormData({ ...formData, coverBlob: compressedBlob, coverUrl: previewUrl });
       } catch (error) {
         console.error("Image processing failed", error);
@@ -48,6 +62,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
     try {
         const url = await fetchBookCover(formData.title, formData.author || '');
         if (url) {
+            revokePreviewObjectUrl();
             setFormData({ ...formData, coverUrl: url, coverBlob: undefined });
         } else {
             alert("Обкладинку не знайдено.");
@@ -86,6 +101,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
     };
     
     onAdd(newBook);
+    revokePreviewObjectUrl();
   };
 
   return (
@@ -146,7 +162,7 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
                             placeholder="https://example.com/image.jpg" 
                             className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
                             value={formData.coverUrl || ''} 
-                            onChange={e => setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined})} 
+                            onChange={e => { revokePreviewObjectUrl(); setFormData({...formData, coverUrl: e.target.value, coverBlob: undefined}); }} 
                         />
                     </div>
                 </div>

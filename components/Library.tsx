@@ -158,18 +158,20 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
           />
 
           {isReordering ? (
-             <Reorder.Group axis="y" values={displayItems} onReorder={handleReorder} className="space-y-3">
-                {displayItems.map((book, idx) => (
-                    <SortableBookItem key={book.id} book={book} showHandle={true}>
-                        <BookCard
-                            book={book}
-                            index={idx}
-                            onClick={() => {}} // Click disabled during reorder
-                            isDragging={false} 
-                        />
-                    </SortableBookItem>
-                ))}
-             </Reorder.Group>
+             <div className="space-y-3">
+                <Reorder.Group axis="y" values={displayItems} onReorder={handleReorder}>
+                    {displayItems.map((book, idx) => (
+                        <SortableBookItem key={book.id} book={book} showHandle={true}>
+                            <BookCard
+                                book={book}
+                                index={idx}
+                                onClick={() => {}} // Click disabled during reorder
+                                isDragging={false} 
+                            />
+                        </SortableBookItem>
+                    ))}
+                </Reorder.Group>
+             </div>
           ) : (
              <div className="space-y-3">
                 {displayItems.map((book, idx) => (

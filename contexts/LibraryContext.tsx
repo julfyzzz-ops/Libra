@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Book, LibraryState, BookFormat } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { Book, LibraryState } from '../types';
 import { loadLibrary, saveLibrary } from '../services/storageService';
 
 interface LibraryContextType {
@@ -31,6 +31,8 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [state, setState] = useState<LibraryState>({ books: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [filterTag, setFilterTag] = useState('');
+  const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const reorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshLibrary = useCallback(async () => {
     const data = await loadLibrary();
@@ -42,14 +44,25 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshLibrary();
   }, [refreshLibrary]);
 
-  const handleUpdate = useCallback(async (newState: LibraryState) => {
-    setState(newState);
-    await saveLibrary(newState);
+  const enqueueSave = useCallback((newState: LibraryState) => {
+    writeQueueRef.current = writeQueueRef.current
+      .then(() => saveLibrary(newState))
+      .catch((e) => {
+        console.error('Queued save failed', e);
+      });
   }, []);
 
+  const handleUpdate = useCallback((updater: (prev: LibraryState) => LibraryState) => {
+    setState((prev) => {
+      const next = updater(prev);
+      enqueueSave(next);
+      return next;
+    });
+  }, [enqueueSave]);
+
   const addBook = useCallback((book: Book) => {
-    handleUpdate({ ...state, books: [...state.books, book] });
-  }, [state, handleUpdate]);
+    handleUpdate((prev) => ({ ...prev, books: [...prev.books, book] }));
+  }, [handleUpdate]);
 
   const updateBook = useCallback((updatedBook: Book) => {
     let finalBook = { ...updatedBook };
@@ -71,24 +84,29 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         finalBook.rating = undefined; // Clear rating as it's not read
     }
 
-    const newState = {
-      ...state,
-      books: state.books.map(b => b.id === finalBook.id ? finalBook : b)
-    };
-    handleUpdate(newState);
-  }, [state, handleUpdate]);
+    handleUpdate((prev) => ({
+      ...prev,
+      books: prev.books.map(b => b.id === finalBook.id ? finalBook : b)
+    }));
+  }, [handleUpdate]);
 
   const deleteBook = useCallback((id: string) => {
-    const newState = {
-      ...state,
-      books: state.books.filter(b => b.id !== id)
-    };
-    handleUpdate(newState);
-  }, [state, handleUpdate]);
+    handleUpdate((prev) => ({
+      ...prev,
+      books: prev.books.filter(b => b.id !== id)
+    }));
+  }, [handleUpdate]);
 
   const reorderBooks = useCallback((newBooks: Book[]) => {
-    handleUpdate({ ...state, books: newBooks });
-  }, [state, handleUpdate]);
+    setState((prev) => ({ ...prev, books: newBooks }));
+    if (reorderSaveTimerRef.current) {
+      clearTimeout(reorderSaveTimerRef.current);
+    }
+    reorderSaveTimerRef.current = setTimeout(() => {
+      enqueueSave({ books: newBooks });
+      reorderSaveTimerRef.current = null;
+    }, 250);
+  }, [enqueueSave]);
 
   return (
     <LibraryContext.Provider value={{ 
