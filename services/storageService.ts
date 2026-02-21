@@ -149,7 +149,17 @@ export const loadLibrary = async (): Promise<LibraryState> => {
         await saveAllBooks(db, processedBooks);
     }
 
-    return { books: processedBooks };
+    const hasStoredCustomOrder = processedBooks.some((b) => typeof b.customOrder === 'number');
+    const booksWithStableOrder = hasStoredCustomOrder
+      ? [...processedBooks].sort((a, b) => {
+          const orderA = typeof a.customOrder === 'number' ? a.customOrder : Number.MAX_SAFE_INTEGER;
+          const orderB = typeof b.customOrder === 'number' ? b.customOrder : Number.MAX_SAFE_INTEGER;
+          if (orderA !== orderB) return orderA - orderB;
+          return new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
+        })
+      : processedBooks;
+
+    return { books: booksWithStableOrder };
   } catch (e) {
     console.error("Failed to load library from IndexedDB", e);
     return { books: [] };
@@ -159,7 +169,11 @@ export const loadLibrary = async (): Promise<LibraryState> => {
 export const saveLibrary = async (state: LibraryState): Promise<void> => {
   try {
     const db = await openDB();
-    await saveAllBooks(db, state.books);
+    const booksWithOrder = state.books.map((book, index) => ({
+      ...book,
+      customOrder: index,
+    }));
+    await saveAllBooks(db, booksWithOrder);
   } catch (e) {
     console.error("Failed to save library to DB", e);
     if (e instanceof DOMException && e.name === 'QuotaExceededError') {

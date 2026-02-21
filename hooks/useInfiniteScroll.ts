@@ -34,7 +34,10 @@ export const useInfiniteScroll = <T,>(
     }
 
     return () => observer.disconnect();
-  }, [hasMore, items.length, batchSize]);
+  // Re-subscribe observer when reset dependencies change (e.g. exiting reorder mode),
+  // otherwise target can be re-mounted without a fresh observer subscription.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, items.length, batchSize, ...resetDeps]);
 
   return { visibleItems, observerTarget, hasMore };
 };

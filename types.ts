@@ -11,6 +11,7 @@ export interface ReadingSessionData {
 
 export interface Book {
   id: string;
+  customOrder?: number;
   title: string;
   author: string;
   formats: BookFormat[];
@@ -56,5 +57,5 @@ export interface AppSettings {
   bg: BackgroundTone;
 }
 
-export type SortKey = 'title' | 'author' | 'addedAt' | 'custom';
+export type SortKey = 'title' | 'author' | 'addedAt' | 'genre' | 'custom';
 export type SortDirection = 'asc' | 'desc';
