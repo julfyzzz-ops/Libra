@@ -50,7 +50,7 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
   const hasActiveFilters = selectedFormats.length > 0 || selectedStatuses.length !== 3;
 
   return (
-    <div className="sticky top-[72px] z-20 space-y-4 pt-2 pb-1 bg-[#f8fafc]/95 backdrop-blur-sm">
+    <div className="space-y-4">
       {/* Top Row: Add, Search, Sort Toggle, Filter Toggle */}
       <div className="flex gap-2 h-12">
         <button 

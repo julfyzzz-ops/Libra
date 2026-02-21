@@ -1,12 +1,11 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Book, BookFormat } from '../types';
 import { BookOpen, Headphones, Tablet, Ghost, Clock, ShoppingCart } from 'lucide-react';
 import { BookCover } from './ui/BookCover';
 
 interface BookCardProps {
   book: Book;
-  index: number;
   onClick: (book: Book) => void;
   // Dragging state passed from parent wrapper
   isDragging?: boolean;
@@ -24,15 +23,13 @@ const FormatIcon = ({ format }: { format: BookFormat }) => {
   }
 };
 
-export const BookCard: React.FC<BookCardProps> = ({
+export const BookCard: React.FC<BookCardProps> = memo(({
   book,
-  index,
   onClick,
   isDragging
 }) => {
   return (
     <div 
-      data-book-index={index}
       onClick={() => onClick(book)}
       className={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-center active:scale-95 transition-all cursor-pointer select-none ${isDragging ? 'opacity-50 scale-95 ring-2 ring-indigo-500 shadow-xl' : ''}`}
     >
@@ -65,4 +62,4 @@ export const BookCard: React.FC<BookCardProps> = ({
       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${book.status === 'Completed' ? 'bg-emerald-500' : book.status === 'Reading' ? 'bg-indigo-600' : 'bg-gray-200'}`} />
     </div>
   );
-};
+});
