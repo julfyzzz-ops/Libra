@@ -316,7 +316,13 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
-                <input placeholder="Жанр" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.genre} onChange={e => updateFormData({ genre: e.target.value })} />
+                <input
+                  placeholder="Жанр"
+                  className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none"
+                  value={formData.genre}
+                  maxLength={160}
+                  onChange={e => updateFormData({ genre: e.target.value.slice(0, 160) })}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Сторінки</label>

@@ -33,6 +33,8 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [filterTag, setFilterTag] = useState('');
   const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
   const reorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bookSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBookSavesRef = useRef<Map<string, Book>>(new Map());
 
   const refreshLibrary = useCallback(async () => {
     const data = await loadLibrary();
@@ -60,13 +62,43 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
   }, []);
 
+  const flushPendingBookSaves = useCallback(() => {
+    const booksToSave: Book[] = Array.from(pendingBookSavesRef.current.values());
+    pendingBookSavesRef.current.clear();
+    if (booksToSave.length === 0) return;
+
+    enqueueTask(async () => {
+      for (const book of booksToSave) {
+        await saveBook(book);
+      }
+    });
+  }, [enqueueTask]);
+
+  const scheduleBookSave = useCallback((book: Book) => {
+    pendingBookSavesRef.current.set(book.id, book);
+    if (bookSaveTimerRef.current) {
+      clearTimeout(bookSaveTimerRef.current);
+    }
+    bookSaveTimerRef.current = setTimeout(() => {
+      bookSaveTimerRef.current = null;
+      flushPendingBookSaves();
+    }, 180);
+  }, [flushPendingBookSaves]);
+
+  useEffect(() => {
+    return () => {
+      if (bookSaveTimerRef.current) clearTimeout(bookSaveTimerRef.current);
+      if (reorderSaveTimerRef.current) clearTimeout(reorderSaveTimerRef.current);
+    };
+  }, []);
+
   const addBook = useCallback((book: Book) => {
     setState((prev) => {
       const orderedBook = { ...book, customOrder: prev.books.length };
-      enqueueTask(() => saveBook(orderedBook));
+      scheduleBookSave(orderedBook);
       return { ...prev, books: [...prev.books, orderedBook] };
     });
-  }, [enqueueTask]);
+  }, [scheduleBookSave]);
 
   const updateBook = useCallback((updatedBook: Book) => {
     let finalBook = { ...updatedBook };
@@ -97,15 +129,16 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       if (bookToPersist) {
-        enqueueTask(() => saveBook(bookToPersist as Book));
+        scheduleBookSave(bookToPersist as Book);
       }
 
       return { ...prev, books: nextBooks };
     });
-  }, [enqueueTask]);
+  }, [scheduleBookSave]);
 
   const deleteBook = useCallback((id: string) => {
     setState((prev) => ({ ...prev, books: prev.books.filter((b) => b.id !== id) }));
+    pendingBookSavesRef.current.delete(id);
     enqueueTask(() => removeBook(id));
   }, [enqueueTask]);
 
@@ -115,10 +148,11 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       clearTimeout(reorderSaveTimerRef.current);
     }
     reorderSaveTimerRef.current = setTimeout(() => {
+      flushPendingBookSaves();
       enqueueSave({ books: newBooks });
       reorderSaveTimerRef.current = null;
     }, 250);
-  }, [enqueueSave]);
+  }, [enqueueSave, flushPendingBookSaves]);
 
   return (
     <LibraryContext.Provider value={{ 

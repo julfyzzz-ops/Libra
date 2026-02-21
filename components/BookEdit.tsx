@@ -210,7 +210,13 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
 
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Жанр</label>
-                <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.genre || ''} onChange={e => updateEditForm({ genre: e.target.value})} placeholder="Напр. Фентезі" />
+                <input
+                  className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none"
+                  value={editForm.genre || ''}
+                  maxLength={160}
+                  onChange={e => updateEditForm({ genre: e.target.value.slice(0, 160) })}
+                  placeholder="Напр. Фентезі"
+                />
             </div>
 
             <div className="space-y-2">

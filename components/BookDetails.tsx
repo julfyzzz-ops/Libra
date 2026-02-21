@@ -66,8 +66,9 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
         }
     }
 
-    updateBook(finalBook);
     setIsEditing(false);
+    // Close editor first for responsive UX, persist right after.
+    setTimeout(() => updateBook(finalBook), 0);
   };
 
   const handleStartReadingWishlist = () => {
