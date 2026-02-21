@@ -82,15 +82,30 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     bookSaveTimerRef.current = setTimeout(() => {
       bookSaveTimerRef.current = null;
       flushPendingBookSaves();
-    }, 180);
+    }, 120);
   }, [flushPendingBookSaves]);
 
   useEffect(() => {
+    const handleVisibilityOrPageHide = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingBookSaves();
+      }
+    };
+    const handlePageHide = () => {
+      flushPendingBookSaves();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrPageHide);
+    window.addEventListener('pagehide', handlePageHide);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrPageHide);
+      window.removeEventListener('pagehide', handlePageHide);
       if (bookSaveTimerRef.current) clearTimeout(bookSaveTimerRef.current);
       if (reorderSaveTimerRef.current) clearTimeout(reorderSaveTimerRef.current);
+      flushPendingBookSaves();
     };
-  }, []);
+  }, [flushPendingBookSaves]);
 
   const addBook = useCallback((book: Book) => {
     setState((prev) => {

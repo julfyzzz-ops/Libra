@@ -137,8 +137,10 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
             >
               {isProcessingImg ? (
                   <div className="w-full h-full flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-indigo-600" /></div>
+              ) : previewUrl ? (
+                  <img src={previewUrl} className="w-full h-full object-cover opacity-80" />
               ) : (
-                  <img src={previewUrl || ''} className="w-full h-full object-cover opacity-80" />
+                  <div className="w-full h-full bg-gray-50" />
               )}
               
               {!isProcessingImg && (
