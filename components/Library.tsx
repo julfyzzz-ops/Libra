@@ -23,6 +23,7 @@ interface LibraryProps {
 export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
   const { books, reorderBooks, filterTag, setFilterTag } = useLibrary();
   const [activeTab, setActiveTab] = useState<'library' | 'wishlist'>('library');
+  const scrollByTabRef = useRef<{ library: number; wishlist: number }>({ library: 0, wishlist: 0 });
   const libraryBooks = useMemo(() => books.filter(b => b.status !== 'Wishlist'), [books]);
   const defaultEnabledFormats: BookFormat[] = ['Paper', 'E-book', 'Audio', 'Pirate', 'Expected'];
 
@@ -70,6 +71,23 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
   useEffect(() => {
     if (filterTag !== search) setSearch(filterTag);
   }, [filterTag]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      scrollByTabRef.current[activeTab] = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [activeTab]);
+
+  const handleTabChange = (nextTab: 'library' | 'wishlist') => {
+    if (nextTab === activeTab) return;
+    scrollByTabRef.current[activeTab] = window.scrollY;
+    setActiveTab(nextTab);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollByTabRef.current[nextTab] || 0, behavior: 'auto' });
+    });
+  };
 
   // Persist Sort
   useEffect(() => {
@@ -310,12 +328,12 @@ export const Library: React.FC<LibraryProps> = ({ onAddClick }) => {
   const displayItems = isReordering ? reorderDraft : visibleItems;
 
   return (
-    <div className="p-4 space-y-6 pb-24 text-gray-800">
-      <div className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur-sm border-b border-gray-100">
+    <div className={`p-4 pb-24 text-gray-800 ${activeTab === 'library' ? 'space-y-6' : 'space-y-0'}`}>
+      <div className={`sticky top-0 z-30 -mx-4 px-4 bg-slate-50/95 backdrop-blur-sm ${activeTab === 'library' ? 'py-2 border-b border-gray-100' : 'pt-2 pb-0'}`}>
         <header className="flex justify-between items-center">
           <div className="flex items-baseline gap-4">
-            <h1 onClick={() => setActiveTab('library')} className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}>Бібліотека</h1>
-            <h1 onClick={() => setActiveTab('wishlist')} className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}>Бажанки</h1>
+            <h1 onClick={() => handleTabChange('library')} className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}>Бібліотека</h1>
+            <h1 onClick={() => handleTabChange('wishlist')} className={`text-3xl font-bold cursor-pointer transition-colors ${activeTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}>Бажанки</h1>
           </div>
         </header>
         {activeTab === 'library' && (

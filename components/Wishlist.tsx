@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Book, BookFormat, SortKey, SortDirection } from '../types';
-import { ShoppingBag, BookOpenCheck, BookOpen, Tablet, Headphones, X, Search, Plus, ArrowUp, ArrowDown, ArrowDownUp, Loader2 } from 'lucide-react';
+import { ShoppingBag, BookOpenCheck, BookOpen, Tablet, Headphones, X, Loader2 } from 'lucide-react';
 
 import { AddWishlist } from './AddWishlist';
 import { BookDetails } from './BookDetails';
@@ -12,13 +12,11 @@ import { BookCover } from './ui/BookCover';
 import { SortableBookItem } from './SortableBookItem';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { loadSortPrefs, saveSortPrefs } from '../services/storageService';
+import { WishlistControls } from './WishlistControls';
 
 export const Wishlist: React.FC = () => {
   const { books, updateBook, reorderBooks, addBook } = useLibrary();
   const wishlistBooks = useMemo(() => books.filter(b => b.status === 'Wishlist'), [books]);
-
-  // UI States for Panels
-  const [showSortPanel, setShowSortPanel] = useState(false);
 
   // Create a custom filter wrapper (Pass empty arrays as we removed Wishlist filtering)
   const { filteredBooks, search, setSearch } = useBookFilter(wishlistBooks, [], []);
@@ -71,6 +69,16 @@ export const Wishlist: React.FC = () => {
       [search, sortKey, sortDirection, isReordering]
   );
   const displayItems = isReordering ? reorderDraft : visibleItems;
+  const suggestions = useMemo(() => {
+    if (search.length < 2) return [];
+    const lower = search.toLowerCase();
+    const set = new Set<string>();
+    wishlistBooks.forEach((b) => {
+      if (b.title.toLowerCase().includes(lower)) set.add(b.title);
+      if (b.author.toLowerCase().includes(lower)) set.add(b.author);
+    });
+    return Array.from(set).slice(0, 5);
+  }, [search, wishlistBooks]);
 
   // Selection States
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -298,76 +306,19 @@ export const Wishlist: React.FC = () => {
   return (
     <div className="text-gray-800 space-y-4">
       {/* Header Controls */}
-      <div className="flex gap-2 h-12">
-        <button 
-            onClick={() => setIsAdding(true)}
-            className="h-12 w-12 flex-shrink-0 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
-        >
-            <Plus size={24} />
-        </button>
-
-        <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-                type="text" 
-                placeholder="Пошук..." 
-                className="w-full h-full pl-10 pr-10 bg-white rounded-xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-            />
-            {search.length > 0 && (
-                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1.5">
-                    <X size={16} />
-                </button>
-            )}
-        </div>
-
-        <button
-            onClick={() => { setShowSortPanel(!showSortPanel); }}
-            className={`h-12 w-12 flex-shrink-0 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all ${showSortPanel ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-indigo-600 text-white shadow-indigo-200'}`}
-        >
-            <ArrowDownUp size={20} />
-        </button>
+      <div className="sticky top-[56px] z-20 -mx-4 mt-4 px-4 pt-0 pb-2 bg-slate-50/95 backdrop-blur-sm border-b border-gray-100">
+        <WishlistControls
+          search={search}
+          onSearchChange={setSearch}
+          suggestions={suggestions}
+          onAddClick={() => setIsAdding(true)}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          isReordering={isReordering}
+          onToggleReorder={handleToggleReorder}
+        />
       </div>
-
-      {/* Sort Panel */}
-      {showSortPanel && (
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 space-y-4 animate-in slide-in-from-top-2">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Сортувати за</h3>
-              <div className="grid grid-cols-2 gap-3">
-                  {(['title', 'author', 'addedAt'] as SortKey[]).map((key) => {
-                      const isActive = sortKey === key && !isReordering && sortKey !== 'custom';
-                      return (
-                        <button
-                            key={key}
-                            onClick={() => handleSortChange(key)}
-                            className={`py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                                isActive 
-                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                            {key === 'title' ? 'Назва' : key === 'author' ? 'Автор' : 'Дата'}
-                            {isActive && (
-                                sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                            )}
-                        </button>
-                      );
-                  })}
-                  
-                  <button
-                    onClick={handleToggleReorder}
-                    className={`py-4 rounded-2xl font-bold text-sm transition-all ${
-                        isReordering || sortKey === 'custom'
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    Свій порядок
-                  </button>
-              </div>
-          </div>
-      )}
 
       {/* List */}
       {isReordering ? (
@@ -412,7 +363,7 @@ export const Wishlist: React.FC = () => {
       {sortedBooks.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 space-y-4 text-gray-300">
            <ShoppingBag size={64} opacity={0.2} />
-           <p className="text-lg font-medium">{search ? 'Нічого не знайдено' : 'Ваш список бажань порожній'}</p>
+           <p className="text-lg font-medium">{search ? 'РќС–С‡РѕРіРѕ РЅРµ Р·РЅР°Р№РґРµРЅРѕ' : 'Р’Р°С€ СЃРїРёСЃРѕРє Р±Р°Р¶Р°РЅСЊ РїРѕСЂРѕР¶РЅС–Р№'}</p>
         </div>
       )}
       
@@ -429,15 +380,15 @@ export const Wishlist: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="p-8 space-y-6">
-              <div className="flex justify-between items-center"><h3 className="text-lg font-bold">Оберіть формати</h3><button onClick={() => setQuickSelectBook(null)} className="p-2 bg-gray-50 rounded-full"><X size={20} /></button></div>
+              <div className="flex justify-between items-center"><h3 className="text-lg font-bold">РћР±РµСЂС–С‚СЊ С„РѕСЂРјР°С‚Рё</h3><button onClick={() => setQuickSelectBook(null)} className="p-2 bg-gray-50 rounded-full"><X size={20} /></button></div>
               <div className="space-y-3">
-                {[ { id: 'Paper', label: 'Паперова', icon: <BookOpen size={18} /> }, { id: 'E-book', label: 'Електронна', icon: <Tablet size={18} /> }, { id: 'Audio', label: 'Аудіо', icon: <Headphones size={18} /> } ].map(f => (
+                {[ { id: 'Paper', label: 'РџР°РїРµСЂРѕРІР°', icon: <BookOpen size={18} /> }, { id: 'E-book', label: 'Р•Р»РµРєС‚СЂРѕРЅРЅР°', icon: <Tablet size={18} /> }, { id: 'Audio', label: 'РђСѓРґС–Рѕ', icon: <Headphones size={18} /> } ].map(f => (
                   <button key={f.id} onClick={() => { if(selectedReadingFormats.includes(f.id as any)) { if(selectedReadingFormats.length > 1) setSelectedReadingFormats(selectedReadingFormats.filter(x => x !== f.id)); } else setSelectedReadingFormats([...selectedReadingFormats, f.id as any]); }} className={`w-full flex justify-between items-center p-4 rounded-2xl font-bold text-sm border transition-all ${selectedReadingFormats.includes(f.id as any) ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
                     <div className="flex items-center gap-3">{f.icon}<span>{f.label}</span></div>{selectedReadingFormats.includes(f.id as any) && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
                   </button>
                 ))}
               </div>
-              <button onClick={handleStartReading} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-xl active:scale-95 transition-all">Почати читати</button>
+              <button onClick={handleStartReading} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-xl active:scale-95 transition-all">РџРѕС‡Р°С‚Рё С‡РёС‚Р°С‚Рё</button>
             </div>
           </div>
         </div>

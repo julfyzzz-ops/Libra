@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Filter, X, Plus, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
-import { BookFormat, BookStatus, SortKey, SortDirection } from '../types';
-import { FORMAT_LABELS, STATUS_LABELS } from '../utils';
+import { Search, X, Plus, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
+import { SortKey, SortDirection } from '../types';
 
-interface LibraryControlsProps {
+interface WishlistControlsProps {
   search: string;
   onSearchChange: (term: string) => void;
   suggestions: string[];
@@ -13,14 +12,9 @@ interface LibraryControlsProps {
   onSortChange: (key: SortKey) => void;
   isReordering: boolean;
   onToggleReorder: () => void;
-  selectedStatuses: BookStatus[];
-  selectedFormats: BookFormat[];
-  onToggleStatus: (status: BookStatus) => void;
-  onToggleFormat: (format: BookFormat) => void;
-  onClearFilters: () => void;
 }
 
-export const LibraryControls: React.FC<LibraryControlsProps> = ({
+export const WishlistControls: React.FC<WishlistControlsProps> = ({
   search,
   onSearchChange,
   suggestions,
@@ -29,21 +23,13 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
   sortDirection,
   onSortChange,
   isReordering,
-  onToggleReorder,
-  selectedStatuses,
-  selectedFormats,
-  onToggleStatus,
-  onToggleFormat,
-  onClearFilters
+  onToggleReorder
 }) => {
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [showSortPanel, setShowSortPanel] = useState(false);
-
-  const hasActiveFilters = selectedFormats.length > 0 || selectedStatuses.length !== 3;
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex gap-2 h-12">
         <button
           onClick={onAddClick}
@@ -93,32 +79,18 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
         </div>
 
         <button
-          onClick={() => {
-            setShowSortPanel(!showSortPanel);
-            setShowFilters(false);
-          }}
+          onClick={() => setShowSortPanel(prev => !prev)}
           className="h-12 w-12 flex-shrink-0 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all bg-indigo-600 text-white shadow-indigo-200"
         >
           <ArrowDownUp size={20} />
-        </button>
-
-        <button
-          onClick={() => {
-            setShowFilters(!showFilters);
-            setShowSortPanel(false);
-          }}
-          className={`relative h-12 w-12 flex-shrink-0 border rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all ${showFilters || hasActiveFilters ? 'bg-white text-indigo-600 border-indigo-200' : 'bg-white text-gray-400 border-gray-100'}`}
-        >
-          <Filter size={20} />
-          {hasActiveFilters && !showFilters && <div className="absolute top-3 right-3 w-2 h-2 bg-indigo-600 rounded-full border border-white" />}
         </button>
       </div>
 
       {showSortPanel && (
         <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-gray-100 space-y-3 animate-in slide-in-from-top-2">
           <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Сортувати за</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {(['title', 'author', 'addedAt', 'genre'] as SortKey[]).map((key) => {
+          <div className="grid grid-cols-2 gap-2">
+            {(['title', 'author', 'addedAt'] as SortKey[]).map((key) => {
               const isActive = sortKey === key && !isReordering && sortKey !== 'custom';
               return (
                 <button
@@ -128,7 +100,7 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
                     isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  {key === 'title' ? 'Назва' : key === 'author' ? 'Автор' : key === 'addedAt' ? 'Дата' : 'Жанр'}
+                  {key === 'title' ? 'Назва' : key === 'author' ? 'Автор' : 'Дата'}
                   {isActive && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                 </button>
               );
@@ -145,46 +117,6 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
               Свій порядок
             </button>
           </div>
-        </div>
-      )}
-
-      {showFilters && (
-        <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 space-y-5 animate-in slide-in-from-top-2">
-          <div className="space-y-3">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Статус</span>
-            <div className="flex flex-wrap gap-2">
-              {(['Reading', 'Unread', 'Completed'] as BookStatus[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onToggleStatus(s)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedStatuses.includes(s) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                >
-                  {STATUS_LABELS[s]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Формат</span>
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(FORMAT_LABELS).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => onToggleFormat(f as BookFormat)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedFormats.includes(f as BookFormat) ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                >
-                  {FORMAT_LABELS[f as BookFormat]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {hasActiveFilters && (
-            <button onClick={onClearFilters} className="w-full py-3 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors">
-              <X size={18} /> Очистити фільтри
-            </button>
-          )}
         </div>
       )}
     </div>
