@@ -53,6 +53,10 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
     }
   }, [books, book.id, onClose]);
 
+  useEffect(() => {
+    appendDebugLog('info', 'bookDetails.mode', isEditing ? 'editing' : 'view');
+  }, [isEditing]);
+
   const handleSave = (updatedBook: Book) => {
     try {
       appendDebugLog('info', 'bookDetails.save', 'onSave received from edit form', { bookId: updatedBook.id });
