@@ -77,18 +77,19 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   );
   const filteredPublisherSuggestions = useMemo(() => {
     const q = (form.publisher || '').trim().toLowerCase();
-    if (!q) return safePublisherSuggestions.slice(0, 8);
-    return safePublisherSuggestions
-      .filter((item) => item.toLowerCase().includes(q))
-      .slice(0, 8);
+    if (!q) return safePublisherSuggestions;
+    return safePublisherSuggestions.filter((item) => item.toLowerCase().includes(q));
   }, [form.publisher, safePublisherSuggestions]);
   const filteredGenreSuggestions = useMemo(() => {
     const q = (form.genre || '').trim().toLowerCase();
-    if (!q) return safeGenreSuggestions.slice(0, 8);
-    return safeGenreSuggestions
-      .filter((item) => item.toLowerCase().includes(q))
-      .slice(0, 8);
+    if (!q) return safeGenreSuggestions;
+    return safeGenreSuggestions.filter((item) => item.toLowerCase().includes(q));
   }, [form.genre, safeGenreSuggestions]);
+
+  const closeSuggestions = () => {
+    setPublisherFocused(false);
+    setGenreFocused(false);
+  };
 
   const updateForm = <K extends keyof Book>(key: K, value: Book[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -120,6 +121,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) return;
+    closeSuggestions();
 
     const titleValue = sanitizeText(form.title || '', 180).trim();
     const authorValue = sanitizeText(form.author || '', 140).trim();
@@ -149,7 +151,13 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
 
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-24 text-gray-800">
-      <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
+      <button
+        onClick={() => {
+          closeSuggestions();
+          onCancel();
+        }}
+        className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
+      >
         <ArrowLeft size={20} />
         <span className="text-sm font-bold">Back</span>
       </button>
@@ -206,17 +214,15 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                 onBlur={() => window.setTimeout(() => setPublisherFocused(false), 120)}
               />
               {publisherFocused && filteredPublisherSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 max-h-40 overflow-y-auto">
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto overscroll-contain"
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
                   {filteredPublisherSuggestions.map((item) => (
                     <button
                       key={item}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
-                        updateForm('publisher', item);
-                        setPublisherFocused(false);
-                      }}
                       onClick={() => {
                         updateForm('publisher', item);
                         setPublisherFocused(false);
@@ -241,17 +247,15 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                 onBlur={() => window.setTimeout(() => setGenreFocused(false), 120)}
               />
               {genreFocused && filteredGenreSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 max-h-40 overflow-y-auto">
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto overscroll-contain"
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
                   {filteredGenreSuggestions.map((item) => (
                     <button
                       key={item}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
-                        updateForm('genre', item);
-                        setGenreFocused(false);
-                      }}
                       onClick={() => {
                         updateForm('genre', item);
                         setGenreFocused(false);
@@ -384,6 +388,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           <button
             type="submit"
             disabled={isSubmitting}
+            onClick={() => closeSuggestions()}
             className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 mt-2 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <Save size={18} />
