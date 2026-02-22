@@ -324,6 +324,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                               <button
                                 key={idx}
                                 type="button"
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => {
                                     updateFormData({ publisher: pub });
                                     setShowPubSuggestions(false);
@@ -372,6 +373,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                       <button
                         key={`${genre}-${idx}`}
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           updateFormData({ genre });
                           setShowGenreSuggestions(false);

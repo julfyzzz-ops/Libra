@@ -81,7 +81,10 @@ export const BookView: React.FC<BookViewProps> = ({
           onPointerDownCapture={() => logTap('close:pointerdown')}
           onTouchStartCapture={() => logTap('close:touchstart')}
           onClick={() => runOncePerTap(onClose)}
-          onPointerUp={() => runOncePerTap(onClose)}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            runOncePerTap(onClose);
+          }}
           className="absolute top-4 right-4 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-50 touch-manipulation"
         >
           <X size={20} />
@@ -98,7 +101,10 @@ export const BookView: React.FC<BookViewProps> = ({
                 onPointerDownCapture={() => logTap('startWishlist:pointerdown')}
                 onTouchStartCapture={() => logTap('startWishlist:touchstart')}
                 onClick={() => runOncePerTap(onStartReadingWishlist)}
-                onPointerUp={() => runOncePerTap(onStartReadingWishlist)}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  runOncePerTap(onStartReadingWishlist);
+                }}
                 className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-500/40 active:scale-95 transition-all touch-manipulation"
               >
                 <BookOpen size={16} fill="currentColor" /> <span className="text-sm">Почати читати</span>
@@ -108,7 +114,10 @@ export const BookView: React.FC<BookViewProps> = ({
                 onPointerDownCapture={() => logTap('openReading:pointerdown')}
                 onTouchStartCapture={() => logTap('openReading:touchstart')}
                 onClick={() => runOncePerTap(onOpenReadingMode)}
-                onPointerUp={() => runOncePerTap(onOpenReadingMode)}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  runOncePerTap(onOpenReadingMode);
+                }}
                 className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-500/40 active:scale-95 transition-all touch-manipulation"
               >
                 <Play size={16} fill="currentColor" /> <span className="text-sm">Читання</span>
@@ -308,7 +317,10 @@ export const BookView: React.FC<BookViewProps> = ({
               onPointerDownCapture={() => logTap('edit:pointerdown')}
               onTouchStartCapture={() => logTap('edit:touchstart')}
               onClick={() => runOncePerTap(onEdit)}
-              onPointerUp={() => runOncePerTap(onEdit)}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                runOncePerTap(onEdit);
+              }}
               className="flex-1 bg-gray-100 text-gray-800 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all touch-manipulation"
             >
               <Edit3 size={18} /> Редагувати

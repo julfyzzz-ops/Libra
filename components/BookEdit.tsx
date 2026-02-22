@@ -193,7 +193,10 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       <div className="sticky top-0 z-40 bg-white p-6 border-b border-gray-100 shadow-sm">
          <button
            onClick={() => runOncePerTap(handleCloseClick)}
-           onPointerUp={() => runOncePerTap(handleCloseClick)}
+           onTouchEnd={(e) => {
+             e.preventDefault();
+             runOncePerTap(handleCloseClick);
+           }}
            className="absolute top-4 right-4 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-50"
          >
            <X size={20} />
@@ -266,7 +269,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                             <button
                               key={idx}
                               type="button"
-                              onPointerDown={(e) => e.preventDefault()}
+                              onMouseDown={(e) => e.preventDefault()}
                               onClick={() => { updateEditForm({ publisher: pub}); setShowPubSuggestions(false); }}
                               className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                             >
@@ -308,7 +311,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                       <button
                         key={`${genre}-${idx}`}
                         type="button"
-                        onPointerDown={(e) => e.preventDefault()}
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => { updateEditForm({ genre }); setShowGenreSuggestions(false); }}
                         className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                       >
@@ -401,7 +404,10 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                   type="button"
                   disabled={isSaving}
                   onClick={() => runOncePerTap(handleSaveClick)}
-                  onPointerUp={() => runOncePerTap(handleSaveClick)}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    runOncePerTap(handleSaveClick);
+                  }}
                   className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg disabled:opacity-70"
                 >
                   <Save size={18} /> {isSaving ? 'Збереження...' : 'Зберегти'}
