@@ -64,6 +64,8 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     seasons: normalizeSeasons(initialValue.seasons),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [publisherFocused, setPublisherFocused] = useState(false);
+  const [genreFocused, setGenreFocused] = useState(false);
 
   const safePublisherSuggestions = useMemo(
     () => Array.from(new Set(publisherSuggestions.filter(Boolean))).slice(0, 100),
@@ -73,6 +75,20 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     () => Array.from(new Set(genreSuggestions.filter(Boolean))).slice(0, 100),
     [genreSuggestions]
   );
+  const filteredPublisherSuggestions = useMemo(() => {
+    const q = (form.publisher || '').trim().toLowerCase();
+    if (!q) return safePublisherSuggestions.slice(0, 8);
+    return safePublisherSuggestions
+      .filter((item) => item.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [form.publisher, safePublisherSuggestions]);
+  const filteredGenreSuggestions = useMemo(() => {
+    const q = (form.genre || '').trim().toLowerCase();
+    if (!q) return safeGenreSuggestions.slice(0, 8);
+    return safeGenreSuggestions
+      .filter((item) => item.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [form.genre, safeGenreSuggestions]);
 
   const updateForm = <K extends keyof Book>(key: K, value: Book[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -179,36 +195,74 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Publisher</label>
               <input
-                list="v2-publisher-suggestions"
                 maxLength={120}
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
                 value={form.publisher || ''}
                 onChange={(e) => updateForm('publisher', sanitizeText(e.target.value, 120))}
+                onFocus={() => setPublisherFocused(true)}
+                onBlur={() => window.setTimeout(() => setPublisherFocused(false), 120)}
               />
-              <datalist id="v2-publisher-suggestions">
-                {safePublisherSuggestions.map((item) => (
-                  <option key={item} value={item} />
-                ))}
-              </datalist>
+              {publisherFocused && filteredPublisherSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 max-h-40 overflow-y-auto">
+                  {filteredPublisherSuggestions.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        updateForm('publisher', item);
+                        setPublisherFocused(false);
+                      }}
+                      onClick={() => {
+                        updateForm('publisher', item);
+                        setPublisherFocused(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Genre</label>
               <input
-                list="v2-genre-suggestions"
                 maxLength={160}
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
                 value={form.genre || ''}
                 onChange={(e) => updateForm('genre', sanitizeText(e.target.value, 160))}
+                onFocus={() => setGenreFocused(true)}
+                onBlur={() => window.setTimeout(() => setGenreFocused(false), 120)}
               />
-              <datalist id="v2-genre-suggestions">
-                {safeGenreSuggestions.map((item) => (
-                  <option key={item} value={item} />
-                ))}
-              </datalist>
+              {genreFocused && filteredGenreSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-30 max-h-40 overflow-y-auto">
+                  {filteredGenreSuggestions.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        updateForm('genre', item);
+                        setGenreFocused(false);
+                      }}
+                      onClick={() => {
+                        updateForm('genre', item);
+                        setGenreFocused(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -340,4 +394,3 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     </div>
   );
 };
-
