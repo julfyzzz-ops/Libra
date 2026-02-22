@@ -185,7 +185,6 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       <div className="sticky top-0 z-40 bg-white p-6 border-b border-gray-100 shadow-sm">
          <button
            onClick={handleCloseClick}
-           onTouchEnd={(e) => { e.preventDefault(); handleCloseClick(); }}
            className="absolute top-4 right-4 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-50"
          >
            <X size={20} />
@@ -393,7 +392,6 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                   type="button"
                   disabled={isSaving}
                   onClick={handleSaveClick}
-                  onTouchEnd={(e) => { e.preventDefault(); handleSaveClick(); }}
                   className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg disabled:opacity-70"
                 >
                   <Save size={18} /> {isSaving ? 'Збереження...' : 'Зберегти'}
