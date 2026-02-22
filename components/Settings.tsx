@@ -1,8 +1,9 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet, Loader2, Palette } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet, Loader2, Palette, Bug, Trash2, Copy, X } from 'lucide-react';
 import { loadSettings, saveSettings, exportLibraryToJSON } from '../services/storageService';
 import { importLibraryFromJSON, importLibraryFromCSV } from '../services/importers';
+import { clearDebugLogs, getDebugLogs, isDebugModeEnabled, setDebugModeEnabled, type DebugLogEntry } from '../services/debugLogger';
 import { ACCENT_COLORS, BACKGROUND_TONES, applyTheme } from '../utils';
 import { AccentColor, BackgroundTone, AppSettings } from '../types';
 import { useUI } from '../contexts/UIContext';
@@ -16,10 +17,19 @@ export const Settings: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool' });
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [showDebugLogs, setShowDebugLogs] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
 
   useEffect(() => {
     setSettings(loadSettings());
+    setDebugEnabled(isDebugModeEnabled());
   }, []);
+
+  useEffect(() => {
+    if (!showDebugLogs) return;
+    setDebugLogs(getDebugLogs());
+  }, [showDebugLogs, debugEnabled]);
 
   const updateAccent = (color: AccentColor) => {
     const newSettings = { ...settings, accent: color };
@@ -97,6 +107,30 @@ export const Settings: React.FC = () => {
     } finally {
       setIsImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = '';
+    }
+  };
+
+  const handleToggleDebugMode = () => {
+    const next = !debugEnabled;
+    setDebugEnabled(next);
+    setDebugModeEnabled(next);
+    toast.show(next ? "Debug mode увімкнено" : "Debug mode вимкнено", "info");
+  };
+
+  const handleClearDebugLogs = () => {
+    clearDebugLogs();
+    setDebugLogs([]);
+    toast.show("Логи очищено", "success");
+  };
+
+  const handleCopyDebugLogs = async () => {
+    const logs = getDebugLogs();
+    const payload = JSON.stringify(logs, null, 2);
+    try {
+      await navigator.clipboard.writeText(payload);
+      toast.show("Логи скопійовано", "success");
+    } catch {
+      toast.show("Не вдалося скопіювати логи", "error");
     }
   };
 
@@ -197,6 +231,28 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
+      {/* Debug Section */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+          <Bug size={14} /> Debug mode
+        </h3>
+        <p className="text-sm text-gray-500">Тимчасовий режим діагностики для iPhone. Збирає помилки в локальні логи.</p>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={handleToggleDebugMode}
+            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${debugEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+          >
+            {debugEnabled ? 'Увімкнено' : 'Вимкнено'}
+          </button>
+          <button
+            onClick={() => setShowDebugLogs(true)}
+            className="px-4 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200"
+          >
+            Відкрити логи
+          </button>
+        </div>
+      </div>
+
       {/* About Section */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Про додаток</h3>
@@ -217,6 +273,48 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showDebugLogs && (
+        <div className="fixed inset-0 z-[120] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-100 p-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Debug логи</h3>
+                <p className="text-xs text-gray-500">Кількість записів: {debugLogs.length}</p>
+              </div>
+              <button onClick={() => setShowDebugLogs(false)} className="p-2 rounded-full bg-gray-50 text-gray-500">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 flex gap-2 border-b border-gray-100">
+              <button onClick={handleCopyDebugLogs} className="px-3 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-2">
+                <Copy size={14} /> Копіювати
+              </button>
+              <button onClick={handleClearDebugLogs} className="px-3 py-2 rounded-xl text-xs font-bold border bg-red-50 text-red-700 border-red-200 flex items-center gap-2">
+                <Trash2 size={14} /> Очистити
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
+              {debugLogs.length === 0 ? (
+                <div className="text-sm text-gray-500">Логи порожні.</div>
+              ) : (
+                debugLogs
+                  .slice()
+                  .reverse()
+                  .map((log) => (
+                    <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-3">
+                      <div className="text-[10px] text-gray-500">{new Date(log.ts).toLocaleString('uk-UA')} | {log.level} | {log.scope}</div>
+                      <div className="text-xs font-semibold text-gray-800 mt-1 break-words">{log.message}</div>
+                      {log.details && (
+                        <pre className="mt-2 text-[10px] text-gray-600 whitespace-pre-wrap break-words">{log.details}</pre>
+                      )}
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

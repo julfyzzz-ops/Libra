@@ -9,6 +9,7 @@ import { Calendar } from './components/Calendar';
 import { Settings } from './components/Settings';
 import { ReadingList } from './components/ReadingList';
 import { loadSettings } from './services/storageService';
+import { initDebugLogger } from './services/debugLogger';
 import { applyTheme } from './utils';
 import { LibraryProvider, useLibrary } from './contexts/LibraryContext';
 import { UIProvider } from './contexts/UIContext';
@@ -20,6 +21,7 @@ const AppContent: React.FC = () => {
   const { isLoading, filterTag, setFilterTag } = useLibrary();
 
   useEffect(() => {
+    initDebugLogger();
     const settings = loadSettings();
     applyTheme(settings.accent, settings.bg);
   }, []);
