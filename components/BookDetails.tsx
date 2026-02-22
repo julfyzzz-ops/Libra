@@ -79,9 +79,17 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
           }
       }
 
-      updateBook(finalBook);
+      // Close edit UI first for iOS responsiveness, then persist update in next frame.
       setIsEditing(false);
-      appendDebugLog('info', 'bookDetails.save', 'book saved and edit mode closed', { bookId: finalBook.id });
+      requestAnimationFrame(() => {
+        try {
+          updateBook(finalBook);
+          appendDebugLog('info', 'bookDetails.save', 'book saved and edit mode closed', { bookId: finalBook.id });
+        } catch (innerError) {
+          appendDebugLog('error', 'bookDetails.save', 'deferred save failed', innerError);
+          console.error('Deferred save failed in details view', innerError);
+        }
+      });
     } catch (error) {
       console.error('Book save failed in details view', error);
       appendDebugLog('error', 'bookDetails.save', 'save failed in details view', error);

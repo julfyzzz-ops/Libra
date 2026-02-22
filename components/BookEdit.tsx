@@ -46,6 +46,14 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '')
       .slice(0, maxLen);
   }, []);
+  const dismissActiveInput = useCallback(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return;
+    const tag = active.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || active.getAttribute('contenteditable') === 'true') {
+      active.blur();
+    }
+  }, []);
   
   // Local state for previewing the blob cover, as global URLs are gone
   const [previewUrl, setPreviewUrl] = useState<string | null>(editForm.coverUrl || null);
@@ -131,6 +139,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       if (isSavingRef.current || isSaving) return;
       try {
         appendDebugLog('info', 'bookEdit.save', 'save button tapped');
+        dismissActiveInput();
         isSavingRef.current = true;
         setIsSaving(true);
         setShowPubSuggestions(false);
@@ -147,6 +156,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
 
   const handleCloseClick = () => {
     appendDebugLog('info', 'bookEdit.close', 'close button tapped');
+    dismissActiveInput();
     isSavingRef.current = false;
     setIsSaving(false);
     onClose();
