@@ -11,10 +11,13 @@ export interface DebugLogEntry {
 
 const DEBUG_MODE_KEY = "libra_debug_mode";
 const DEBUG_LOGS_KEY = "libra_debug_logs";
+const DEBUG_RUNTIME_KEY = "libra_debug_runtime";
 const MAX_LOGS = 300;
 
 let isInitialized = false;
 let idCounter = 0;
+let heartbeatTimer: number | null = null;
+let lagWatchdogTimer: number | null = null;
 
 const nextId = (): string => {
   idCounter += 1;
@@ -100,6 +103,90 @@ export const appendDebugLog = (
   writeLogs(logs);
 };
 
+type DebugRuntimeState = {
+  sessionId: string;
+  startedAt: string;
+  lastHeartbeatAt: string;
+  cleanShutdown: boolean;
+};
+
+const readRuntimeState = (): DebugRuntimeState | null => {
+  try {
+    const raw = localStorage.getItem(DEBUG_RUNTIME_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DebugRuntimeState;
+  } catch {
+    return null;
+  }
+};
+
+const writeRuntimeState = (state: DebugRuntimeState): void => {
+  try {
+    localStorage.setItem(DEBUG_RUNTIME_KEY, JSON.stringify(state));
+  } catch {
+    // no-op
+  }
+};
+
+const startRuntimeWatchdog = (): void => {
+  if (heartbeatTimer !== null || lagWatchdogTimer !== null) return;
+
+  const nowIso = new Date().toISOString();
+  const prev = readRuntimeState();
+  if (prev && prev.cleanShutdown === false) {
+    const deltaMs = Date.now() - new Date(prev.lastHeartbeatAt).getTime();
+    if (Number.isFinite(deltaMs) && deltaMs > 3000) {
+      appendDebugLog(
+        "warn",
+        "runtime.recover",
+        "Detected possible previous app freeze/crash",
+        { previousSessionId: prev.sessionId, noHeartbeatMs: deltaMs }
+      );
+    }
+  }
+
+  const currentState: DebugRuntimeState = {
+    sessionId: nextId(),
+    startedAt: nowIso,
+    lastHeartbeatAt: nowIso,
+    cleanShutdown: false,
+  };
+  writeRuntimeState(currentState);
+
+  heartbeatTimer = window.setInterval(() => {
+    const state = readRuntimeState();
+    if (!state) return;
+    writeRuntimeState({
+      ...state,
+      lastHeartbeatAt: new Date().toISOString(),
+      cleanShutdown: false,
+    });
+  }, 2000);
+
+  let expected = performance.now() + 1000;
+  lagWatchdogTimer = window.setInterval(() => {
+    const now = performance.now();
+    const driftMs = Math.round(now - expected);
+    expected = now + 1000;
+    if (driftMs > 1500) {
+      appendDebugLog("warn", "runtime.eventloop", "Main thread lag spike detected", { driftMs });
+    }
+  }, 1000);
+
+  const markCleanShutdown = () => {
+    const state = readRuntimeState();
+    if (!state) return;
+    writeRuntimeState({
+      ...state,
+      lastHeartbeatAt: new Date().toISOString(),
+      cleanShutdown: true,
+    });
+  };
+
+  window.addEventListener("pagehide", markCleanShutdown);
+  window.addEventListener("beforeunload", markCleanShutdown);
+};
+
 export const initDebugLogger = (): void => {
   if (isInitialized) return;
   isInitialized = true;
@@ -134,5 +221,6 @@ export const initDebugLogger = (): void => {
   window.addEventListener("unhandledrejection", (event) => {
     appendDebugLog("error", "unhandledrejection", "Unhandled promise rejection", event.reason);
   });
-};
 
+  startRuntimeWatchdog();
+};
