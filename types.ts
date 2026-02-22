@@ -58,6 +58,7 @@ export type BackgroundTone = 'cool' | 'warm' | 'neutral' | 'peach' | 'mint' | 'd
 export interface AppSettings {
   accent: AccentColor;
   bg: BackgroundTone;
+  uiV2Enabled?: boolean;
 }
 
 export type SortKey = 'title' | 'author' | 'addedAt' | 'genre' | 'custom';

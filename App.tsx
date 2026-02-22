@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BarChart2, Library as LibraryIcon, Calendar as CalendarIcon, Settings as SettingsIcon, Book as BookIcon } from 'lucide-react';
-import { ViewType } from './types';
+import { AppSettings, ViewType } from './types';
 import { Statistics } from './components/Statistics';
 import { Library } from './components/Library';
 import { AddBook } from './components/AddBook';
@@ -14,17 +14,21 @@ import { applyTheme } from './utils';
 import { LibraryProvider, useLibrary } from './contexts/LibraryContext';
 import { UIProvider } from './contexts/UIContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { LibraryFlowV2 } from './components/v2/LibraryFlowV2';
 
 // Create a wrapper component to use the hook
 const AppContent: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('library');
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const { isLoading, filterTag, setFilterTag } = useLibrary();
 
   useEffect(() => {
     initDebugLogger();
-    const settings = loadSettings();
-    applyTheme(settings.accent, settings.bg);
   }, []);
+
+  useEffect(() => {
+    applyTheme(settings.accent, settings.bg);
+  }, [settings.accent, settings.bg]);
 
   // Watch for filter changes to switch view
   useEffect(() => {
@@ -33,8 +37,30 @@ const AppContent: React.FC = () => {
     }
   }, [filterTag]);
 
+  useEffect(() => {
+    if (settings.uiV2Enabled && activeView === 'add') {
+      setActiveView('library');
+    }
+  }, [activeView, settings.uiV2Enabled]);
+
+  const handleSettingsChange = useCallback((nextSettings: AppSettings) => {
+    setSettings(nextSettings);
+  }, []);
+
   const renderView = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center animate-bounce"><LibraryIcon size={48} className="text-indigo-600" /></div>;
+
+    if (settings.uiV2Enabled) {
+      switch (activeView) {
+        case 'statistics': return <Statistics />;
+        case 'library': return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        case 'reading': return <ReadingList />;
+        case 'add': return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        case 'calendar': return <Calendar />;
+        case 'wishlist': return null;
+        case 'settings': return <Settings onSettingsChange={handleSettingsChange} />;
+      }
+    }
 
     switch (activeView) {
       case 'statistics': return <Statistics />;
@@ -43,7 +69,7 @@ const AppContent: React.FC = () => {
       case 'add': return <AddBook onAddSuccess={() => setActiveView('library')} onCancel={() => setActiveView('library')} />;
       case 'calendar': return <Calendar />;
       case 'wishlist': return null; 
-      case 'settings': return <Settings />;
+      case 'settings': return <Settings onSettingsChange={handleSettingsChange} />;
     }
   };
 

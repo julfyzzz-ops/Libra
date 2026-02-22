@@ -9,7 +9,11 @@ import { AccentColor, BackgroundTone, AppSettings } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useLibrary } from '../contexts/LibraryContext';
 
-export const Settings: React.FC = () => {
+interface SettingsProps {
+  onSettingsChange?: (settings: AppSettings) => void;
+}
+
+export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
   const { toast, confirm } = useUI();
   const { refreshLibrary } = useLibrary();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +39,7 @@ export const Settings: React.FC = () => {
     const newSettings = { ...settings, accent: color };
     setSettings(newSettings);
     saveSettings(newSettings);
+    onSettingsChange?.(newSettings);
     applyTheme(newSettings.accent, newSettings.bg);
   };
 
@@ -42,7 +47,16 @@ export const Settings: React.FC = () => {
     const newSettings = { ...settings, bg: tone };
     setSettings(newSettings);
     saveSettings(newSettings);
+    onSettingsChange?.(newSettings);
     applyTheme(newSettings.accent, newSettings.bg);
+  };
+
+  const handleToggleUiV2 = () => {
+    const newSettings = { ...settings, uiV2Enabled: !settings.uiV2Enabled };
+    setSettings(newSettings);
+    saveSettings(newSettings);
+    onSettingsChange?.(newSettings);
+    toast.show(newSettings.uiV2Enabled ? 'UI V2 beta enabled' : 'UI V2 beta disabled', 'info');
   };
 
   const handleExport = async () => {
@@ -178,6 +192,23 @@ export const Settings: React.FC = () => {
                      </button>
                  ))}
              </div>
+         </div>
+         <div className="space-y-3 pt-2">
+             <label className="text-sm font-bold text-gray-700">UI V2 (beta)</label>
+             <button
+               type="button"
+               onClick={handleToggleUiV2}
+               className={`w-full py-3 rounded-2xl border text-sm font-bold transition-all ${
+                 settings.uiV2Enabled
+                   ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                   : 'bg-gray-50 text-gray-600 border-gray-200'
+               }`}
+             >
+               {settings.uiV2Enabled ? 'Enabled' : 'Disabled'}
+             </button>
+             <p className="text-xs text-gray-500">
+               Experimental route-based library flow without BookDetails modal overlay.
+             </p>
          </div>
       </div>
 

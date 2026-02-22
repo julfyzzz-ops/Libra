@@ -15,7 +15,7 @@ import {
 const SETTINGS_KEY = "booktracker_settings";
 
 export const loadSettings = (): AppSettings => {
-  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool" };
+  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", uiV2Enabled: false };
   try {
     const data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return defaultSettings;
