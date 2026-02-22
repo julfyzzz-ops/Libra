@@ -37,6 +37,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
   const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
+  const lastActionTsRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateEditForm = useCallback((patch: Partial<Book>) => {
     setEditForm(prev => ({ ...prev, ...patch }));
@@ -162,6 +163,13 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
     onClose();
   };
 
+  const runOncePerTap = useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastActionTsRef.current < 350) return;
+    lastActionTsRef.current = now;
+    action();
+  }, []);
+
   useEffect(() => {
     if (!isSaving) return;
     const timer = window.setTimeout(() => {
@@ -184,7 +192,8 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       {/* STICKY HEADER - EDIT MODE */}
       <div className="sticky top-0 z-40 bg-white p-6 border-b border-gray-100 shadow-sm">
          <button
-           onClick={handleCloseClick}
+           onClick={() => runOncePerTap(handleCloseClick)}
+           onPointerUp={() => runOncePerTap(handleCloseClick)}
            className="absolute top-4 right-4 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-50"
          >
            <X size={20} />
@@ -391,7 +400,8 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 <button
                   type="button"
                   disabled={isSaving}
-                  onClick={handleSaveClick}
+                  onClick={() => runOncePerTap(handleSaveClick)}
+                  onPointerUp={() => runOncePerTap(handleSaveClick)}
                   className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg disabled:opacity-70"
                 >
                   <Save size={18} /> {isSaving ? 'Збереження...' : 'Зберегти'}

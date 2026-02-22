@@ -40,8 +40,13 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
     return Array.from(genres).sort((a, b) => a.localeCompare(b, 'uk'));
   }, [books]);
 
-  // Lock body scroll in an iOS-safe way without losing page position.
+  // Lock body scroll for non-iOS browsers. iOS Safari can freeze modal interactions
+  // with fixed body + nested scroll containers, so we skip body lock on iOS.
   useEffect(() => {
+    const ua = navigator.userAgent || '';
+    const isIOS = /iP(ad|hone|od)/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+    if (isIOS) return;
+
     const scrollY = window.scrollY || window.pageYOffset || 0;
     const previous = {
       position: document.body.style.position,

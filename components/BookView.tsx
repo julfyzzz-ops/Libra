@@ -51,6 +51,13 @@ export const BookView: React.FC<BookViewProps> = ({
 }) => {
   const { confirm, toast } = useUI();
   const logTap = (source: string) => appendDebugLog('info', 'bookView.tap', source);
+  const lastActionTsRef = React.useRef(0);
+  const runOncePerTap = React.useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastActionTsRef.current < 350) return;
+    lastActionTsRef.current = now;
+    action();
+  }, []);
 
   const handleDelete = async () => {
     const isConfirmed = await confirm({
@@ -73,7 +80,8 @@ export const BookView: React.FC<BookViewProps> = ({
         <button
           onPointerDownCapture={() => logTap('close:pointerdown')}
           onTouchStartCapture={() => logTap('close:touchstart')}
-          onClick={onClose}
+          onClick={() => runOncePerTap(onClose)}
+          onPointerUp={() => runOncePerTap(onClose)}
           className="absolute top-4 right-4 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-50 touch-manipulation"
         >
           <X size={20} />
@@ -89,7 +97,8 @@ export const BookView: React.FC<BookViewProps> = ({
               <button
                 onPointerDownCapture={() => logTap('startWishlist:pointerdown')}
                 onTouchStartCapture={() => logTap('startWishlist:touchstart')}
-                onClick={onStartReadingWishlist}
+                onClick={() => runOncePerTap(onStartReadingWishlist)}
+                onPointerUp={() => runOncePerTap(onStartReadingWishlist)}
                 className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-500/40 active:scale-95 transition-all touch-manipulation"
               >
                 <BookOpen size={16} fill="currentColor" /> <span className="text-sm">Почати читати</span>
@@ -98,7 +107,8 @@ export const BookView: React.FC<BookViewProps> = ({
               <button
                 onPointerDownCapture={() => logTap('openReading:pointerdown')}
                 onTouchStartCapture={() => logTap('openReading:touchstart')}
-                onClick={onOpenReadingMode}
+                onClick={() => runOncePerTap(onOpenReadingMode)}
+                onPointerUp={() => runOncePerTap(onOpenReadingMode)}
                 className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 mb-4 shadow-lg shadow-indigo-500/40 active:scale-95 transition-all touch-manipulation"
               >
                 <Play size={16} fill="currentColor" /> <span className="text-sm">Читання</span>
@@ -297,7 +307,8 @@ export const BookView: React.FC<BookViewProps> = ({
             <button
               onPointerDownCapture={() => logTap('edit:pointerdown')}
               onTouchStartCapture={() => logTap('edit:touchstart')}
-              onClick={onEdit}
+              onClick={() => runOncePerTap(onEdit)}
+              onPointerUp={() => runOncePerTap(onEdit)}
               className="flex-1 bg-gray-100 text-gray-800 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all touch-manipulation"
             >
               <Edit3 size={18} /> Редагувати
