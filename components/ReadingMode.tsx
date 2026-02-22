@@ -5,6 +5,7 @@ import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, De
 import { calculateProgress, formatTime, getRemainingTimeText, getBookPageTotal, FORMAT_LABELS } from '../utils';
 import { useLibrary } from '../contexts/LibraryContext';
 import { BookCover } from './ui/BookCover';
+import { createClientId } from '../services/id';
 
 interface ReadingModeProps {
   book: Book;
@@ -183,7 +184,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
     const finalDuration = session.accumulatedTime;
 
     const newSession: ReadingSessionData = {
-      id: crypto.randomUUID(),
+      id: createClientId(),
       date: today,
       duration: finalDuration,
       pages: pagesCount

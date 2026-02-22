@@ -5,6 +5,7 @@ import { useLibrary } from '../contexts/LibraryContext';
 import { getBookPageTotal } from '../utils';
 import { BookView } from './BookView';
 import { BookEdit } from './BookEdit';
+import { createClientId } from '../services/id';
 
 interface BookDetailsProps {
   book: Book;
@@ -52,31 +53,36 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
   }, [books, book.id, onClose]);
 
   const handleSave = (updatedBook: Book) => {
-    let finalBook = { ...updatedBook };
-    
-    // Auto-calculate sessions if moving to completed
-    if (finalBook.status === 'Completed') {
-        if (!finalBook.completedAt) {
-           finalBook.completedAt = new Date().toISOString();
-        }
-        const totalPages = getBookPageTotal(finalBook);
-        if ((!finalBook.pagesRead || finalBook.pagesRead < totalPages) && totalPages > 0) {
-           finalBook.pagesRead = totalPages;
-        }
-        if ((!finalBook.sessions || finalBook.sessions.length === 0) && totalPages > 0) {
-            const durationSeconds = Math.round(totalPages * 72);
-            const dateStr = finalBook.completedAt.split('T')[0];
-            finalBook.sessions = [{
-                id: crypto.randomUUID(),
-                date: dateStr,
-                duration: durationSeconds,
-                pages: totalPages
-            }];
-        }
-    }
+    try {
+      let finalBook = { ...updatedBook };
+      
+      // Auto-calculate sessions if moving to completed
+      if (finalBook.status === 'Completed') {
+          if (!finalBook.completedAt) {
+             finalBook.completedAt = new Date().toISOString();
+          }
+          const totalPages = getBookPageTotal(finalBook);
+          if ((!finalBook.pagesRead || finalBook.pagesRead < totalPages) && totalPages > 0) {
+             finalBook.pagesRead = totalPages;
+          }
+          if ((!finalBook.sessions || finalBook.sessions.length === 0) && totalPages > 0) {
+              const durationSeconds = Math.round(totalPages * 72);
+              const dateStr = finalBook.completedAt.split('T')[0];
+              finalBook.sessions = [{
+                  id: createClientId(),
+                  date: dateStr,
+                  duration: durationSeconds,
+                  pages: totalPages
+              }];
+          }
+      }
 
-    updateBook(finalBook);
-    setIsEditing(false);
+      updateBook(finalBook);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Book save failed in details view', error);
+      alert('Не вдалося зберегти зміни. Спробуйте ще раз.');
+    }
   };
 
   const handleStartReadingWishlist = () => {

@@ -4,6 +4,7 @@ import { saveLibrary, loadLibrary } from "./storageService";
 import { fetchBookCover } from "./api";
 import { base64ToBlob } from "./imageUtils";
 import { normalizeSeason } from "../utils";
+import { createClientId } from "./id";
 
 const parseSeasonList = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -124,7 +125,7 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
             if (row.length < 1) continue;
 
             const book: Partial<Book> = {
-                id: crypto.randomUUID(),
+                id: createClientId(),
                 addedAt: new Date().toISOString(),
                 formats: ['Paper'],
                 status: 'Unread', 
@@ -209,7 +210,7 @@ export const importLibraryFromCSV = async (file: File): Promise<number> => {
                  const completionDate = book.completedAt ? book.completedAt.split('T')[0] : new Date().toISOString().split('T')[0];
                  
                  book.sessions = [{
-                     id: crypto.randomUUID(),
+                     id: createClientId(),
                      date: completionDate,
                      duration: estimatedDurationSeconds,
                      pages: pages

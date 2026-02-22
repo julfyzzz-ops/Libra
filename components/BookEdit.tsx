@@ -122,10 +122,16 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
 
   const handleSaveClick = () => {
       if (isSaving) return;
-      setIsSaving(true);
-      setShowPubSuggestions(false);
-      setShowGenreSuggestions(false);
-      onSave({ ...editForm });
+      try {
+        setIsSaving(true);
+        setShowPubSuggestions(false);
+        setShowGenreSuggestions(false);
+        onSave({ ...editForm });
+      } catch (error) {
+        console.error('BookEdit save click failed', error);
+        setIsSaving(false);
+        alert('Не вдалося зберегти зміни');
+      }
   };
 
   const toggleSeason = (season: string) => {
@@ -207,7 +213,15 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 {showPubSuggestions && filteredPublishers.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-32 overflow-y-auto">
                         {filteredPublishers.map((pub, idx) => (
-                            <button key={idx} type="button" onClick={() => { updateEditForm({ publisher: pub}); setShowPubSuggestions(false); }} className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none">{pub}</button>
+                            <button
+                              key={idx}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { updateEditForm({ publisher: pub}); setShowPubSuggestions(false); }}
+                              className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                            >
+                              {pub}
+                            </button>
                         ))}
                     </div>
                 )}
@@ -244,6 +258,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                       <button
                         key={`${genre}-${idx}`}
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => { updateEditForm({ genre }); setShowGenreSuggestions(false); }}
                         className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                       >
@@ -335,10 +350,6 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 <button
                   type="button"
                   disabled={isSaving}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    handleSaveClick();
-                  }}
                   onClick={handleSaveClick}
                   className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg disabled:opacity-70"
                 >
