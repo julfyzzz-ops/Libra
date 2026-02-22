@@ -102,7 +102,11 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addBook = useCallback((book: Book) => {
     setState((prev) => {
       const orderedBook = { ...book, customOrder: prev.books.length };
-      scheduleBookSave(orderedBook);
+      try {
+        scheduleBookSave(orderedBook);
+      } catch (error) {
+        console.error('Failed to schedule save for new book', error);
+      }
       return { ...prev, books: [...prev.books, orderedBook] };
     });
   }, [scheduleBookSave]);
