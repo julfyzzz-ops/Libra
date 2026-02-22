@@ -54,11 +54,13 @@ export interface LibraryState {
 
 export type AccentColor = 'indigo' | 'rose' | 'amber' | 'emerald' | 'violet' | 'sky' | 'pink' | 'gold' | 'black' | 'white';
 export type BackgroundTone = 'cool' | 'warm' | 'neutral' | 'peach' | 'mint' | 'dark' | 'midnight' | 'forest';
+export type AppLanguage = 'en' | 'uk';
 
 export interface AppSettings {
   accent: AccentColor;
   bg: BackgroundTone;
   uiV2Enabled?: boolean;
+  language?: AppLanguage;
 }
 
 export type SortKey = 'title' | 'author' | 'addedAt' | 'genre' | 'custom';

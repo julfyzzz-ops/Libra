@@ -1,6 +1,9 @@
 import React from 'react';
+import { Image as ImageIcon } from 'lucide-react';
 import { Book } from '../../types';
 import { createClientId } from '../../services/id';
+import { BookCover } from '../ui/BookCover';
+import { useI18n } from '../../contexts/I18nContext';
 
 interface AddWishlistV2Props {
   onAdd: (book: Book) => void;
@@ -8,20 +11,40 @@ interface AddWishlistV2Props {
 }
 
 export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel }) => {
+  const { t } = useI18n();
   const [title, setTitle] = React.useState('');
   const [author, setAuthor] = React.useState('');
   const [coverUrl, setCoverUrl] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const previewBook = React.useMemo<Book>(
+    () => ({
+      id: '__wishlist_preview__',
+      title: title || t('bookForm.preview'),
+      author: author || '',
+      formats: ['Paper'],
+      status: 'Wishlist',
+      genre: '',
+      publisher: '',
+      series: '',
+      seriesPart: '',
+      pagesTotal: 0,
+      pagesRead: 0,
+      coverUrl: coverUrl.trim(),
+      addedAt: new Date().toISOString(),
+      sessions: [],
+    }),
+    [author, coverUrl, t, title]
+  );
 
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-24 text-gray-800">
       <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
-        <span className="text-sm font-bold">Back</span>
+        <span className="text-sm font-bold">{t('common.back')}</span>
       </button>
 
       <div className="mt-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <h1 className="text-2xl font-bold text-gray-800">Add Wishlist (V2)</h1>
-        <p className="text-xs text-gray-500 mt-1">Simple touch-safe wishlist form.</p>
+        <h1 className="text-2xl font-bold text-gray-800">{t('bookForm.addWishlistTitle')}</h1>
+        <p className="text-xs text-gray-500 mt-1">{t('bookForm.addWishlistSubtitle')}</p>
 
         <form
           className="mt-6 space-y-4"
@@ -53,8 +76,21 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
             }
           }}
         >
+          <div className="flex justify-center">
+            <div className="w-24 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+              {coverUrl.trim() ? (
+                <BookCover book={previewBook} className="w-full h-full" iconSize={20} />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-300">
+                  <ImageIcon size={22} />
+                  <span className="text-[9px] font-bold uppercase tracking-wide">{t('bookForm.cover')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Title</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.title')}</label>
             <input
               required
               maxLength={180}
@@ -65,7 +101,7 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Author</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.author')}</label>
             <input
               required
               maxLength={140}
@@ -76,13 +112,13 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Cover URL</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.coverUrl')}</label>
             <input
               maxLength={1024}
               className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-medium"
               value={coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
-              placeholder="https://example.com/cover.jpg"
+              placeholder={t('bookForm.coverUrlPlaceholder')}
             />
           </div>
 
@@ -91,11 +127,10 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
             disabled={isSubmitting}
             className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 mt-2 active:scale-95 transition-all disabled:opacity-60"
           >
-            Save wishlist
+            {t('bookForm.saveWishlist')}
           </button>
         </form>
       </div>
     </div>
   );
 };
-

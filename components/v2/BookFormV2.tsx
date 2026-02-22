@@ -1,7 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Image as ImageIcon, Save } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../../types';
 import { FORMAT_LABELS, getSeasonColorClass, normalizeSeason, SEASON_OPTIONS } from '../../utils';
+import { BookCover } from '../ui/BookCover';
+import { useI18n } from '../../contexts/I18nContext';
+import { MessageKey } from '../../i18n/messages';
 
 interface BookFormV2Props {
   title: string;
@@ -48,6 +51,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   onSubmit,
   onCancel,
 }) => {
+  const { t } = useI18n();
   const [form, setForm] = useState<Partial<Book>>({
     title: initialValue.title || '',
     author: initialValue.author || '',
@@ -59,6 +63,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     formats: normalizeFormats(initialValue.formats),
     status: initialValue.status || allowedStatuses[0] || 'Unread',
     coverUrl: initialValue.coverUrl || '',
+    coverBlob: initialValue.coverBlob,
     notes: initialValue.notes || '',
     comment: initialValue.comment || '',
     seasons: normalizeSeasons(initialValue.seasons),
@@ -66,6 +71,20 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [publisherFocused, setPublisherFocused] = useState(false);
   const [genreFocused, setGenreFocused] = useState(false);
+  const [blobPreviewUrl, setBlobPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    if (form.coverBlob) {
+      objectUrl = URL.createObjectURL(form.coverBlob);
+      setBlobPreviewUrl(objectUrl);
+    } else {
+      setBlobPreviewUrl(null);
+    }
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [form.coverBlob]);
 
   const safePublisherSuggestions = useMemo(
     () => Array.from(new Set(publisherSuggestions.filter(Boolean))).slice(0, 100),
@@ -94,6 +113,52 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   const updateForm = <K extends keyof Book>(key: K, value: Book[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  const previewBook = useMemo<Book>(
+    () => ({
+      id: '__preview__',
+      title: (form.title || t('bookForm.preview')) as string,
+      author: (form.author || '') as string,
+      formats: normalizeFormats(form.formats),
+      status: ((form.status as BookStatus) || allowedStatuses[0] || 'Unread') as BookStatus,
+      genre: (form.genre || '') as string,
+      publisher: (form.publisher || '') as string,
+      series: (form.series || '') as string,
+      seriesPart: (form.seriesPart || '') as string,
+      pagesTotal: Math.max(0, Number(form.pagesTotal) || 0),
+      pagesRead: 0,
+      coverUrl: ((form.coverUrl as string) || blobPreviewUrl || '') as string,
+      coverBlob: form.coverBlob,
+      notes: (form.notes || '') as string,
+      comment: (form.comment || '') as string,
+      seasons: normalizeSeasons(form.seasons),
+      addedAt: initialValue.addedAt || new Date().toISOString(),
+      sessions: (initialValue.sessions || []) as Book['sessions'],
+    }),
+    [
+      allowedStatuses,
+      blobPreviewUrl,
+      form.author,
+      form.comment,
+      form.coverBlob,
+      form.coverUrl,
+      form.formats,
+      form.genre,
+      form.notes,
+      form.pagesTotal,
+      form.publisher,
+      form.seasons,
+      form.series,
+      form.seriesPart,
+      form.status,
+      form.title,
+      initialValue.addedAt,
+      initialValue.sessions,
+      t,
+    ]
+  );
+
+  const effectiveCoverUrl = ((form.coverUrl as string) || blobPreviewUrl || '').trim();
 
   const toggleFormat = (format: BookFormat) => {
     const current = normalizeFormats(form.formats);
@@ -159,18 +224,31 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
         className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors"
       >
         <ArrowLeft size={20} />
-        <span className="text-sm font-bold">Back</span>
+        <span className="text-sm font-bold">{t('common.back')}</span>
       </button>
 
       <div className="mt-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
-          <p className="text-xs text-gray-500 mt-1">Touch-safe form. No modal overlay, no custom touch handlers.</p>
+          <p className="text-xs text-gray-500 mt-1">{t('bookForm.touchSafe')}</p>
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-center">
+            <div className="w-24 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+              {effectiveCoverUrl ? (
+                <BookCover book={previewBook} className="w-full h-full" iconSize={20} />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-300">
+                  <ImageIcon size={22} />
+                  <span className="text-[9px] font-bold uppercase tracking-wide">{t('bookForm.cover')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Title</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.title')}</label>
             <input
               required
               maxLength={180}
@@ -181,7 +259,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Author</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.author')}</label>
             <input
               required
               maxLength={140}
@@ -192,19 +270,26 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Cover URL</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.coverUrl')}</label>
             <input
               maxLength={1024}
               className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-medium"
-              value={form.coverUrl || ''}
-              onChange={(e) => updateForm('coverUrl', sanitizeText(e.target.value, 1024))}
-              placeholder="https://example.com/cover.jpg"
+              value={(form.coverUrl as string) || (form.coverBlob ? blobPreviewUrl || '' : '')}
+              onChange={(e) => {
+                const nextUrl = sanitizeText(e.target.value, 1024);
+                setForm((prev) => ({
+                  ...prev,
+                  coverUrl: nextUrl,
+                  coverBlob: undefined,
+                }));
+              }}
+              placeholder={t('bookForm.coverUrlPlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1 relative">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Publisher</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.publisher')}</label>
               <input
                 maxLength={120}
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
@@ -237,7 +322,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
             </div>
 
             <div className="space-y-1 relative">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Genre</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.genre')}</label>
               <input
                 maxLength={160}
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
@@ -272,7 +357,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Series</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.series')}</label>
               <input
                 maxLength={120}
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
@@ -281,7 +366,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Series Part</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.seriesPart')}</label>
               <input
                 maxLength={60}
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
@@ -293,7 +378,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Pages</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.pages')}</label>
               <input
                 type="number"
                 inputMode="numeric"
@@ -305,7 +390,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Status</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.status')}</label>
               <select
                 className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-bold"
                 value={(form.status as BookStatus) || allowedStatuses[0]}
@@ -313,7 +398,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
               >
                 {allowedStatuses.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {t(`status.${status}` as MessageKey)}
                   </option>
                 ))}
               </select>
@@ -321,7 +406,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Seasons</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.seasons')}</label>
             <div className="grid grid-cols-2 gap-2">
               {SEASON_OPTIONS.map((season) => {
                 const active = normalizeSeasons(form.seasons).includes(season);
@@ -334,7 +419,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                       active ? 'border-indigo-200 bg-indigo-50' : 'bg-gray-50 text-gray-600 border-gray-100'
                     }`}
                   >
-                    <span className={`px-2 py-0.5 rounded-full ${getSeasonColorClass(season)}`}>{season}</span>
+                    <span className={`px-2 py-0.5 rounded-full ${getSeasonColorClass(season)}`}>{t(`season.${season}` as MessageKey)}</span>
                     <span className={`w-3 h-3 rounded-full border-2 ${active ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300 bg-transparent'}`} />
                   </button>
                 );
@@ -343,7 +428,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Formats</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.formats')}</label>
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(FORMAT_LABELS) as BookFormat[]).map((format) => {
                 const active = normalizeFormats(form.formats).includes(format);
@@ -356,7 +441,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                       active ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-600 border-gray-100'
                     }`}
                   >
-                    <span>{FORMAT_LABELS[format]}</span>
+                    <span>{t(`format.${format}` as MessageKey)}</span>
                     <span className={`w-3 h-3 rounded-full border-2 ${active ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300 bg-transparent'}`} />
                   </button>
                 );
@@ -365,18 +450,18 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Notes</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.notes')}</label>
             <input
               maxLength={80}
               className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-medium"
               value={form.notes || ''}
               onChange={(e) => updateForm('notes', sanitizeText(e.target.value, 80))}
-              placeholder="Emoji or short marks"
+              placeholder={t('bookForm.notesPlaceholder')}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Comment</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.comment')}</label>
             <textarea
               maxLength={2000}
               className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-medium resize-none h-24"

@@ -1,4 +1,4 @@
-
+﻿
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { X, Check, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
 import { createClientId } from '../services/id';
@@ -88,13 +88,13 @@ const ConfirmModal: React.FC<{
                 onClick={() => onClose(false)} 
                 className="flex-1 py-3 bg-gray-50 text-gray-700 font-bold rounded-xl hover:bg-gray-100 active:scale-95 transition-all"
             >
-                {options.cancelText || 'Скасувати'}
+                {options.cancelText || 'Cancel'}
             </button>
             <button 
                 onClick={() => onClose(true)} 
                 className={`flex-1 py-3 font-bold rounded-xl text-white shadow-lg active:scale-95 transition-all ${options.type === 'danger' ? 'bg-red-500 shadow-red-200' : 'bg-indigo-600 shadow-indigo-200'}`}
             >
-                {options.confirmText || 'Підтвердити'}
+                {options.confirmText || 'Confirm'}
             </button>
         </div>
       </div>

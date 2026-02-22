@@ -1,26 +1,30 @@
-
 import React, { useCallback, useEffect, useState } from 'react';
-import { BarChart2, Library as LibraryIcon, Calendar as CalendarIcon, Settings as SettingsIcon, Book as BookIcon } from 'lucide-react';
-import { AppSettings, ViewType } from './types';
-import { Statistics } from './components/Statistics';
-import { Library } from './components/Library';
+import { BarChart2, Book as BookIcon, Calendar as CalendarIcon, Library as LibraryIcon, Settings as SettingsIcon } from 'lucide-react';
 import { AddBook } from './components/AddBook';
 import { Calendar } from './components/Calendar';
-import { Settings } from './components/Settings';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Library } from './components/Library';
 import { ReadingList } from './components/ReadingList';
-import { loadSettings } from './services/storageService';
-import { initDebugLogger } from './services/debugLogger';
-import { applyTheme } from './utils';
+import { Settings } from './components/Settings';
+import { Statistics } from './components/Statistics';
+import { LibraryFlowV2 } from './components/v2/LibraryFlowV2';
+import { I18nProvider } from './contexts/I18nContext';
 import { LibraryProvider, useLibrary } from './contexts/LibraryContext';
 import { UIProvider } from './contexts/UIContext';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { LibraryFlowV2 } from './components/v2/LibraryFlowV2';
+import { MESSAGES, MessageKey } from './i18n/messages';
+import { initDebugLogger } from './services/debugLogger';
+import { loadSettings } from './services/storageService';
+import { AppSettings, ViewType } from './types';
+import { applyTheme } from './utils';
 
-// Create a wrapper component to use the hook
 const AppContent: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('library');
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const { isLoading, filterTag, setFilterTag } = useLibrary();
+
+  const language = settings.language === 'uk' ? 'uk' : 'en';
+  const messages = MESSAGES[language];
+  const t = (key: MessageKey) => messages[key] || MESSAGES.en[key];
 
   useEffect(() => {
     initDebugLogger();
@@ -30,10 +34,9 @@ const AppContent: React.FC = () => {
     applyTheme(settings.accent, settings.bg);
   }, [settings.accent, settings.bg]);
 
-  // Watch for filter changes to switch view
   useEffect(() => {
     if (filterTag) {
-        setActiveView('library');
+      setActiveView('library');
     }
   }, [filterTag]);
 
@@ -48,46 +51,76 @@ const AppContent: React.FC = () => {
   }, []);
 
   const renderView = () => {
-    if (isLoading) return <div className="flex h-screen items-center justify-center animate-bounce"><LibraryIcon size={48} className="text-indigo-600" /></div>;
+    if (isLoading) {
+      return (
+        <div className="flex h-screen items-center justify-center animate-bounce">
+          <LibraryIcon size={48} className="text-indigo-600" aria-label={t('app.loading')} />
+        </div>
+      );
+    }
 
     if (settings.uiV2Enabled) {
       switch (activeView) {
-        case 'statistics': return <Statistics />;
-        case 'library': return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
-        case 'reading': return <ReadingList />;
-        case 'add': return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
-        case 'calendar': return <Calendar />;
-        case 'wishlist': return null;
-        case 'settings': return <Settings onSettingsChange={handleSettingsChange} />;
+        case 'statistics':
+          return <Statistics />;
+        case 'library':
+          return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        case 'reading':
+          return <ReadingList />;
+        case 'add':
+          return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        case 'calendar':
+          return <Calendar />;
+        case 'wishlist':
+          return null;
+        case 'settings':
+          return <Settings onSettingsChange={handleSettingsChange} />;
       }
     }
 
     switch (activeView) {
-      case 'statistics': return <Statistics />;
-      case 'library': return <Library onAddClick={() => setActiveView('add')} />;
-      case 'reading': return <ReadingList />;
-      case 'add': return <AddBook onAddSuccess={() => setActiveView('library')} onCancel={() => setActiveView('library')} />;
-      case 'calendar': return <Calendar />;
-      case 'wishlist': return null; 
-      case 'settings': return <Settings onSettingsChange={handleSettingsChange} />;
+      case 'statistics':
+        return <Statistics />;
+      case 'library':
+        return <Library onAddClick={() => setActiveView('add')} />;
+      case 'reading':
+        return <ReadingList />;
+      case 'add':
+        return <AddBook onAddSuccess={() => setActiveView('library')} onCancel={() => setActiveView('library')} />;
+      case 'calendar':
+        return <Calendar />;
+      case 'wishlist':
+        return null;
+      case 'settings':
+        return <Settings onSettingsChange={handleSettingsChange} />;
     }
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 overflow-x-clip relative transition-colors duration-300">
-      <main className="min-h-screen">{renderView()}</main>
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl p-2 z-50 grid grid-cols-5 gap-1 items-center">
-        <NavButton active={activeView === 'library' || activeView === 'add'} onClick={() => { setActiveView('library'); setFilterTag(''); }} icon={<LibraryIcon size={20} />} label="Бібліотека" />
-        <NavButton active={activeView === 'reading'} onClick={() => setActiveView('reading')} icon={<BookIcon size={20} />} label="Читаю" />
-        <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label="Календар" />
-        <NavButton active={activeView === 'statistics'} onClick={() => setActiveView('statistics')} icon={<BarChart2 size={20} />} label="Статистика" />
-        <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label="Налаштування" />
-      </nav>
-    </div>
+    <I18nProvider language={language}>
+      <div className="w-full min-h-screen bg-slate-50 overflow-x-clip relative transition-colors duration-300">
+        <main className="min-h-screen">{renderView()}</main>
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl p-2 z-50 grid grid-cols-5 gap-1 items-center">
+          <NavButton
+            active={activeView === 'library' || activeView === 'add'}
+            onClick={() => {
+              setActiveView('library');
+              setFilterTag('');
+            }}
+            icon={<LibraryIcon size={20} />}
+            label={t('nav.library')}
+          />
+          <NavButton active={activeView === 'reading'} onClick={() => setActiveView('reading')} icon={<BookIcon size={20} />} label={t('nav.reading')} />
+          <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label={t('nav.calendar')} />
+          <NavButton active={activeView === 'statistics'} onClick={() => setActiveView('statistics')} icon={<BarChart2 size={20} />} label={t('nav.statistics')} />
+          <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label={t('nav.settings')} />
+        </nav>
+      </div>
+    </I18nProvider>
   );
 };
 
-const NavButton: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({ active, onClick, icon, label }) => {
+const NavButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string }> = ({ active, onClick, icon, label }) => {
   const lastTapTsRef = React.useRef(0);
   const trigger = React.useCallback(() => {
     const now = Date.now();
@@ -100,7 +133,9 @@ const NavButton: React.FC<{active: boolean, onClick: () => void, icon: React.Rea
     <button
       onClick={trigger}
       onTouchEnd={trigger}
-      className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-full ${active ? 'text-indigo-600 scale-110 font-medium' : 'text-gray-400 hover:bg-gray-50/50'}`}
+      className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-full ${
+        active ? 'text-indigo-600 scale-110 font-medium' : 'text-gray-400 hover:bg-gray-50/50'
+      }`}
     >
       {icon}
       <span className={`text-[9px] font-bold mt-1 uppercase tracking-tighter transition-opacity ${active ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
@@ -112,9 +147,9 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <UIProvider>
-          <LibraryProvider>
-              <AppContent />
-          </LibraryProvider>
+        <LibraryProvider>
+          <AppContent />
+        </LibraryProvider>
       </UIProvider>
     </ErrorBoundary>
   );

@@ -1,54 +1,192 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
-import { Book } from '../../types';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowDownUp, ArrowUp, Filter, Plus, Search, X } from 'lucide-react';
+import { Book, BookFormat, BookStatus } from '../../types';
 import { getBookPageTotal } from '../../utils';
 import { createClientId } from '../../services/id';
 import { useLibrary } from '../../contexts/LibraryContext';
-import { BookCard } from '../BookCard';
+import { useUI } from '../../contexts/UIContext';
+import { loadSortPrefs, saveSortPrefs } from '../../services/storageService';
+import { useI18n } from '../../contexts/I18nContext';
+import { MessageKey } from '../../i18n/messages';
 import { AddBookV2 } from './AddBookV2';
 import { AddWishlistV2 } from './AddWishlistV2';
 import { EditBookV2 } from './EditBookV2';
 import { BookDetailsV2 } from './BookDetailsV2';
+import { BookCardV2 } from './BookCardV2';
+import { ReadingMode } from '../ReadingMode';
 
 type V2Tab = 'library' | 'wishlist';
+type V2SortKey = 'addedAt' | 'title' | 'author' | 'genre' | 'custom';
+type V2SortDirection = 'asc' | 'desc';
+const LIBRARY_STATUS_FILTERS: BookStatus[] = ['Reading', 'Unread', 'Completed'];
+const LIBRARY_DEFAULT_FORMAT_FILTERS: BookFormat[] = ['Paper', 'E-book', 'Audio', 'Pirate', 'Expected'];
+const LIBRARY_ALL_FORMAT_FILTERS: BookFormat[] = ['Paper', 'E-book', 'Audio', 'Pirate', 'Expected', 'Sold'];
+const LIBRARY_SORT_PREFS_KEY = 'library_sort_prefs';
+const WISHLIST_SORT_PREFS_KEY = 'wishlist_sort_prefs';
+
+const normalizeV2SortKey = (value: unknown): V2SortKey => {
+  return value === 'addedAt' || value === 'title' || value === 'author' || value === 'genre' || value === 'custom' ? value : 'addedAt';
+};
+
+const normalizeV2SortDirection = (value: unknown): V2SortDirection => {
+  return value === 'asc' || value === 'desc' ? value : 'desc';
+};
+
+const sameItems = <T extends string>(left: T[], right: T[]): boolean => {
+  return left.length === right.length && left.every((item) => right.includes(item));
+};
+
+const compareText = (left?: string, right?: string, locale: string = 'en-US'): number => {
+  return (left || '').trim().toLowerCase().localeCompare((right || '').trim().toLowerCase(), locale);
+};
+
+const compareSeriesPart = (left?: string, right?: string, locale: string = 'en-US'): number => {
+  const leftNumber = Number((left || '').replace(',', '.'));
+  const rightNumber = Number((right || '').replace(',', '.'));
+  const hasLeftNumber = Number.isFinite(leftNumber);
+  const hasRightNumber = Number.isFinite(rightNumber);
+
+  if (hasLeftNumber && hasRightNumber) return leftNumber - rightNumber;
+  if (hasLeftNumber) return -1;
+  if (hasRightNumber) return 1;
+  return compareText(left, right, locale);
+};
 
 type V2Route =
   | { kind: 'list'; tab: V2Tab }
   | { kind: 'add'; tab: V2Tab }
   | { kind: 'details'; tab: V2Tab; bookId: string }
-  | { kind: 'edit'; tab: V2Tab; bookId: string };
+  | { kind: 'edit'; tab: V2Tab; bookId: string }
+  | { kind: 'reading'; tab: V2Tab; bookId: string };
 
 interface LibraryFlowV2Props {
   onNavigateToReading?: () => void;
 }
 
 export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReading }) => {
-  const { books, addBook, updateBook, deleteBook } = useLibrary();
+  const { t, locale } = useI18n();
+  const { books, addBook, updateBook, deleteBook, reorderBooks, filterTag, setFilterTag } = useLibrary();
+  const { toast, confirm } = useUI();
   const [route, setRoute] = useState<V2Route>({ kind: 'list', tab: 'library' });
-  const [search, setSearch] = useState('');
+  const [showSortPanel, setShowSortPanel] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [searchByTab, setSearchByTab] = useState<{ library: string; wishlist: string }>({
+    library: '',
+    wishlist: '',
+  });
+  const [selectedStatuses, setSelectedStatuses] = useState<BookStatus[]>(LIBRARY_STATUS_FILTERS);
+  const [selectedFormats, setSelectedFormats] = useState<BookFormat[]>(LIBRARY_DEFAULT_FORMAT_FILTERS);
+  const [publisherFilter, setPublisherFilter] = useState('');
+  const [genreFilter, setGenreFilter] = useState('');
+  const [publisherFocused, setPublisherFocused] = useState(false);
+  const [genreFocused, setGenreFocused] = useState(false);
+  const lastSuggestionPickTsRef = useRef(0);
+  const [sortKeyByTab, setSortKeyByTab] = useState<{ library: V2SortKey; wishlist: V2SortKey }>(() => {
+    const librarySort = loadSortPrefs(LIBRARY_SORT_PREFS_KEY);
+    const wishlistSort = loadSortPrefs(WISHLIST_SORT_PREFS_KEY);
+    return {
+      library: normalizeV2SortKey(librarySort.key),
+      wishlist: normalizeV2SortKey(wishlistSort.key),
+    };
+  });
+  const [sortDirectionByTab, setSortDirectionByTab] = useState<{ library: V2SortDirection; wishlist: V2SortDirection }>(() => {
+    const librarySort = loadSortPrefs(LIBRARY_SORT_PREFS_KEY);
+    const wishlistSort = loadSortPrefs(WISHLIST_SORT_PREFS_KEY);
+    return {
+      library: normalizeV2SortDirection(librarySort.direction),
+      wishlist: normalizeV2SortDirection(wishlistSort.direction),
+    };
+  });
+  const [reorderModeByTab, setReorderModeByTab] = useState<{ library: boolean; wishlist: boolean }>({
+    library: false,
+    wishlist: false,
+  });
+  const [isActionBusy, setIsActionBusy] = useState(false);
+  const statusLabel = useCallback((status: BookStatus) => t(`status.${status}` as MessageKey), [t]);
+  const formatLabel = useCallback((format: BookFormat) => t(`format.${format}` as MessageKey), [t]);
 
   const libraryBooks = useMemo(() => books.filter((b) => b.status !== 'Wishlist'), [books]);
   const wishlistBooks = useMemo(() => books.filter((b) => b.status === 'Wishlist'), [books]);
 
   const currentTab = route.tab;
+  const search = searchByTab[currentTab];
   const sourceBooks = currentTab === 'library' ? libraryBooks : wishlistBooks;
 
   const filteredBooks = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return sourceBooks;
     return sourceBooks.filter((b) => {
-      const haystack = [b.title, b.author, b.genre || '', b.publisher || ''].join(' ').toLowerCase();
+      if (currentTab === 'library') {
+        if (selectedStatuses.length > 0 && !selectedStatuses.includes(b.status)) {
+          return false;
+        }
+        if (selectedFormats.length > 0 && !b.formats.some((format) => selectedFormats.includes(format))) {
+          return false;
+        }
+        const publisherQuery = publisherFilter.trim().toLowerCase();
+        if (publisherQuery && !(b.publisher || '').toLowerCase().includes(publisherQuery)) {
+          return false;
+        }
+        const genreQuery = genreFilter.trim().toLowerCase();
+        if (genreQuery && !(b.genre || '').toLowerCase().includes(genreQuery)) {
+          return false;
+        }
+      }
+
+      if (!q) {
+        return true;
+      }
+      const haystack = [b.title, b.author, b.genre || '', b.publisher || '', b.series || '', b.seriesPart || '']
+        .join(' ')
+        .toLowerCase();
       return haystack.includes(q);
     });
-  }, [search, sourceBooks]);
+  }, [currentTab, genreFilter, publisherFilter, search, selectedFormats, selectedStatuses, sourceBooks]);
+
+  const sortedBooks = useMemo(() => {
+    const sortKey = sortKeyByTab[currentTab];
+    const sortDirection = sortDirectionByTab[currentTab];
+    if (sortKey === 'custom') {
+      return sortDirection === 'asc' ? [...filteredBooks] : [...filteredBooks].reverse();
+    }
+    const copy = [...filteredBooks];
+
+    copy.sort((a, b) => {
+      if (sortKey === 'addedAt') {
+        const aTime = Date.parse(a.addedAt || '');
+        const bTime = Date.parse(b.addedAt || '');
+        return (Number.isFinite(aTime) ? aTime : 0) - (Number.isFinite(bTime) ? bTime : 0);
+      }
+      if (sortKey === 'author') {
+        return compareText(a.author, b.author, locale);
+      }
+      if (sortKey === 'genre') {
+        const hasGenreA = Boolean((a.genre || '').trim());
+        const hasGenreB = Boolean((b.genre || '').trim());
+        if (hasGenreA !== hasGenreB) {
+          return hasGenreA ? -1 : 1;
+        }
+        const result =
+          compareText(a.genre, b.genre, locale) ||
+          compareText(a.author, b.author, locale) ||
+          compareText(a.series, b.series, locale) ||
+          compareSeriesPart(a.seriesPart, b.seriesPart, locale) ||
+          compareText(a.title, b.title, locale);
+        return sortDirection === 'asc' ? result : -result;
+      }
+      return compareText(a.title, b.title, locale);
+    });
+
+    return sortDirection === 'asc' ? copy : copy.reverse();
+  }, [currentTab, filteredBooks, locale, sortDirectionByTab, sortKeyByTab]);
 
   const uniquePublishers = useMemo(() => {
     const pubs = new Set<string>();
     books.forEach((b) => {
       if (b.publisher && b.publisher.trim()) pubs.add(b.publisher.trim());
     });
-    return Array.from(pubs).sort((a, b) => a.localeCompare(b, 'uk'));
-  }, [books]);
+    return Array.from(pubs).sort((a, b) => a.localeCompare(b, locale));
+  }, [books, locale]);
 
   const uniqueGenres = useMemo(() => {
     const genres = new Set<string>();
@@ -56,15 +194,213 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       const value = (b.genre || '').trim();
       if (value) genres.add(value);
     });
-    return Array.from(genres).sort((a, b) => a.localeCompare(b, 'uk'));
-  }, [books]);
+    return Array.from(genres).sort((a, b) => a.localeCompare(b, locale));
+  }, [books, locale]);
 
   const openList = useCallback((tab: V2Tab) => {
     setRoute({ kind: 'list', tab });
   }, []);
 
+  const filteredPublisherSuggestions = useMemo(() => {
+    const q = publisherFilter.trim().toLowerCase();
+    if (!q) return uniquePublishers.slice(0, 12);
+    return uniquePublishers.filter((item) => item.toLowerCase().includes(q)).slice(0, 12);
+  }, [publisherFilter, uniquePublishers]);
+
+  const filteredGenreSuggestions = useMemo(() => {
+    const q = genreFilter.trim().toLowerCase();
+    if (!q) return uniqueGenres.slice(0, 12);
+    return uniqueGenres.filter((item) => item.toLowerCase().includes(q)).slice(0, 12);
+  }, [genreFilter, uniqueGenres]);
+
+  const hasActiveLibraryFilters = useMemo(() => {
+    return (
+      !sameItems(selectedStatuses, LIBRARY_STATUS_FILTERS) ||
+      !sameItems(selectedFormats, LIBRARY_DEFAULT_FORMAT_FILTERS) ||
+      publisherFilter.trim().length > 0 ||
+      genreFilter.trim().length > 0
+    );
+  }, [genreFilter, publisherFilter, selectedFormats, selectedStatuses]);
+
+  const runSuggestionPickOnce = useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastSuggestionPickTsRef.current < 250) return;
+    lastSuggestionPickTsRef.current = now;
+    action();
+  }, []);
+
+  const toggleStatusFilter = useCallback((status: BookStatus) => {
+    setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((item) => item !== status) : [...prev, status]));
+  }, []);
+
+  const toggleFormatFilter = useCallback((format: BookFormat) => {
+    setSelectedFormats((prev) => (prev.includes(format) ? prev.filter((item) => item !== format) : [...prev, format]));
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSelectedStatuses(LIBRARY_STATUS_FILTERS);
+    setSelectedFormats(LIBRARY_DEFAULT_FORMAT_FILTERS);
+    setPublisherFilter('');
+    setGenreFilter('');
+    setPublisherFocused(false);
+    setGenreFocused(false);
+  }, []);
+
+  const searchSuggestions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (query.length < 2) return [];
+
+    const values = new Set<string>();
+    sourceBooks.forEach((book) => {
+      const title = (book.title || '').trim();
+      const author = (book.author || '').trim();
+      const publisher = (book.publisher || '').trim();
+      const genre = (book.genre || '').trim();
+
+      if (title && title.toLowerCase().includes(query)) values.add(title);
+      if (author && author.toLowerCase().includes(query)) values.add(author);
+      if (publisher && publisher.toLowerCase().includes(query)) values.add(publisher);
+      if (genre && genre.toLowerCase().includes(query)) values.add(genre);
+    });
+
+    return Array.from(values).slice(0, 8);
+  }, [search, sourceBooks]);
+
+  const setSearchForCurrentTab = useCallback(
+    (value: string) => {
+      setSearchByTab((prev) => ({
+        ...prev,
+        [currentTab]: value,
+      }));
+      if (currentTab === 'library' && value.trim().length === 0) {
+        setFilterTag('');
+      }
+    },
+    [currentTab, setFilterTag]
+  );
+
+  const handleSortChange = useCallback(
+    (sortKey: Exclude<V2SortKey, 'custom'>) => {
+      if (reorderModeByTab[currentTab]) {
+        setReorderModeByTab((prev) => ({ ...prev, [currentTab]: false }));
+      }
+      if (sortKeyByTab[currentTab] === sortKey) {
+        setSortDirectionByTab((prev) => ({
+          ...prev,
+          [currentTab]: prev[currentTab] === 'asc' ? 'desc' : 'asc',
+        }));
+      } else {
+        setSortKeyByTab((prev) => ({
+          ...prev,
+          [currentTab]: sortKey,
+        }));
+        setSortDirectionByTab((prev) => ({
+          ...prev,
+          [currentTab]: sortKey === 'addedAt' ? 'desc' : 'asc',
+        }));
+      }
+    },
+    [currentTab, reorderModeByTab, sortKeyByTab]
+  );
+
+  const isCustomSort = sortKeyByTab[currentTab] === 'custom';
+  const isReorderMode = reorderModeByTab[currentTab] && isCustomSort && search.trim().length === 0;
+
+  const toggleReorderMode = useCallback(() => {
+    if (search.trim().length > 0) {
+      setSearchByTab((prev) => ({ ...prev, [currentTab]: '' }));
+    }
+    if (currentTab === 'library' && hasActiveLibraryFilters) {
+      clearFilters();
+    }
+    setSortKeyByTab((prev) => ({
+      ...prev,
+      [currentTab]: 'custom',
+    }));
+    setSortDirectionByTab((prev) => ({
+      ...prev,
+      [currentTab]: 'asc',
+    }));
+    setReorderModeByTab((prev) => ({
+      ...prev,
+      [currentTab]: !prev[currentTab],
+    }));
+  }, [clearFilters, currentTab, hasActiveLibraryFilters, search]);
+
+  const moveBookInTab = useCallback(
+    (bookId: string, direction: 'up' | 'down') => {
+      if (isActionBusy) return;
+      const tabBooks = currentTab === 'library' ? books.filter((b) => b.status !== 'Wishlist') : books.filter((b) => b.status === 'Wishlist');
+      const index = tabBooks.findIndex((book) => book.id === bookId);
+      if (index < 0) return;
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= tabBooks.length) return;
+
+      const nextTabBooks = [...tabBooks];
+      [nextTabBooks[index], nextTabBooks[targetIndex]] = [nextTabBooks[targetIndex], nextTabBooks[index]];
+
+      const nextGlobalBooks =
+        currentTab === 'library'
+          ? [...nextTabBooks, ...books.filter((b) => b.status === 'Wishlist')]
+          : [...books.filter((b) => b.status !== 'Wishlist'), ...nextTabBooks];
+
+      try {
+        reorderBooks(nextGlobalBooks);
+      } catch (error) {
+        console.error(error);
+        toast.show(t('library.failedReorder'), 'error');
+      }
+    },
+    [books, currentTab, isActionBusy, reorderBooks, t, toast]
+  );
+
+  useEffect(() => {
+    if (search.trim().length === 0) return;
+    if (!reorderModeByTab[currentTab]) return;
+    setReorderModeByTab((prev) => ({ ...prev, [currentTab]: false }));
+  }, [currentTab, reorderModeByTab, search]);
+
+  useEffect(() => {
+    if (!hasActiveLibraryFilters) return;
+    if (!reorderModeByTab.library) return;
+    setReorderModeByTab((prev) => ({ ...prev, library: false }));
+  }, [hasActiveLibraryFilters, reorderModeByTab.library]);
+
+  useEffect(() => {
+    if (sortKeyByTab[currentTab] === 'custom') return;
+    if (!reorderModeByTab[currentTab]) return;
+    setReorderModeByTab((prev) => ({ ...prev, [currentTab]: false }));
+  }, [currentTab, reorderModeByTab, sortKeyByTab]);
+
+  useEffect(() => {
+    if (currentTab === 'library') return;
+    setShowSortPanel(false);
+    setShowFilters(false);
+    setPublisherFocused(false);
+    setGenreFocused(false);
+    setShowSearchSuggestions(false);
+  }, [currentTab]);
+
+  useEffect(() => {
+    const normalized = filterTag.trim();
+    if (!normalized) return;
+
+    setRoute((prev) => (prev.kind === 'list' && prev.tab === 'library' ? prev : { kind: 'list', tab: 'library' }));
+    setSearchByTab((prev) => (prev.library === normalized ? prev : { ...prev, library: normalized }));
+  }, [filterTag]);
+
+  useEffect(() => {
+    saveSortPrefs(LIBRARY_SORT_PREFS_KEY, sortKeyByTab.library, sortDirectionByTab.library);
+  }, [sortDirectionByTab.library, sortKeyByTab.library]);
+
+  useEffect(() => {
+    saveSortPrefs(WISHLIST_SORT_PREFS_KEY, sortKeyByTab.wishlist, sortDirectionByTab.wishlist);
+  }, [sortDirectionByTab.wishlist, sortKeyByTab.wishlist]);
+
   const handleSaveInEdit = useCallback(
     (updatedBook: Book, tab: V2Tab) => {
+      if (isActionBusy) return;
+      setIsActionBusy(true);
       let finalBook = { ...updatedBook };
       if (finalBook.status === 'Completed') {
         if (!finalBook.completedAt) {
@@ -87,10 +423,18 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
           ];
         }
       }
-      updateBook(finalBook);
-      setRoute({ kind: 'details', tab, bookId: finalBook.id });
+      try {
+        updateBook(finalBook);
+        setRoute({ kind: 'details', tab, bookId: finalBook.id });
+        toast.show(t('library.saved'), 'success');
+      } catch (error) {
+        console.error(error);
+        toast.show(t('library.failedSave'), 'error');
+      } finally {
+        setIsActionBusy(false);
+      }
     },
-    [updateBook]
+    [isActionBusy, t, toast, updateBook]
   );
 
   if (route.kind === 'add') {
@@ -100,8 +444,18 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
           publisherSuggestions={uniquePublishers}
           genreSuggestions={uniqueGenres}
           onAdd={(book) => {
-            addBook(book);
-            openList('library');
+            if (isActionBusy) return;
+            setIsActionBusy(true);
+            try {
+              addBook(book);
+              toast.show(t('library.bookAdded'), 'success');
+              openList('library');
+            } catch (error) {
+              console.error(error);
+              toast.show(t('library.failedAddBook'), 'error');
+            } finally {
+              setIsActionBusy(false);
+            }
           }}
           onCancel={() => openList('library')}
         />
@@ -110,8 +464,18 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     return (
       <AddWishlistV2
         onAdd={(book) => {
-          addBook(book);
-          openList('wishlist');
+          if (isActionBusy) return;
+          setIsActionBusy(true);
+          try {
+            addBook(book);
+            toast.show(t('library.wishlistAdded'), 'success');
+            openList('wishlist');
+          } catch (error) {
+            console.error(error);
+            toast.show(t('library.failedAddWishlist'), 'error');
+          } finally {
+            setIsActionBusy(false);
+          }
         }}
         onCancel={() => openList('wishlist')}
       />
@@ -123,9 +487,9 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     if (!liveBook) {
       return (
         <div className="p-4 pb-24 text-gray-800">
-          <p className="text-sm text-gray-500">Book was not found. Returning to list...</p>
+          <p className="text-sm text-gray-500">{t('library.bookNotFound')}</p>
           <button className="mt-3 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => openList(route.tab)}>
-            Back
+            {t('common.back')}
           </button>
         </div>
       );
@@ -135,26 +499,79 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       <BookDetailsV2
           book={liveBook}
           onBack={() => openList(route.tab)}
-          onOpenReadingMode={() => onNavigateToReading?.()}
+          onOpenReadingMode={() => setRoute({ kind: 'reading', tab: route.tab, bookId: liveBook.id })}
           onEdit={() => setRoute({ kind: 'edit', tab: route.tab, bookId: liveBook.id })}
+          onTagClick={(tag) => {
+            const normalized = (tag || '').trim();
+            if (!normalized) return;
+            setFilterTag(normalized);
+            setRoute({ kind: 'list', tab: 'library' });
+          }}
           onDelete={() => {
-            deleteBook(liveBook.id);
-            openList(route.tab);
+            if (isActionBusy) return;
+            void (async () => {
+              const ok = await confirm({
+                title: t('library.deleteTitle'),
+                message: t('library.deleteMessage', { title: liveBook.title }),
+                type: 'danger',
+                confirmText: t('common.delete'),
+                cancelText: t('common.cancel'),
+              });
+              if (!ok) return;
+              setIsActionBusy(true);
+              try {
+                deleteBook(liveBook.id);
+                toast.show(t('library.bookDeleted'), 'success');
+                openList(route.tab);
+              } catch (error) {
+                console.error(error);
+                toast.show(t('library.failedDelete'), 'error');
+              } finally {
+                setIsActionBusy(false);
+              }
+            })();
           }}
           onStartReadingWishlist={() => {
-            updateBook({
-              ...liveBook,
-              status: 'Reading',
-              readingStartedAt: new Date().toISOString(),
-            });
-            if (onNavigateToReading) {
-              onNavigateToReading();
-            } else {
-              openList('library');
+            if (isActionBusy) return;
+            setIsActionBusy(true);
+            try {
+              updateBook({
+                ...liveBook,
+                status: 'Reading',
+                readingStartedAt: new Date().toISOString(),
+              });
+              toast.show(t('library.movedToReading'), 'success');
+              if (onNavigateToReading) {
+                onNavigateToReading();
+              } else {
+                openList('library');
+              }
+            } catch (error) {
+              console.error(error);
+              toast.show(t('library.failedUpdateStatus'), 'error');
+            } finally {
+              setIsActionBusy(false);
             }
           }}
+          isBusy={isActionBusy}
       />
     );
+  }
+
+  if (route.kind === 'reading') {
+    const liveBook = books.find((b) => b.id === route.bookId);
+    if (!liveBook) {
+      return (
+        <div className="p-4 pb-24 text-gray-800">
+          <p className="text-sm text-gray-500">{t('library.bookNotFound')}</p>
+          <button className="mt-3 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => openList(route.tab)}>
+            {t('common.back')}
+          </button>
+        </div>
+      );
+    }
+
+    return <ReadingMode book={liveBook} onClose={() => setRoute({ kind: 'details', tab: route.tab, bookId: liveBook.id })} />;
   }
 
   if (route.kind === 'edit') {
@@ -162,9 +579,9 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     if (!liveBook) {
       return (
         <div className="p-4 pb-24 text-gray-800">
-          <p className="text-sm text-gray-500">Book was not found. Returning to list...</p>
+          <p className="text-sm text-gray-500">{t('library.bookNotFound')}</p>
           <button className="mt-3 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => openList(route.tab)}>
-            Back
+            {t('common.back')}
           </button>
         </div>
       );
@@ -189,13 +606,13 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
             onClick={() => openList('library')}
             className={`text-3xl font-bold transition-colors ${currentTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}
           >
-            Library
+            {t('library.tab.library')}
           </button>
           <button
             onClick={() => openList('wishlist')}
             className={`text-3xl font-bold transition-colors ${currentTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}
           >
-            Wishlist
+            {t('library.tab.wishlist')}
           </button>
         </header>
 
@@ -203,7 +620,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
           <button
             onClick={() => setRoute({ kind: 'add', tab: currentTab })}
             className="h-12 w-12 flex-shrink-0 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
-            title={currentTab === 'library' ? 'Add book' : 'Add wishlist'}
+            title={currentTab === 'library' ? t('library.addBook') : t('library.addWishlist')}
           >
             <Plus size={24} />
           </button>
@@ -211,30 +628,342 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Search..."
-              className="w-full h-full pl-10 pr-3 bg-white rounded-xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
+              placeholder={t('library.searchPlaceholder')}
+              className="w-full h-full pl-10 pr-10 bg-white rounded-xl border-none shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearchForCurrentTab(e.target.value);
+                setShowSearchSuggestions(true);
+              }}
+              onFocus={() => setShowSearchSuggestions(true)}
+              onBlur={() => window.setTimeout(() => setShowSearchSuggestions(false), 120)}
             />
+            {search.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchForCurrentTab('');
+                  setShowSearchSuggestions(false);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1.5"
+                aria-label={t('library.clearSearch')}
+              >
+                <X size={16} />
+              </button>
+            )}
+            {showSearchSuggestions && searchSuggestions.length > 0 && (
+              <div
+                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl z-50 overflow-hidden border border-gray-100 max-h-48 overflow-y-auto overscroll-contain"
+                style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+              >
+                {searchSuggestions.map((item) => (
+                  <button
+                    key={`${currentTab}-${item}`}
+                    type="button"
+                    onTouchStart={(event) => {
+                      event.preventDefault();
+                      runSuggestionPickOnce(() => {
+                        setSearchForCurrentTab(item);
+                        setShowSearchSuggestions(false);
+                      });
+                    }}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      runSuggestionPickOnce(() => {
+                        setSearchForCurrentTab(item);
+                        setShowSearchSuggestions(false);
+                      });
+                    }}
+                    onClick={() =>
+                      runSuggestionPickOnce(() => {
+                        setSearchForCurrentTab(item);
+                        setShowSearchSuggestions(false);
+                      })
+                    }
+                    className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowSortPanel((prev) => !prev);
+              setShowFilters(false);
+              setPublisherFocused(false);
+              setGenreFocused(false);
+            }}
+            className={`h-12 w-12 flex-shrink-0 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all ${
+              showSortPanel ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white text-indigo-600 border border-indigo-200'
+            }`}
+            title={t('library.sort')}
+          >
+            <ArrowDownUp size={20} />
+          </button>
+          {currentTab === 'library' && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowFilters((prev) => !prev);
+                setShowSortPanel(false);
+              }}
+              className={`relative h-12 w-12 flex-shrink-0 border rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all ${
+                showFilters || hasActiveLibraryFilters ? 'bg-white text-indigo-600 border-indigo-200' : 'bg-white text-gray-400 border-gray-100'
+              }`}
+              title={t('library.filters')}
+            >
+              <Filter size={20} />
+              {hasActiveLibraryFilters && !showFilters && <div className="absolute top-3 right-3 w-2 h-2 bg-indigo-600 rounded-full border border-white" />}
+            </button>
+          )}
         </div>
+        {showSortPanel && (
+          <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-gray-100 space-y-3">
+            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">{t('sort.sortBy')}</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {(['title', 'author', 'addedAt', 'genre'] as Exclude<V2SortKey, 'custom'>[]).map((key) => {
+                const isActive = sortKeyByTab[currentTab] === key && !isReorderMode;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleSortChange(key)}
+                    className={`py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
+                      isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>{key === 'title' ? t('sort.title') : key === 'author' ? t('sort.author') : key === 'addedAt' ? t('sort.date') : t('sort.genre')}</span>
+                    {isActive && (sortDirectionByTab[currentTab] === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={toggleReorderMode}
+                disabled={sortedBooks.length < 2}
+                className={`py-2.5 rounded-xl font-bold text-xs transition-all ${
+                  isReorderMode || sortKeyByTab[currentTab] === 'custom'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                {t('sort.customOrder')}
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="text-right text-xs text-gray-500">{sortedBooks.length}</div>
+        {isCustomSort && search.trim().length > 0 && (
+          <div className="text-[11px] text-gray-500">{t('library.reorder.clearSearch')}</div>
+        )}
+        {currentTab === 'library' && isCustomSort && hasActiveLibraryFilters && (
+          <div className="text-[11px] text-gray-500">{t('library.reorder.clearFilters')}</div>
+        )}
+        {currentTab === 'library' && showFilters && (
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+            <div className="space-y-2">
+              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{t('library.filter.status')}</div>
+              <div className="flex flex-wrap gap-2">
+                {LIBRARY_STATUS_FILTERS.map((status) => {
+                  const active = selectedStatuses.includes(status);
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => toggleStatusFilter(status)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        active ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'
+                      }`}
+                    >
+                      {statusLabel(status)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{t('library.filter.format')}</div>
+              <div className="flex flex-wrap gap-2">
+                {LIBRARY_ALL_FORMAT_FILTERS.map((format) => {
+                  const active = selectedFormats.includes(format);
+                  return (
+                    <button
+                      key={format}
+                      type="button"
+                      onClick={() => toggleFormatFilter(format)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        active ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-400 border-gray-100'
+                      }`}
+                    >
+                      {formatLabel(format)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="relative space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('library.filter.publisher')}</label>
+                <input
+                  type="text"
+                  value={publisherFilter}
+                  onChange={(event) => {
+                    setPublisherFilter(event.target.value);
+                    setPublisherFocused(true);
+                  }}
+                  onFocus={() => setPublisherFocused(true)}
+                  onBlur={() => window.setTimeout(() => setPublisherFocused(false), 120)}
+                  placeholder={t('library.filter.publisherPlaceholder')}
+                  className="w-full bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold border border-gray-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                {publisherFilter.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPublisherFilter('')}
+                    className="absolute right-2 top-7 text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+                {publisherFocused && filteredPublisherSuggestions.length > 0 && (
+                  <div
+                    className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl z-40 overflow-hidden border border-gray-100 max-h-40 overflow-y-auto overscroll-contain"
+                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                  >
+                    {filteredPublisherSuggestions.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onTouchStart={(event) => {
+                          event.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            setPublisherFilter(item);
+                            setPublisherFocused(false);
+                          });
+                        }}
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            setPublisherFilter(item);
+                            setPublisherFocused(false);
+                          });
+                        }}
+                        onClick={() =>
+                          runSuggestionPickOnce(() => {
+                            setPublisherFilter(item);
+                            setPublisherFocused(false);
+                          })
+                        }
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('library.filter.genre')}</label>
+                <input
+                  type="text"
+                  value={genreFilter}
+                  onChange={(event) => {
+                    setGenreFilter(event.target.value);
+                    setGenreFocused(true);
+                  }}
+                  onFocus={() => setGenreFocused(true)}
+                  onBlur={() => window.setTimeout(() => setGenreFocused(false), 120)}
+                  placeholder={t('library.filter.genrePlaceholder')}
+                  className="w-full bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold border border-gray-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                {genreFilter.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setGenreFilter('')}
+                    className="absolute right-2 top-7 text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+                {genreFocused && filteredGenreSuggestions.length > 0 && (
+                  <div
+                    className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl z-40 overflow-hidden border border-gray-100 max-h-40 overflow-y-auto overscroll-contain"
+                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                  >
+                    {filteredGenreSuggestions.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onTouchStart={(event) => {
+                          event.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            setGenreFilter(item);
+                            setGenreFocused(false);
+                          });
+                        }}
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            setGenreFilter(item);
+                            setGenreFocused(false);
+                          });
+                        }}
+                        onClick={() =>
+                          runSuggestionPickOnce(() => {
+                            setGenreFilter(item);
+                            setGenreFocused(false);
+                          })
+                        }
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {hasActiveLibraryFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="w-full py-3 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors"
+              >
+                <X size={18} />
+                <span>{t('library.clearFilters')}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {filteredBooks.length === 0 ? (
-        <div className="py-8 text-sm text-gray-500">No books found.</div>
+      {sortedBooks.length === 0 ? (
+        <div className="py-8 text-sm text-gray-500">{t('library.empty')}</div>
       ) : (
         <div className="space-y-3">
-          {filteredBooks.map((book) => (
-            <BookCard
+          {sortedBooks.map((book, index) => (
+            <BookCardV2
               key={book.id}
               book={book}
-              onClick={(selectedBook) =>
+              onOpen={(selectedBook) =>
                 setRoute({
                   kind: 'details',
                   tab: currentTab,
                   bookId: selectedBook.id,
                 })
               }
+              reorderMode={isReorderMode}
+              canMoveUp={index > 0}
+              canMoveDown={index < sortedBooks.length - 1}
+              onMoveUp={() => moveBookInTab(book.id, 'up')}
+              onMoveDown={() => moveBookInTab(book.id, 'down')}
             />
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { AppSettings, Book, LibraryState, SortDirection, SortKey } from "../types";
+﻿import { AppSettings, Book, LibraryState, SortDirection, SortKey } from "../types";
 import { appendDebugLog, finishDebugTrace, startDebugTrace } from "./debugLogger";
 import { markDexieFailure, markDexieSuccess } from "./dexieRuntime";
 import { blobToBase64 } from "./imageUtils";
@@ -15,11 +15,13 @@ import {
 const SETTINGS_KEY = "booktracker_settings";
 
 export const loadSettings = (): AppSettings => {
-  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", uiV2Enabled: false };
+  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", uiV2Enabled: false, language: "en" };
   try {
     const data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return defaultSettings;
-    return { ...defaultSettings, ...JSON.parse(data) };
+    const parsed = JSON.parse(data) as Partial<AppSettings>;
+    const language = parsed.language === "uk" ? "uk" : "en";
+    return { ...defaultSettings, ...parsed, language };
   } catch {
     return defaultSettings;
   }
@@ -47,7 +49,7 @@ export const saveSortPrefs = (contextKey: string, key: SortKey, direction: SortD
 };
 
 const quotaAlert = (): void => {
-  alert("Увага: Пам'ять пристрою переповнена.");
+  alert("Warning: device storage is full.");
 };
 
 export const loadLibrary = async (): Promise<LibraryState> => {
@@ -175,3 +177,4 @@ export const exportLibraryToJSON = async (): Promise<void> => {
 
 export { fetchBookCover } from "./api";
 export { processImage } from "./imageUtils";
+

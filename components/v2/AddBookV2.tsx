@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../contexts/I18nContext';
 import { Book, BookStatus } from '../../types';
 import { createClientId } from '../../services/id';
 import { BookFormV2 } from './BookFormV2';
@@ -16,10 +17,12 @@ export const AddBookV2: React.FC<AddBookV2Props> = ({
   onAdd,
   onCancel,
 }) => {
+  const { t } = useI18n();
+
   return (
     <BookFormV2
-      title="Add Book (V2)"
-      submitLabel="Add book"
+      title={t('bookForm.addBookTitle')}
+      submitLabel={t('bookForm.addBookSubmit')}
       initialValue={{
         status: 'Unread',
         formats: ['Paper'],
@@ -62,4 +65,3 @@ export const AddBookV2: React.FC<AddBookV2Props> = ({
     />
   );
 };
-

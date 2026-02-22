@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../contexts/I18nContext';
 import { Book } from '../../types';
 import { BookFormV2 } from './BookFormV2';
 
@@ -17,10 +18,12 @@ export const EditBookV2: React.FC<EditBookV2Props> = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useI18n();
+
   return (
     <BookFormV2
-      title="Edit Book (V2)"
-      submitLabel="Save"
+      title={t('bookForm.editBookTitle')}
+      submitLabel={t('bookForm.saveSubmit')}
       initialValue={book}
       publisherSuggestions={publisherSuggestions}
       genreSuggestions={genreSuggestions}
@@ -40,4 +43,3 @@ export const EditBookV2: React.FC<EditBookV2Props> = ({
     />
   );
 };
-

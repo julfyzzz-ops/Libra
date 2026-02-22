@@ -1,26 +1,29 @@
-
-import React, { useRef, useState, useEffect } from 'react';
-import { CheckCircle2, ShieldCheck, Download, FileJson, Upload, FileSpreadsheet, Loader2, Palette, Bug, Trash2, Copy, X } from 'lucide-react';
-import { loadSettings, saveSettings, exportLibraryToJSON } from '../services/storageService';
-import { importLibraryFromJSON, importLibraryFromCSV } from '../services/importers';
-import { clearDebugLogs, getDebugLogs, isDebugModeEnabled, setDebugModeEnabled, type DebugLogEntry } from '../services/debugLogger';
-import { ACCENT_COLORS, BACKGROUND_TONES, applyTheme } from '../utils';
-import { AccentColor, BackgroundTone, AppSettings } from '../types';
-import { useUI } from '../contexts/UIContext';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bug, CheckCircle2, Copy, Download, FileSpreadsheet, Loader2, Palette, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { useI18n } from '../contexts/I18nContext';
 import { useLibrary } from '../contexts/LibraryContext';
+import { useUI } from '../contexts/UIContext';
+import { MessageKey } from '../i18n/messages';
+import { importLibraryFromCSV, importLibraryFromJSON } from '../services/importers';
+import { clearDebugLogs, getDebugLogs, isDebugModeEnabled, setDebugModeEnabled, type DebugLogEntry } from '../services/debugLogger';
+import { exportLibraryToJSON, loadSettings, saveSettings } from '../services/storageService';
+import { AccentColor, AppLanguage, AppSettings, BackgroundTone } from '../types';
+import { ACCENT_COLORS, applyTheme, BACKGROUND_TONES } from '../utils';
 
 interface SettingsProps {
   onSettingsChange?: (settings: AppSettings) => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
+  const { t, locale } = useI18n();
   const { toast, confirm } = useUI();
   const { refreshLibrary } = useLibrary();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool' });
+  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', uiV2Enabled: false, language: 'en' });
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
@@ -35,38 +38,39 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
     setDebugLogs(getDebugLogs());
   }, [showDebugLogs, debugEnabled]);
 
+  const saveAndApply = (nextSettings: AppSettings) => {
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+    onSettingsChange?.(nextSettings);
+    applyTheme(nextSettings.accent, nextSettings.bg);
+  };
+
   const updateAccent = (color: AccentColor) => {
-    const newSettings = { ...settings, accent: color };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    onSettingsChange?.(newSettings);
-    applyTheme(newSettings.accent, newSettings.bg);
+    saveAndApply({ ...settings, accent: color });
   };
 
   const updateBg = (tone: BackgroundTone) => {
-    const newSettings = { ...settings, bg: tone };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    onSettingsChange?.(newSettings);
-    applyTheme(newSettings.accent, newSettings.bg);
+    saveAndApply({ ...settings, bg: tone });
+  };
+
+  const updateLanguage = (language: AppLanguage) => {
+    saveAndApply({ ...settings, language });
   };
 
   const handleToggleUiV2 = () => {
-    const newSettings = { ...settings, uiV2Enabled: !settings.uiV2Enabled };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    onSettingsChange?.(newSettings);
-    toast.show(newSettings.uiV2Enabled ? 'UI V2 beta enabled' : 'UI V2 beta disabled', 'info');
+    const next = { ...settings, uiV2Enabled: !settings.uiV2Enabled };
+    saveAndApply(next);
+    toast.show(next.uiV2Enabled ? t('settings.toast.uiV2On') : t('settings.toast.uiV2Off'), 'info');
   };
 
   const handleExport = async () => {
     setIsExporting(true);
     try {
       await exportLibraryToJSON();
-      toast.show("Експорт успішний", "success");
+      toast.show(t('settings.toast.exportOk'), 'success');
     } catch (error) {
       console.error('Failed to export library:', error);
-      toast.show("Помилка при експорті", "error");
+      toast.show(t('settings.toast.exportFail'), 'error');
     } finally {
       setIsExporting(false);
     }
@@ -74,50 +78,48 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
 
   const handleImportClick = async () => {
     const isConfirmed = await confirm({
-        title: "Замінити бібліотеку?",
-        message: "Імпорт JSON повністю замінить вашу поточну бібліотеку. Цю дію неможливо скасувати.",
-        confirmText: "Замінити",
-        type: "danger"
+      title: t('settings.confirmReplaceTitle'),
+      message: t('settings.confirmReplaceMessage'),
+      confirmText: t('settings.confirmReplace'),
+      type: 'danger',
     });
 
-    if (isConfirmed) {
-      fileInputRef.current?.click();
-    }
+    if (isConfirmed) fileInputRef.current?.click();
   };
 
   const handleCsvImportClick = () => {
     csvInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     setIsImporting(true);
 
     try {
       await importLibraryFromJSON(file);
       await refreshLibrary();
-      toast.show("Бібліотеку відновлено!", "success");
-    } catch (error) {
-      toast.show("Невірний формат файлу", "error");
+      toast.show(t('settings.toast.importOk'), 'success');
+    } catch {
+      toast.show(t('settings.toast.importInvalid'), 'error');
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleCsvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleCsvChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
-
     setIsImporting(true);
+
     try {
       const count = await importLibraryFromCSV(file);
       await refreshLibrary();
-      toast.show(`Імпортовано ${count} книг`, "success");
-    } catch (error: any) {
+      toast.show(t('settings.toast.importCount', { count }), 'success');
+    } catch (error) {
       console.error(error);
-      toast.show("Помилка імпорту CSV", "error");
+      toast.show(t('settings.toast.csvFail'), 'error');
     } finally {
       setIsImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = '';
@@ -128,179 +130,186 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
     const next = !debugEnabled;
     setDebugEnabled(next);
     setDebugModeEnabled(next);
-    toast.show(next ? "Debug mode увімкнено" : "Debug mode вимкнено", "info");
+    toast.show(next ? t('settings.toast.debugOn') : t('settings.toast.debugOff'), 'info');
   };
 
   const handleClearDebugLogs = () => {
     clearDebugLogs();
     setDebugLogs([]);
-    toast.show("Логи очищено", "success");
+    toast.show(t('settings.toast.logsCleared'), 'success');
   };
 
   const handleCopyDebugLogs = async () => {
-    const logs = getDebugLogs();
-    const payload = JSON.stringify(logs, null, 2);
+    const payload = JSON.stringify(getDebugLogs(), null, 2);
     try {
       await navigator.clipboard.writeText(payload);
-      toast.show("Логи скопійовано", "success");
+      toast.show(t('settings.toast.logsCopied'), 'success');
     } catch {
-      toast.show("Не вдалося скопіювати логи", "error");
+      toast.show(t('settings.toast.logsCopyFail'), 'error');
     }
   };
+
+  const accentLabel = (accent: AccentColor) => t(`accent.${accent}` as MessageKey);
+  const bgLabel = (bg: BackgroundTone) => t(`bg.${bg}` as MessageKey);
 
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800">
       <header>
-        <h1 className="text-3xl font-bold text-gray-800">Налаштування</h1>
-        <p className="text-gray-500">Керування даними та вигляд</p>
+        <h1 className="text-3xl font-bold text-gray-800">{t('settings.title')}</h1>
+        <p className="text-gray-500">{t('settings.subtitle')}</p>
       </header>
 
-      {/* Interface Settings */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
-         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Palette size={14} /> Вигляд інтерфейсу
-         </h3>
-         
-         <div className="space-y-3">
-             <label className="text-sm font-bold text-gray-700">Акцентний колір</label>
-             <div className="flex flex-wrap gap-3">
-                 {Object.entries(ACCENT_COLORS).map(([key, val]) => (
-                     <button 
-                        key={key}
-                        onClick={() => updateAccent(key as AccentColor)}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${settings.accent === key ? 'ring-4 ring-gray-200 scale-110' : 'hover:scale-105'}`}
-                        style={{ backgroundColor: val.hex }}
-                        title={val.label}
-                     >
-                        {settings.accent === key && <CheckCircle2 size={20} className="text-white drop-shadow-md" />}
-                     </button>
-                 ))}
-             </div>
-         </div>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+          <Palette size={14} /> {t('settings.interface')}
+        </h3>
 
-         <div className="space-y-3 pt-2">
-             <label className="text-sm font-bold text-gray-700">Тон фону</label>
-             <div className="grid grid-cols-3 gap-2">
-                 {Object.entries(BACKGROUND_TONES).map(([key, val]) => (
-                     <button 
-                        key={key}
-                        onClick={() => updateBg(key as BackgroundTone)}
-                        className={`h-12 rounded-xl border flex items-center justify-center text-xs font-bold transition-all ${settings.bg === key ? 'border-indigo-500 ring-1 ring-indigo-500 text-indigo-700' : 'border-gray-100 text-gray-500 hover:border-gray-300'}`}
-                        style={{ backgroundColor: val.vars.card }}
-                     >
-                        {val.label}
-                     </button>
-                 ))}
-             </div>
-         </div>
-         <div className="space-y-3 pt-2">
-             <label className="text-sm font-bold text-gray-700">UI V2 (beta)</label>
-             <button
-               type="button"
-               onClick={handleToggleUiV2}
-               className={`w-full py-3 rounded-2xl border text-sm font-bold transition-all ${
-                 settings.uiV2Enabled
-                   ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                   : 'bg-gray-50 text-gray-600 border-gray-200'
-               }`}
-             >
-               {settings.uiV2Enabled ? 'Enabled' : 'Disabled'}
-             </button>
-             <p className="text-xs text-gray-500">
-               Experimental route-based library flow without BookDetails modal overlay.
-             </p>
-         </div>
-      </div>
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700">{t('settings.language')}</label>
+          <div className="grid grid-cols-2 gap-2">
+            {(['en', 'uk'] as AppLanguage[]).map((lang) => {
+              const active = (settings.language || 'en') === lang;
+              return (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => updateLanguage(lang)}
+                  className={`h-11 rounded-xl border text-xs font-bold transition-all ${
+                    active ? 'border-indigo-500 ring-1 ring-indigo-500 text-indigo-700 bg-indigo-50' : 'border-gray-100 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  {lang === 'en' ? t('settings.lang.en') : t('settings.lang.uk')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* Data Management Section */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Резервне копіювання та Імпорт</h3>
-        <p className="text-sm text-gray-500">Ви можете зберегти резервну копію (JSON) або імпортувати книги з таблиць Excel/Google Sheets (CSV).</p>
-        
-        <div className="grid grid-cols-2 gap-3">
-            <button 
-              onClick={handleExport}
-              disabled={isImporting || isExporting}
-              className="bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
-            >
-              {isExporting ? <Loader2 className="animate-spin" size={24} /> : <Download size={24} />}
-              <span className="text-xs">{isExporting ? 'Експорт...' : 'Експорт (JSON)'}</span>
-            </button>
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700">{t('settings.accent')}</label>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(ACCENT_COLORS).map(([key, val]) => (
+              <button
+                key={key}
+                onClick={() => updateAccent(key as AccentColor)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                  settings.accent === key ? 'ring-4 ring-gray-200 scale-110' : 'hover:scale-105'
+                }`}
+                style={{ backgroundColor: val.hex }}
+                title={accentLabel(key as AccentColor)}
+              >
+                {settings.accent === key && <CheckCircle2 size={20} className="text-white drop-shadow-md" />}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            <button 
-              onClick={handleImportClick}
-              disabled={isImporting || isExporting}
-              className="bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100 disabled:opacity-50"
-            >
-              <Upload size={24} />
-              <span className="text-xs">Імпорт (JSON)</span>
-            </button>
+        <div className="space-y-3 pt-2">
+          <label className="text-sm font-bold text-gray-700">{t('settings.background')}</label>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(BACKGROUND_TONES).map(([key, val]) => (
+              <button
+                key={key}
+                onClick={() => updateBg(key as BackgroundTone)}
+                className={`h-12 rounded-xl border flex items-center justify-center text-xs font-bold transition-all ${
+                  settings.bg === key ? 'border-indigo-500 ring-1 ring-indigo-500 text-indigo-700' : 'border-gray-100 text-gray-500 hover:border-gray-300'
+                }`}
+                style={{ backgroundColor: val.vars.card }}
+              >
+                {bgLabel(key as BackgroundTone)}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            <button 
-              onClick={handleCsvImportClick}
-              disabled={isImporting || isExporting}
-              className="col-span-2 bg-emerald-50 text-emerald-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
-            >
-              {isImporting ? <Loader2 className="animate-spin" size={24} /> : <FileSpreadsheet size={24} />}
-              <span className="text-xs">{isImporting ? 'Завантаження обкладинок...' : 'Імпорт з Excel / CSV'}</span>
-            </button>
-            
-            <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept=".json" 
-                className="hidden" 
-            />
-            <input 
-                type="file" 
-                ref={csvInputRef} 
-                onChange={handleCsvChange} 
-                accept=".csv" 
-                className="hidden" 
-            />
+        <div className="space-y-3 pt-2">
+          <label className="text-sm font-bold text-gray-700">{t('settings.uiV2')}</label>
+          <button
+            type="button"
+            onClick={handleToggleUiV2}
+            className={`w-full py-3 rounded-2xl border text-sm font-bold transition-all ${
+              settings.uiV2Enabled ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-600 border-gray-200'
+            }`}
+          >
+            {settings.uiV2Enabled ? t('common.enabled') : t('common.disabled')}
+          </button>
+          <p className="text-xs text-gray-500">{t('settings.uiV2Help')}</p>
         </div>
       </div>
 
-      {/* Debug Section */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.backupTitle')}</h3>
+        <p className="text-sm text-gray-500">{t('settings.backupSubtitle')}</p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleExport}
+            disabled={isImporting || isExporting}
+            className="bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
+          >
+            {isExporting ? <Loader2 className="animate-spin" size={24} /> : <Download size={24} />}
+            <span className="text-xs">{isExporting ? t('settings.exporting') : t('settings.export')}</span>
+          </button>
+
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting || isExporting}
+            className="bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100 disabled:opacity-50"
+          >
+            <Upload size={24} />
+            <span className="text-xs">{t('settings.importJson')}</span>
+          </button>
+
+          <button
+            onClick={handleCsvImportClick}
+            disabled={isImporting || isExporting}
+            className="col-span-2 bg-emerald-50 text-emerald-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
+          >
+            {isImporting ? <Loader2 className="animate-spin" size={24} /> : <FileSpreadsheet size={24} />}
+            <span className="text-xs">{isImporting ? t('settings.importingCovers') : t('settings.importCsv')}</span>
+          </button>
+
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+          <input type="file" ref={csvInputRef} onChange={handleCsvChange} accept=".csv" className="hidden" />
+        </div>
+      </div>
+
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-          <Bug size={14} /> Debug mode
+          <Bug size={14} /> {t('settings.debugTitle')}
         </h3>
-        <p className="text-sm text-gray-500">Тимчасовий режим діагностики для iPhone. Збирає помилки в локальні логи.</p>
+        <p className="text-sm text-gray-500">{t('settings.debugHelp')}</p>
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={handleToggleDebugMode}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${debugEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+              debugEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'
+            }`}
           >
-            {debugEnabled ? 'Увімкнено' : 'Вимкнено'}
+            {debugEnabled ? t('common.enabled') : t('common.disabled')}
           </button>
-          <button
-            onClick={() => setShowDebugLogs(true)}
-            className="px-4 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200"
-          >
-            Відкрити логи
+          <button onClick={() => setShowDebugLogs(true)} className="px-4 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">
+            {t('settings.openLogs')}
           </button>
         </div>
       </div>
 
-      {/* About Section */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Про додаток</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.aboutTitle')}</h3>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-             <ShieldCheck className="text-indigo-600" size={20} />
-             <div className="text-sm">
-               <p className="font-bold text-gray-800">Локальне збереження</p>
-               <p className="text-gray-500 text-xs">Всі дані та обкладинки зберігаються у вашому браузері.</p>
-             </div>
+            <ShieldCheck className="text-indigo-600" size={20} />
+            <div className="text-sm">
+              <p className="font-bold text-gray-800">{t('settings.localStorageTitle')}</p>
+              <p className="text-gray-500 text-xs">{t('settings.localStorageDesc')}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-             <CheckCircle2 className="text-emerald-500" size={20} />
-             <div className="text-sm">
-               <p className="font-bold text-gray-800">Libra v2.0</p>
-               <p className="text-gray-500 text-xs">Твій розумний помічник для читання</p>
-             </div>
+            <CheckCircle2 className="text-emerald-500" size={20} />
+            <div className="text-sm">
+              <p className="font-bold text-gray-800">Libra v2.0</p>
+              <p className="text-gray-500 text-xs">{t('settings.versionDesc')}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -310,35 +319,38 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
           <div className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
             <div className="sticky top-0 z-10 bg-white border-b border-gray-100 p-4 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-800">Debug логи</h3>
-                <p className="text-xs text-gray-500">Кількість записів: {debugLogs.length}</p>
+                <h3 className="text-lg font-bold text-gray-800">{t('settings.logsTitle')}</h3>
+                <p className="text-xs text-gray-500">{t('settings.logsCount', { count: debugLogs.length })}</p>
               </div>
               <button onClick={() => setShowDebugLogs(false)} className="p-2 rounded-full bg-gray-50 text-gray-500">
                 <X size={18} />
               </button>
             </div>
             <div className="p-4 flex gap-2 border-b border-gray-100">
-              <button onClick={handleCopyDebugLogs} className="px-3 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-2">
-                <Copy size={14} /> Копіювати
+              <button
+                onClick={handleCopyDebugLogs}
+                className="px-3 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-2"
+              >
+                <Copy size={14} /> {t('settings.logsCopy')}
               </button>
               <button onClick={handleClearDebugLogs} className="px-3 py-2 rounded-xl text-xs font-bold border bg-red-50 text-red-700 border-red-200 flex items-center gap-2">
-                <Trash2 size={14} /> Очистити
+                <Trash2 size={14} /> {t('settings.logsClear')}
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
               {debugLogs.length === 0 ? (
-                <div className="text-sm text-gray-500">Логи порожні.</div>
+                <div className="text-sm text-gray-500">{t('settings.logsEmpty')}</div>
               ) : (
                 debugLogs
                   .slice()
                   .reverse()
                   .map((log) => (
                     <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-3">
-                      <div className="text-[10px] text-gray-500">{new Date(log.ts).toLocaleString('uk-UA')} | {log.level} | {log.scope}</div>
+                      <div className="text-[10px] text-gray-500">
+                        {new Date(log.ts).toLocaleString(locale)} | {log.level} | {log.scope}
+                      </div>
                       <div className="text-xs font-semibold text-gray-800 mt-1 break-words">{log.message}</div>
-                      {log.details && (
-                        <pre className="mt-2 text-[10px] text-gray-600 whitespace-pre-wrap break-words">{log.details}</pre>
-                      )}
+                      {log.details && <pre className="mt-2 text-[10px] text-gray-600 whitespace-pre-wrap break-words">{log.details}</pre>}
                     </div>
                   ))
               )}
