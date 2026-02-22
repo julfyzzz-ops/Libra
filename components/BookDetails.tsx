@@ -6,6 +6,7 @@ import { getBookPageTotal } from '../utils';
 import { BookView } from './BookView';
 import { BookEdit } from './BookEdit';
 import { createClientId } from '../services/id';
+import { appendDebugLog } from '../services/debugLogger';
 
 interface BookDetailsProps {
   book: Book;
@@ -54,6 +55,7 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
 
   const handleSave = (updatedBook: Book) => {
     try {
+      appendDebugLog('info', 'bookDetails.save', 'onSave received from edit form', { bookId: updatedBook.id });
       let finalBook = { ...updatedBook };
       
       // Auto-calculate sessions if moving to completed
@@ -79,8 +81,10 @@ export const BookDetails: React.FC<BookDetailsProps> = ({ book, onClose, onOpenR
 
       updateBook(finalBook);
       setIsEditing(false);
+      appendDebugLog('info', 'bookDetails.save', 'book saved and edit mode closed', { bookId: finalBook.id });
     } catch (error) {
       console.error('Book save failed in details view', error);
+      appendDebugLog('error', 'bookDetails.save', 'save failed in details view', error);
       alert('Не вдалося зберегти зміни. Спробуйте ще раз.');
     }
   };
