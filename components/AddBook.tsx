@@ -45,6 +45,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
   // Publisher Autocomplete State
   const [showPubSuggestions, setShowPubSuggestions] = useState(false);
   const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
+  const lastSuggestionPickTsRef = useRef(0);
   
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
@@ -70,6 +71,12 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
     return value
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '')
       .slice(0, maxLen);
+  }, []);
+  const runSuggestionPickOnce = useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastSuggestionPickTsRef.current < 250) return;
+    lastSuggestionPickTsRef.current = now;
+    action();
   }, []);
 
   const uniquePublishers = useMemo(() => {
@@ -324,11 +331,26 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                               <button
                                 key={idx}
                                 type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => {
+                                onTouchStart={(e) => {
+                                  e.preventDefault();
+                                  runSuggestionPickOnce(() => {
                                     updateFormData({ publisher: pub });
                                     setShowPubSuggestions(false);
+                                  });
                                 }}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  runSuggestionPickOnce(() => {
+                                    updateFormData({ publisher: pub });
+                                    setShowPubSuggestions(false);
+                                  });
+                                }}
+                                onClick={() =>
+                                  runSuggestionPickOnce(() => {
+                                    updateFormData({ publisher: pub });
+                                    setShowPubSuggestions(false);
+                                  })
+                                }
                                 className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                               >
                                 {pub}
@@ -373,11 +395,26 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                       <button
                         key={`${genre}-${idx}`}
                         type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          updateFormData({ genre });
-                          setShowGenreSuggestions(false);
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            updateFormData({ genre });
+                            setShowGenreSuggestions(false);
+                          });
                         }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            updateFormData({ genre });
+                            setShowGenreSuggestions(false);
+                          });
+                        }}
+                        onClick={() =>
+                          runSuggestionPickOnce(() => {
+                            updateFormData({ genre });
+                            setShowGenreSuggestions(false);
+                          })
+                        }
                         className="w-full text-left px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                       >
                         {genre}

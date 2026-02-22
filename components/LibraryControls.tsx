@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Search, Filter, X, Plus, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
 import { BookFormat, BookStatus, SortKey, SortDirection } from '../types';
 import { FORMAT_LABELS, STATUS_LABELS } from '../utils';
@@ -53,6 +53,14 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
   const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showSortPanel, setShowSortPanel] = useState(false);
+  const lastSuggestionPickTsRef = useRef(0);
+
+  const runSuggestionPickOnce = (action: () => void) => {
+    const now = Date.now();
+    if (now - lastSuggestionPickTsRef.current < 250) return;
+    lastSuggestionPickTsRef.current = now;
+    action();
+  };
 
   const filteredPublisherSuggestions = useMemo(() => {
     if (!publisherFilter.trim()) return publisherSuggestions.slice(0, 8);
@@ -231,10 +239,26 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
                     <button
                       key={i}
                       type="button"
-                      onClick={() => {
-                        onPublisherFilterChange(s);
-                        setShowPublisherSuggestions(false);
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        runSuggestionPickOnce(() => {
+                          onPublisherFilterChange(s);
+                          setShowPublisherSuggestions(false);
+                        });
                       }}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        runSuggestionPickOnce(() => {
+                          onPublisherFilterChange(s);
+                          setShowPublisherSuggestions(false);
+                        });
+                      }}
+                      onClick={() =>
+                        runSuggestionPickOnce(() => {
+                          onPublisherFilterChange(s);
+                          setShowPublisherSuggestions(false);
+                        })
+                      }
                       className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                     >
                       {s}
@@ -264,10 +288,26 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
                     <button
                       key={i}
                       type="button"
-                      onClick={() => {
-                        onGenreFilterChange(s);
-                        setShowGenreSuggestions(false);
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        runSuggestionPickOnce(() => {
+                          onGenreFilterChange(s);
+                          setShowGenreSuggestions(false);
+                        });
                       }}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        runSuggestionPickOnce(() => {
+                          onGenreFilterChange(s);
+                          setShowGenreSuggestions(false);
+                        });
+                      }}
+                      onClick={() =>
+                        runSuggestionPickOnce(() => {
+                          onGenreFilterChange(s);
+                          setShowGenreSuggestions(false);
+                        })
+                      }
                       className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                     >
                       {s}
@@ -288,4 +328,3 @@ export const LibraryControls: React.FC<LibraryControlsProps> = ({
     </div>
   );
 };
-

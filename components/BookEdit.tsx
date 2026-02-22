@@ -38,6 +38,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   const lastActionTsRef = useRef(0);
+  const lastSuggestionPickTsRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateEditForm = useCallback((patch: Partial<Book>) => {
     setEditForm(prev => ({ ...prev, ...patch }));
@@ -170,6 +171,13 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
     action();
   }, []);
 
+  const runSuggestionPickOnce = useCallback((action: () => void) => {
+    const now = Date.now();
+    if (now - lastSuggestionPickTsRef.current < 250) return;
+    lastSuggestionPickTsRef.current = now;
+    action();
+  }, []);
+
   useEffect(() => {
     if (!isSaving) return;
     const timer = window.setTimeout(() => {
@@ -193,10 +201,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
       <div className="sticky top-0 z-40 bg-white p-6 border-b border-gray-100 shadow-sm">
          <button
            onClick={() => runOncePerTap(handleCloseClick)}
-           onTouchEnd={(e) => {
-             e.preventDefault();
-             runOncePerTap(handleCloseClick);
-           }}
+           onTouchEnd={() => runOncePerTap(handleCloseClick)}
            className="absolute top-4 right-4 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors z-50"
          >
            <X size={20} />
@@ -269,8 +274,26 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                             <button
                               key={idx}
                               type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => { updateEditForm({ publisher: pub}); setShowPubSuggestions(false); }}
+                              onTouchStart={(e) => {
+                                e.preventDefault();
+                                runSuggestionPickOnce(() => {
+                                  updateEditForm({ publisher: pub });
+                                  setShowPubSuggestions(false);
+                                });
+                              }}
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                runSuggestionPickOnce(() => {
+                                  updateEditForm({ publisher: pub });
+                                  setShowPubSuggestions(false);
+                                });
+                              }}
+                              onClick={() =>
+                                runSuggestionPickOnce(() => {
+                                  updateEditForm({ publisher: pub });
+                                  setShowPubSuggestions(false);
+                                })
+                              }
                               className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                             >
                               {pub}
@@ -311,8 +334,26 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                       <button
                         key={`${genre}-${idx}`}
                         type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { updateEditForm({ genre }); setShowGenreSuggestions(false); }}
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            updateEditForm({ genre });
+                            setShowGenreSuggestions(false);
+                          });
+                        }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          runSuggestionPickOnce(() => {
+                            updateEditForm({ genre });
+                            setShowGenreSuggestions(false);
+                          });
+                        }}
+                        onClick={() =>
+                          runSuggestionPickOnce(() => {
+                            updateEditForm({ genre });
+                            setShowGenreSuggestions(false);
+                          })
+                        }
                         className="w-full text-left px-4 py-2 text-[10px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                       >
                         {genre}
@@ -404,10 +445,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                   type="button"
                   disabled={isSaving}
                   onClick={() => runOncePerTap(handleSaveClick)}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    runOncePerTap(handleSaveClick);
-                  }}
+                  onTouchEnd={() => runOncePerTap(handleSaveClick)}
                   className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg disabled:opacity-70"
                 >
                   <Save size={18} /> {isSaving ? 'Збереження...' : 'Зберегти'}

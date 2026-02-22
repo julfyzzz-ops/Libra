@@ -61,12 +61,26 @@ const AppContent: React.FC = () => {
   );
 };
 
-const NavButton: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({ active, onClick, icon, label }) => (
-  <button onClick={onClick} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-full ${active ? 'text-indigo-600 scale-110 font-medium' : 'text-gray-400 hover:bg-gray-50/50'}`}>
-    {icon}
-    <span className={`text-[9px] font-bold mt-1 uppercase tracking-tighter transition-opacity ${active ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
-  </button>
-);
+const NavButton: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({ active, onClick, icon, label }) => {
+  const lastTapTsRef = React.useRef(0);
+  const trigger = React.useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapTsRef.current < 300) return;
+    lastTapTsRef.current = now;
+    onClick();
+  }, [onClick]);
+
+  return (
+    <button
+      onClick={trigger}
+      onTouchEnd={trigger}
+      className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-full ${active ? 'text-indigo-600 scale-110 font-medium' : 'text-gray-400 hover:bg-gray-50/50'}`}
+    >
+      {icon}
+      <span className={`text-[9px] font-bold mt-1 uppercase tracking-tighter transition-opacity ${active ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
+    </button>
+  );
+};
 
 const App: React.FC = () => {
   return (

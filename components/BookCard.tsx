@@ -29,9 +29,43 @@ export const BookCard: React.FC<BookCardProps> = memo(({
   onClick,
   isDragging
 }) => {
+  const lastTapTsRef = React.useRef(0);
+  const touchStartRef = React.useRef<{ x: number; y: number; id: number } | null>(null);
+
+  const triggerOpen = React.useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapTsRef.current < 300) return;
+    lastTapTsRef.current = now;
+    onClick(book);
+  }, [book, onClick]);
+
   return (
     <div 
-      onClick={() => onClick(book)}
+      onClick={triggerOpen}
+      onTouchStart={(e) => {
+        const t = e.changedTouches[0];
+        if (!t) return;
+        touchStartRef.current = { x: t.clientX, y: t.clientY, id: t.identifier };
+      }}
+      onTouchEnd={(e) => {
+        const start = touchStartRef.current;
+        touchStartRef.current = null;
+        if (!start) return;
+        let t: Touch | null = null;
+        for (let i = 0; i < e.changedTouches.length; i += 1) {
+          const current = e.changedTouches.item(i);
+          if (current && current.identifier === start.id) {
+            t = current;
+            break;
+          }
+        }
+        if (!t) {
+          t = e.changedTouches.item(0);
+        }
+        if (!t) return;
+        const moved = Math.abs(t.clientX - start.x) + Math.abs(t.clientY - start.y);
+        if (moved <= 10) triggerOpen();
+      }}
       className={`bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex gap-4 items-center active:scale-95 transition-all cursor-pointer select-none ${isDragging ? 'opacity-50 scale-95 ring-2 ring-indigo-500 shadow-xl' : ''}`}
     >
       <div className="w-12 h-16 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 relative">
