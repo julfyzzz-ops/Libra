@@ -66,6 +66,11 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
   const updateFormData = useCallback((patch: Partial<Book>) => {
     setFormData((prev) => ({ ...prev, ...patch }));
   }, []);
+  const sanitizeText = useCallback((value: string, maxLen: number) => {
+    return value
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '')
+      .slice(0, maxLen);
+  }, []);
 
   const uniquePublishers = useMemo(() => {
     const pubs = new Set<string>();
@@ -270,12 +275,12 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
          <div className="space-y-4">
            <div className="space-y-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Назва</label>
-             <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => updateFormData({ title: e.target.value })} />
+              <input required maxLength={180} placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => updateFormData({ title: sanitizeText(e.target.value, 180) })} />
            </div>
            
            <div className="space-y-1">
              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Автор</label>
-             <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => updateFormData({ author: e.target.value })} />
+              <input required maxLength={140} placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => updateFormData({ author: sanitizeText(e.target.value, 140) })} />
            </div>
 
            <div className="space-y-1">
@@ -285,10 +290,11 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                <input 
                   placeholder="https://example.com/image.jpg" 
                   className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
+                  maxLength={1024}
                   value={formData.coverUrl || ''} 
                   onChange={e => {
                     revokePreviewObjectUrl();
-                    updateFormData({ coverUrl: e.target.value, coverBlob: undefined });
+                    updateFormData({ coverUrl: sanitizeText(e.target.value, 1024), coverBlob: undefined });
                   }} 
                />
              </div>
@@ -302,9 +308,10 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                   <input 
                     placeholder="Видавець" 
                     className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none focus:ring-1 focus:ring-indigo-500" 
+                    maxLength={120}
                     value={formData.publisher} 
                     onChange={e => {
-                        updateFormData({ publisher: e.target.value });
+                        updateFormData({ publisher: sanitizeText(e.target.value, 120) });
                         setShowPubSuggestions(true);
                     }}
                     onFocus={() => setShowPubSuggestions(true)}
@@ -335,10 +342,10 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                 <div className="flex gap-2">
                     <div className="relative flex-1">
                         <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
-                        <input placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => updateFormData({ series: e.target.value })} />
+                        <input maxLength={120} placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => updateFormData({ series: sanitizeText(e.target.value, 120) })} />
                     </div>
                     <div className="w-16">
-                        <input type="text" placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => updateFormData({ seriesPart: e.target.value })} />
+                        <input type="text" maxLength={60} placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => updateFormData({ seriesPart: sanitizeText(e.target.value, 60) })} />
                     </div>
                 </div>
               </div>
@@ -353,7 +360,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                   value={formData.genre}
                   maxLength={160}
                   onChange={e => {
-                    updateFormData({ genre: e.target.value.slice(0, 160) });
+                    updateFormData({ genre: sanitizeText(e.target.value, 160) });
                     setShowGenreSuggestions(true);
                   }}
                   onFocus={() => setShowGenreSuggestions(true)}
@@ -417,8 +424,9 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
               <input 
                   placeholder="тільки емодзі" 
                   className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-xs font-medium placeholder:text-gray-300" 
+                  maxLength={80}
                   value={formData.notes || ''} 
-                  onChange={e => updateFormData({ notes: e.target.value })} 
+                  onChange={e => updateFormData({ notes: sanitizeText(e.target.value, 80) })} 
               />
            </div>
 
@@ -427,8 +435,9 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
               <textarea 
                   placeholder="Ваші думки про книгу..." 
                   className="w-full bg-gray-50 p-3 rounded-2xl outline-none border-none text-sm font-medium resize-none h-20 placeholder:text-gray-300 placeholder:text-xs" 
+                  maxLength={2000}
                   value={formData.comment || ''} 
-                  onChange={e => updateFormData({ comment: e.target.value })} 
+                  onChange={e => updateFormData({ comment: sanitizeText(e.target.value, 2000) })} 
               />
            </div>
 

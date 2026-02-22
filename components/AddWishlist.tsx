@@ -26,6 +26,11 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
   const updateFormData = useCallback((patch: Partial<Book>) => {
     setFormData((prev) => ({ ...prev, ...patch }));
   }, []);
+  const sanitizeText = useCallback((value: string, maxLen: number) => {
+    return value
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '')
+      .slice(0, maxLen);
+  }, []);
 
   const revokePreviewObjectUrl = useCallback(() => {
     if (previewObjectUrlRef.current) {
@@ -155,12 +160,12 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
             <div className="space-y-4">
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Назва</label>
-                    <input required placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => updateFormData({ title: e.target.value })} />
+                    <input required maxLength={180} placeholder="Назва книги" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.title} onChange={e => updateFormData({ title: sanitizeText(e.target.value, 180) })} />
                 </div>
                 
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Автор</label>
-                    <input required placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => updateFormData({ author: e.target.value })} />
+                    <input required maxLength={140} placeholder="Ім'я автора" className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-1 focus:ring-indigo-500 border-none transition-all text-sm font-bold" value={formData.author} onChange={e => updateFormData({ author: sanitizeText(e.target.value, 140) })} />
                 </div>
 
                 <div className="space-y-1">
@@ -170,8 +175,9 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
                         <input 
                             placeholder="https://example.com/image.jpg" 
                             className="w-full bg-gray-50 pl-9 pr-3 py-3 rounded-2xl text-xs font-bold border-none outline-none" 
+                            maxLength={1024}
                             value={formData.coverUrl || ''} 
-                            onChange={e => { revokePreviewObjectUrl(); updateFormData({ coverUrl: e.target.value, coverBlob: undefined }); }} 
+                            onChange={e => { revokePreviewObjectUrl(); updateFormData({ coverUrl: sanitizeText(e.target.value, 1024), coverBlob: undefined }); }} 
                         />
                     </div>
                 </div>

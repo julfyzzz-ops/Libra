@@ -18,6 +18,10 @@ let isInitialized = false;
 let idCounter = 0;
 let heartbeatTimer: number | null = null;
 let lagWatchdogTimer: number | null = null;
+let flushTimer: number | null = null;
+let flushQueued = false;
+let logsCacheLoaded = false;
+let logsCache: DebugLogEntry[] = [];
 
 const nextId = (): string => {
   idCounter += 1;
@@ -56,6 +60,30 @@ const writeLogs = (logs: DebugLogEntry[]): void => {
   }
 };
 
+const ensureLogsCacheLoaded = (): void => {
+  if (logsCacheLoaded) return;
+  logsCache = readLogs();
+  logsCacheLoaded = true;
+};
+
+const flushLogsNow = (): void => {
+  flushQueued = false;
+  if (!logsCacheLoaded) return;
+  writeLogs(logsCache);
+};
+
+const scheduleFlush = (): void => {
+  if (flushQueued) return;
+  flushQueued = true;
+  if (flushTimer !== null) {
+    window.clearTimeout(flushTimer);
+  }
+  flushTimer = window.setTimeout(() => {
+    flushTimer = null;
+    flushLogsNow();
+  }, 1200);
+};
+
 export const isDebugModeEnabled = (): boolean => {
   try {
     return localStorage.getItem(DEBUG_MODE_KEY) === "1";
@@ -73,9 +101,19 @@ export const setDebugModeEnabled = (enabled: boolean): void => {
   appendDebugLog("info", "debug.mode", enabled ? "enabled" : "disabled");
 };
 
-export const getDebugLogs = (): DebugLogEntry[] => readLogs();
+export const getDebugLogs = (): DebugLogEntry[] => {
+  ensureLogsCacheLoaded();
+  return [...logsCache];
+};
 
 export const clearDebugLogs = (): void => {
+  ensureLogsCacheLoaded();
+  logsCache = [];
+  flushQueued = false;
+  if (flushTimer !== null) {
+    window.clearTimeout(flushTimer);
+    flushTimer = null;
+  }
   try {
     localStorage.removeItem(DEBUG_LOGS_KEY);
   } catch {
@@ -90,6 +128,7 @@ export const appendDebugLog = (
   details?: unknown
 ): void => {
   if (!isDebugModeEnabled()) return;
+  ensureLogsCacheLoaded();
   const entry: DebugLogEntry = {
     id: nextId(),
     ts: new Date().toISOString(),
@@ -98,9 +137,40 @@ export const appendDebugLog = (
     message,
     details: details === undefined ? undefined : safeStringify(details),
   };
-  const logs = readLogs();
-  logs.push(entry);
-  writeLogs(logs);
+  logsCache.push(entry);
+  if (logsCache.length > MAX_LOGS) {
+    logsCache = logsCache.slice(-MAX_LOGS);
+  }
+  scheduleFlush();
+};
+
+export type DebugTraceToken = {
+  scope: string;
+  action: string;
+  startedAt: number;
+  details?: unknown;
+};
+
+export const startDebugTrace = (scope: string, action: string, details?: unknown): DebugTraceToken => {
+  return {
+    scope,
+    action,
+    startedAt: performance.now(),
+    details,
+  };
+};
+
+export const finishDebugTrace = (
+  token: DebugTraceToken,
+  level: DebugLogLevel = "info",
+  details?: unknown
+): void => {
+  const durationMs = Math.round(performance.now() - token.startedAt);
+  appendDebugLog(level, token.scope, `${token.action} finished`, {
+    durationMs,
+    ...(token.details === undefined ? {} : { startDetails: token.details }),
+    ...(details === undefined ? {} : { details }),
+  });
 };
 
 type DebugRuntimeState = {
@@ -135,7 +205,7 @@ const startRuntimeWatchdog = (): void => {
   const prev = readRuntimeState();
   if (prev && prev.cleanShutdown === false) {
     const deltaMs = Date.now() - new Date(prev.lastHeartbeatAt).getTime();
-    if (Number.isFinite(deltaMs) && deltaMs > 3000) {
+    if (Number.isFinite(deltaMs) && deltaMs > 10000) {
       appendDebugLog(
         "warn",
         "runtime.recover",
@@ -164,10 +234,24 @@ const startRuntimeWatchdog = (): void => {
   }, 2000);
 
   let expected = performance.now() + 1000;
+  let lastVisibleAt = Date.now();
+  const updateVisibleTs = () => {
+    if (document.visibilityState === "visible") {
+      lastVisibleAt = Date.now();
+    }
+  };
+  document.addEventListener("visibilitychange", updateVisibleTs);
+
   lagWatchdogTimer = window.setInterval(() => {
+    if (document.visibilityState !== "visible") {
+      expected = performance.now() + 1000;
+      return;
+    }
     const now = performance.now();
     const driftMs = Math.round(now - expected);
     expected = now + 1000;
+    // Ignore immediate post-resume spikes right after app becomes visible.
+    if (Date.now() - lastVisibleAt < 2000) return;
     if (driftMs > 1500) {
       appendDebugLog("warn", "runtime.eventloop", "Main thread lag spike detected", { driftMs });
     }
@@ -185,6 +269,8 @@ const startRuntimeWatchdog = (): void => {
 
   window.addEventListener("pagehide", markCleanShutdown);
   window.addEventListener("beforeunload", markCleanShutdown);
+  window.addEventListener("pagehide", flushLogsNow);
+  window.addEventListener("beforeunload", flushLogsNow);
 };
 
 export const initDebugLogger = (): void => {

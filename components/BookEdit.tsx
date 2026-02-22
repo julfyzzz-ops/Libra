@@ -41,6 +41,11 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
   const updateEditForm = useCallback((patch: Partial<Book>) => {
     setEditForm(prev => ({ ...prev, ...patch }));
   }, []);
+  const sanitizeText = useCallback((value: string, maxLen: number) => {
+    return value
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '')
+      .slice(0, maxLen);
+  }, []);
   
   // Local state for previewing the blob cover, as global URLs are gone
   const [previewUrl, setPreviewUrl] = useState<string | null>(editForm.coverUrl || null);
@@ -209,8 +214,8 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                </div>
                
                <div className="space-y-2">
-                   <input className="w-full text-lg font-bold bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.title} onChange={e => updateEditForm({ title: e.target.value})} placeholder="Назва книги" />
-                   <input className="w-full text-sm text-gray-500 bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.author} onChange={e => updateEditForm({ author: e.target.value})} placeholder="Автор" />
+                   <input maxLength={180} className="w-full text-lg font-bold bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.title} onChange={e => updateEditForm({ title: sanitizeText(e.target.value, 180)})} placeholder="Назва книги" />
+                   <input maxLength={140} className="w-full text-sm text-gray-500 bg-gray-50 border-none p-2 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" value={editForm.author} onChange={e => updateEditForm({ author: sanitizeText(e.target.value, 140)})} placeholder="Автор" />
                </div>
             </div>
          </div>
@@ -223,7 +228,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">URL Обкладинки</label>
                 <div className="relative">
                 <Link className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={12} />
-                <input placeholder="https://..." className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.coverUrl || ''} onChange={e => updateEditForm({ coverUrl: e.target.value, coverBlob: undefined})} />
+                <input maxLength={1024} placeholder="https://..." className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.coverUrl || ''} onChange={e => updateEditForm({ coverUrl: sanitizeText(e.target.value, 1024), coverBlob: undefined})} />
                 </div>
             </div>
 
@@ -232,7 +237,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                 <input 
                     className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none focus:ring-2 focus:ring-indigo-500" 
                     value={editForm.publisher || ''} 
-                    onChange={e => { updateEditForm({ publisher: e.target.value}); setShowPubSuggestions(true); }} 
+                    onChange={e => { updateEditForm({ publisher: sanitizeText(e.target.value, 120)}); setShowPubSuggestions(true); }} 
                     onFocus={() => setShowPubSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowPubSuggestions(false), 200)}
                     placeholder="Видавець"
@@ -257,11 +262,11 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Серія</label>
-                    <input className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.series || ''} onChange={e => updateEditForm({ series: e.target.value})} placeholder="Напр. Гаррі Поттер" />
+                    <input maxLength={120} className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.series || ''} onChange={e => updateEditForm({ series: sanitizeText(e.target.value, 120)})} placeholder="Напр. Гаррі Поттер" />
                 </div>
                 <div className="space-y-1">
                     <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Номер</label>
-                    <input type="text" className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.seriesPart || ''} onChange={e => updateEditForm({ seriesPart: e.target.value})} placeholder="Напр. Книга 1 / Том II" />
+                    <input type="text" maxLength={60} className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none" value={editForm.seriesPart || ''} onChange={e => updateEditForm({ seriesPart: sanitizeText(e.target.value, 60)})} placeholder="Напр. Книга 1 / Том II" />
                 </div>
             </div>
 
@@ -272,7 +277,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
                   value={editForm.genre || ''}
                   maxLength={160}
                   onChange={e => {
-                    updateEditForm({ genre: e.target.value.slice(0, 160) });
+                    updateEditForm({ genre: sanitizeText(e.target.value, 160) });
                     setShowGenreSuggestions(true);
                   }}
                   onFocus={() => setShowGenreSuggestions(true)}
@@ -360,7 +365,7 @@ export const BookEdit: React.FC<BookEditProps> = ({ book, onClose, onSave, uniqu
 
             <div className="space-y-1">
                 <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Коментар</label>
-                <textarea className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-medium border-none outline-none resize-none h-24" value={editForm.comment || ''} onChange={e => updateEditForm({ comment: e.target.value})} placeholder="Напишіть свої враження..." />
+                <textarea maxLength={2000} className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-medium border-none outline-none resize-none h-24" value={editForm.comment || ''} onChange={e => updateEditForm({ comment: sanitizeText(e.target.value, 2000)})} placeholder="Напишіть свої враження..." />
             </div>
 
             <div className="space-y-2">
