@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { X, Check, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { createClientId } from '../services/id';
 
 // --- Types ---
 type ToastType = 'success' | 'error' | 'info';
@@ -116,7 +117,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   // --- Toast Logic ---
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = crypto.randomUUID();
+    const id = createClientId();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));

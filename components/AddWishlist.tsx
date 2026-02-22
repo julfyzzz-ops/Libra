@@ -4,6 +4,7 @@ import { Image as ImageIcon, Save, Loader2, Wand2, Link, ArrowLeft } from 'lucid
 import { Book } from '../types';
 import { processImage } from '../services/imageUtils';
 import { fetchBookCover } from '../services/api';
+import { createClientId } from '../services/id';
 
 interface AddWishlistProps {
   onAdd: (book: Book) => void;
@@ -85,30 +86,35 @@ export const AddWishlist: React.FC<AddWishlistProps> = ({ onAdd, onCancel }) => 
       return;
     }
     
-    const newBook: Book = {
-      id: crypto.randomUUID(),
-      title: formData.title as string,
-      author: formData.author as string,
-      genre: '',
-      publisher: '',
-      seriesPart: '',
-      pagesTotal: 0,
-      pagesRead: 0,
-      isbn: '',
-      formats: ['Paper'],
-      status: 'Wishlist',
-      addedAt: new Date().toISOString(),
-      coverUrl: formData.coverUrl || '',
-      coverBlob: formData.coverBlob,
-      sessions: []
-    };
-    
-    onAdd(newBook);
-    revokePreviewObjectUrl();
+    try {
+      const newBook: Book = {
+        id: createClientId(),
+        title: formData.title as string,
+        author: formData.author as string,
+        genre: '',
+        publisher: '',
+        seriesPart: '',
+        pagesTotal: 0,
+        pagesRead: 0,
+        isbn: '',
+        formats: ['Paper'],
+        status: 'Wishlist',
+        addedAt: new Date().toISOString(),
+        coverUrl: formData.coverUrl || '',
+        coverBlob: formData.coverBlob,
+        sessions: []
+      };
+
+      onAdd(newBook);
+      revokePreviewObjectUrl();
+    } catch (error) {
+      console.error('Add wishlist submit failed', error);
+      alert('Не вдалося зберегти бажанку');
+    }
   };
 
   return (
-    <div className="space-y-6 pb-24 text-gray-800 animate-in slide-in-from-right duration-300">
+    <div className="h-[100dvh] overflow-y-auto overscroll-contain space-y-6 pb-24 text-gray-800 animate-in slide-in-from-right duration-300">
       <div className="space-y-4">
         <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
             <ArrowLeft size={20} /> <span className="text-sm font-bold">Назад</span>

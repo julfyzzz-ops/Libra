@@ -103,3 +103,12 @@ export const deleteBookById = (db: IDBDatabase, id: string): Promise<void> => {
     transaction.onabort = () => reject(transaction.error);
   });
 };
+
+export const deleteLegacyDatabase = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => resolve();
+  });
+};

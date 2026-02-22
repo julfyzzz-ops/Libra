@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Book, LibraryState } from '../types';
-import { loadLibrary, saveLibrary, saveBook, removeBook } from '../services/storageService';
+import { loadLibrary, saveBook, removeBook, saveReorder } from '../services/storageService';
 
 interface LibraryContextType {
   books: Book[];
@@ -46,14 +46,6 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshLibrary();
   }, [refreshLibrary]);
 
-  const enqueueSave = useCallback((newState: LibraryState) => {
-    writeQueueRef.current = writeQueueRef.current
-      .then(() => saveLibrary(newState))
-      .catch((e) => {
-        console.error('Queued save failed', e);
-      });
-  }, []);
-
   const enqueueTask = useCallback((task: () => Promise<void>) => {
     writeQueueRef.current = writeQueueRef.current
       .then(task)
@@ -83,7 +75,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       bookSaveTimerRef.current = null;
       flushPendingBookSaves();
     }, 120);
-  }, [flushPendingBookSaves]);
+  }, [enqueueTask, flushPendingBookSaves]);
 
   useEffect(() => {
     const handleVisibilityOrPageHide = () => {
@@ -164,10 +156,10 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     reorderSaveTimerRef.current = setTimeout(() => {
       flushPendingBookSaves();
-      enqueueSave({ books: newBooks });
+      enqueueTask(() => saveReorder(newBooks.map((b) => b.id)));
       reorderSaveTimerRef.current = null;
     }, 250);
-  }, [enqueueSave, flushPendingBookSaves]);
+  }, [enqueueTask, flushPendingBookSaves]);
 
   return (
     <LibraryContext.Provider value={{ 

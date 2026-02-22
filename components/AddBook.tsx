@@ -4,6 +4,7 @@ import { Book as BookIcon, Upload, Image as ImageIcon, Save, Building2, Layers, 
 import { Book, BookFormat, BookStatus } from '../types';
 import { processImage } from '../services/imageUtils';
 import { fetchBookCover } from '../services/api';
+import { createClientId } from '../services/id';
 import { useLibrary } from '../contexts/LibraryContext';
 import { useUI } from '../contexts/UIContext';
 import { Skeleton } from './ui/Skeleton';
@@ -39,6 +40,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
   const previewObjectUrlRef = useRef<string | null>(null);
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Publisher Autocomplete State
   const [showPubSuggestions, setShowPubSuggestions] = useState(false);
@@ -171,46 +173,59 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!formData.title || !formData.author) {
       toast.show("Назва та автор обов'язкові", "error");
       return;
     }
-    
-    const newBook: Book = {
-      id: crypto.randomUUID(),
-      title: formData.title as string,
-      author: formData.author as string,
-      seasons: formData.seasons || [],
-      genre: formData.genre as string,
-      publisher: formData.publisher as string,
-      series: formData.series as string,
-      seriesPart: formData.seriesPart as string,
-      pagesTotal: Number(formData.pagesTotal) || 0,
-      pagesRead: 0,
-      isbn: formData.isbn as string,
-      formats: (formData.formats || ['Paper']) as BookFormat[],
-      status: formData.status as BookStatus,
-      addedAt: new Date().toISOString(),
-      readingStartedAt: formData.status === 'Reading' ? new Date().toISOString() : undefined,
+
+    try {
+      setIsSubmitting(true);
+      const newBook: Book = {
+        id: createClientId(),
+        title: formData.title as string,
+        author: formData.author as string,
+        seasons: formData.seasons || [],
+        genre: formData.genre as string,
+        publisher: formData.publisher as string,
+        series: formData.series as string,
+        seriesPart: formData.seriesPart as string,
+        pagesTotal: Number(formData.pagesTotal) || 0,
+        pagesRead: 0,
+        isbn: formData.isbn as string,
+        formats: (formData.formats || ['Paper']) as BookFormat[],
+        status: formData.status as BookStatus,
+        addedAt: new Date().toISOString(),
+        readingStartedAt: formData.status === 'Reading' ? new Date().toISOString() : undefined,
+        
+        coverUrl: formData.coverUrl || '',
+        coverBlob: formData.coverBlob,
+        
+        notes: formData.notes,
+        comment: formData.comment,
+        
+        sessions: []
+      };
       
-      coverUrl: formData.coverUrl || '',
-      coverBlob: formData.coverBlob,
-      
-      notes: formData.notes,
-      comment: formData.comment,
-      
-      sessions: []
-    };
-    
-    addBook(newBook);
-    toast.show("Книгу додано", "success");
-    onAddSuccess();
-    revokePreviewObjectUrl();
-    setFormData({ title: '', author: '', seasons: [], genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined, notes: '', comment: '' });
+      addBook(newBook);
+      onAddSuccess();
+      try {
+        toast.show("Книгу додано", "success");
+      } catch (toastError) {
+        console.error('Add book success toast failed', toastError);
+      }
+      revokePreviewObjectUrl();
+      setFormData({ title: '', author: '', seasons: [], genre: '', publisher: '', series: '', seriesPart: '', pagesTotal: 0, isbn: '', formats: ['Paper'], status: 'Unread', coverUrl: '', coverBlob: undefined, notes: '', comment: '' });
+    } catch (error) {
+      console.error('Add book submit failed', error);
+      toast.show('Не вдалося додати книгу', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24 text-gray-800">
+    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 space-y-6 pb-24 text-gray-800">
       <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
         <ArrowLeft size={20} /> <span className="text-sm font-bold">Назад</span>
       </button>
@@ -323,7 +338,7 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
                         <input placeholder="Назва серії" className="w-full bg-gray-50 pl-9 pr-2 py-3 rounded-2xl text-xs font-bold border-none outline-none" value={formData.series} onChange={e => updateFormData({ series: e.target.value })} />
                     </div>
                     <div className="w-16">
-                        <input inputMode="numeric" pattern="[0-9]*" placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => updateFormData({ seriesPart: e.target.value })} />
+                        <input type="text" placeholder="#" className="w-full bg-gray-50 px-2 py-3 rounded-2xl text-xs font-bold border-none outline-none text-center" value={formData.seriesPart} onChange={e => updateFormData({ seriesPart: e.target.value })} />
                     </div>
                 </div>
               </div>
@@ -426,9 +441,9 @@ export const AddBook: React.FC<AddBookProps> = ({ onAddSuccess, onCancel }) => {
               </select>
            </div>
 
-           <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 mt-2 active:scale-95 transition-all flex items-center justify-center gap-2">
-             <Save size={18} /> Додати книгу
-           </button>
+           <button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 mt-2 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+              <Save size={18} /> Додати книгу
+            </button>
          </div>
       </form>
     </div>

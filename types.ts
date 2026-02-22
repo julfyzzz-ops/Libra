@@ -11,6 +11,8 @@ export interface ReadingSessionData {
 
 export interface Book {
   id: string;
+  version?: number;
+  updatedAt?: string;
   customOrder?: number;
   title: string;
   author: string;
