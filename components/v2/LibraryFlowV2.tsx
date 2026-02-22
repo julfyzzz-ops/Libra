@@ -599,8 +599,8 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
   }
 
   return (
-    <div className="p-4 pb-24 text-gray-800 space-y-4">
-      <div className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur-sm border-b border-gray-100 space-y-4">
+    <div className="px-4 pb-24 text-gray-800 space-y-4">
+      <div className="sticky top-0 z-30 -mx-4 px-4 pt-0 pb-2 bg-slate-50/95 backdrop-blur-sm border-b border-gray-100 space-y-4">
         <header className="flex items-center gap-4">
           <button
             onClick={() => openList('library')}
@@ -755,7 +755,6 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
             </div>
           </div>
         )}
-        <div className="text-right text-xs text-gray-500">{sortedBooks.length}</div>
         {isCustomSort && search.trim().length > 0 && (
           <div className="text-[11px] text-gray-500">{t('library.reorder.clearSearch')}</div>
         )}

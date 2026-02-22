@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Image as ImageIcon, Save } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, Loader2, Save, Wand2 } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../../types';
 import { FORMAT_LABELS, getSeasonColorClass, normalizeSeason, SEASON_OPTIONS } from '../../utils';
 import { BookCover } from '../ui/BookCover';
 import { useI18n } from '../../contexts/I18nContext';
 import { MessageKey } from '../../i18n/messages';
+import { fetchBookCover } from '../../services/storageService';
+import { useUI } from '../../contexts/UIContext';
 
 interface BookFormV2Props {
   title: string;
@@ -52,6 +54,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   onCancel,
 }) => {
   const { t } = useI18n();
+  const { toast } = useUI();
   const [form, setForm] = useState<Partial<Book>>({
     title: initialValue.title || '',
     author: initialValue.author || '',
@@ -69,6 +72,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     seasons: normalizeSeasons(initialValue.seasons),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [publisherFocused, setPublisherFocused] = useState(false);
   const [genreFocused, setGenreFocused] = useState(false);
   const [blobPreviewUrl, setBlobPreviewUrl] = useState<string | null>(null);
@@ -160,6 +164,34 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
 
   const effectiveCoverUrl = ((form.coverUrl as string) || blobPreviewUrl || '').trim();
 
+  const handleMagicSearch = async () => {
+    const titleValue = sanitizeText(form.title || '', 180).trim();
+    const authorValue = sanitizeText(form.author || '', 140).trim();
+    if (!titleValue) {
+      toast.show(t('bookForm.toast.coverNeedTitle'), 'info');
+      return;
+    }
+    setIsMagicLoading(true);
+    try {
+      const url = await fetchBookCover(titleValue, authorValue);
+      if (url) {
+        setForm((prev) => ({
+          ...prev,
+          coverUrl: url,
+          coverBlob: undefined,
+        }));
+        toast.show(t('bookForm.toast.coverFound'), 'success');
+      } else {
+        toast.show(t('bookForm.toast.coverNotFound'), 'info');
+      }
+    } catch (error) {
+      console.error('Cover search failed', error);
+      toast.show(t('bookForm.toast.coverSearchError'), 'error');
+    } finally {
+      setIsMagicLoading(false);
+    }
+  };
+
   const toggleFormat = (format: BookFormat) => {
     const current = normalizeFormats(form.formats);
     if (current.includes(format)) {
@@ -230,20 +262,31 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       <div className="mt-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
-          <p className="text-xs text-gray-500 mt-1">{t('bookForm.touchSafe')}</p>
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex justify-center">
-            <div className="w-24 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-              {effectiveCoverUrl ? (
-                <BookCover book={previewBook} className="w-full h-full" iconSize={20} />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-300">
-                  <ImageIcon size={22} />
-                  <span className="text-[9px] font-bold uppercase tracking-wide">{t('bookForm.cover')}</span>
-                </div>
-              )}
+            <div className="relative w-24">
+              <div className="w-24 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                {effectiveCoverUrl ? (
+                  <BookCover book={previewBook} className="w-full h-full" iconSize={20} />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-300">
+                    <ImageIcon size={22} />
+                    <span className="text-[9px] font-bold uppercase tracking-wide">{t('bookForm.cover')}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleMagicSearch}
+                disabled={isSubmitting || isMagicLoading}
+                className="absolute top-0 -right-14 bg-white p-3 rounded-2xl text-indigo-600 shadow-lg border border-indigo-50 active:scale-95 transition-all disabled:opacity-50"
+                title={t('bookForm.magicSearch')}
+                aria-label={t('bookForm.magicSearch')}
+              >
+                {isMagicLoading ? <Loader2 className="animate-spin" size={20} /> : <Wand2 size={20} />}
+              </button>
             </div>
           </div>
 

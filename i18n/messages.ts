@@ -101,6 +101,11 @@ const en = {
   'bookForm.addWishlistTitle': 'Add Wishlist',
   'bookForm.addWishlistSubtitle': 'Simple touch-safe wishlist form.',
   'bookForm.saveWishlist': 'Save wishlist',
+  'bookForm.magicSearch': 'Find cover by title and author',
+  'bookForm.toast.coverNeedTitle': 'Enter a title to search cover',
+  'bookForm.toast.coverFound': 'Cover found',
+  'bookForm.toast.coverNotFound': 'Cover was not found',
+  'bookForm.toast.coverSearchError': 'Cover search failed',
 
   'details.publisher': 'Publisher',
   'details.genre': 'Genre',
@@ -294,6 +299,11 @@ const uk: Record<keyof typeof en, string> = {
   'bookForm.addWishlistTitle': 'Додати бажанку',
   'bookForm.addWishlistSubtitle': 'Проста touch-safe форма бажанки.',
   'bookForm.saveWishlist': 'Зберегти бажанку',
+  'bookForm.magicSearch': 'Знайти обкладинку за назвою й автором',
+  'bookForm.toast.coverNeedTitle': 'Введіть назву для пошуку обкладинки',
+  'bookForm.toast.coverFound': 'Обкладинку знайдено',
+  'bookForm.toast.coverNotFound': 'Обкладинку не знайдено',
+  'bookForm.toast.coverSearchError': 'Помилка пошуку обкладинки',
 
   'details.publisher': 'Видавництво',
   'details.genre': 'Жанр',
