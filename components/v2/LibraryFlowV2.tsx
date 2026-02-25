@@ -32,6 +32,8 @@ const normalizeV2SortDirection = (value: unknown): V2SortDirection => {
   return value === 'asc' || value === 'desc' ? value : 'desc';
 };
 
+const globalScrollPositions: { library: number; wishlist: number } = { library: 0, wishlist: 0 };
+
 const sameItems = <T extends string>(left: T[], right: T[]): boolean => {
   return left.length === right.length && left.every((item) => right.includes(item));
 };
@@ -68,6 +70,46 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
   const { books, addBook, updateBook, deleteBook, reorderBooks, filterTag, setFilterTag } = useLibrary();
   const { toast, confirm } = useUI();
   const [route, setRoute] = useState<V2Route>({ kind: 'list', tab: 'library' });
+
+  const changeRoute = useCallback((newRoute: V2Route | ((prev: V2Route) => V2Route)) => {
+    setRoute((prev) => {
+      const nextRoute = typeof newRoute === 'function' ? newRoute(prev) : newRoute;
+      if (prev.kind === 'list' && (nextRoute.kind !== 'list' || prev.tab !== nextRoute.tab)) {
+        globalScrollPositions[prev.tab] = window.scrollY;
+      }
+      return nextRoute;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (route.kind === 'list') {
+      const savedScroll = globalScrollPositions[route.tab];
+      if (savedScroll > 0) {
+        setTimeout(() => {
+          window.scrollTo(0, savedScroll);
+        }, 10);
+      } else {
+        window.scrollTo(0, 0);
+      }
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [route]);
+
+  // Also save scroll position when the component unmounts (e.g. switching main app views)
+  const currentRouteRef = useRef(route);
+  useEffect(() => {
+    currentRouteRef.current = route;
+  }, [route]);
+
+  useEffect(() => {
+    return () => {
+      if (currentRouteRef.current.kind === 'list') {
+        globalScrollPositions[currentRouteRef.current.tab] = window.scrollY;
+      }
+    };
+  }, []);
+
   const [showSortPanel, setShowSortPanel] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -222,8 +264,8 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
   }, [books, locale]);
 
   const openList = useCallback((tab: V2Tab) => {
-    setRoute({ kind: 'list', tab });
-  }, []);
+    changeRoute({ kind: 'list', tab });
+  }, [changeRoute]);
 
   const filteredPublisherSuggestions = useMemo(() => {
     const q = publisherFilter.trim().toLowerCase();
@@ -402,7 +444,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     const normalized = filterTag.trim();
     if (!normalized) return;
 
-    setRoute((prev) => (prev.kind === 'list' && prev.tab === 'library' ? prev : { kind: 'list', tab: 'library' }));
+    changeRoute((prev) => (prev.kind === 'list' && prev.tab === 'library' ? prev : { kind: 'list', tab: 'library' }));
     setSearchByTab((prev) => (prev.library === normalized ? prev : { ...prev, library: normalized }));
   }, [filterTag]);
 
@@ -442,7 +484,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       }
       try {
         updateBook(finalBook);
-        setRoute({ kind: 'details', tab, bookId: finalBook.id });
+        changeRoute({ kind: 'details', tab, bookId: finalBook.id });
         toast.show(t('library.saved'), 'success');
       } catch (error) {
         console.error(error);
@@ -516,13 +558,13 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       <BookDetailsV2
           book={liveBook}
           onBack={() => openList(route.tab)}
-          onOpenReadingMode={() => setRoute({ kind: 'reading', tab: route.tab, bookId: liveBook.id })}
-          onEdit={() => setRoute({ kind: 'edit', tab: route.tab, bookId: liveBook.id })}
+          onOpenReadingMode={() => changeRoute({ kind: 'reading', tab: route.tab, bookId: liveBook.id })}
+          onEdit={() => changeRoute({ kind: 'edit', tab: route.tab, bookId: liveBook.id })}
           onTagClick={(tag) => {
             const normalized = (tag || '').trim();
             if (!normalized) return;
             setFilterTag(normalized);
-            setRoute({ kind: 'list', tab: 'library' });
+            changeRoute({ kind: 'list', tab: 'library' });
           }}
           onDelete={() => {
             if (isActionBusy) return;
@@ -588,7 +630,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       );
     }
 
-    return <ReadingMode book={liveBook} onClose={() => setRoute({ kind: 'details', tab: route.tab, bookId: liveBook.id })} />;
+    return <ReadingMode book={liveBook} onClose={() => changeRoute({ kind: 'details', tab: route.tab, bookId: liveBook.id })} />;
   }
 
   if (route.kind === 'edit') {
@@ -607,7 +649,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     return (
       <EditBookV2
           book={liveBook}
-          onCancel={() => setRoute({ kind: 'details', tab: route.tab, bookId: liveBook.id })}
+          onCancel={() => changeRoute({ kind: 'details', tab: route.tab, bookId: liveBook.id })}
           onSave={(book) => handleSaveInEdit(book, route.tab)}
           publisherSuggestions={uniquePublishers}
           genreSuggestions={uniqueGenres}
@@ -635,7 +677,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
 
         <div className="flex gap-2 h-12">
           <button
-            onClick={() => setRoute({ kind: 'add', tab: currentTab })}
+            onClick={() => changeRoute({ kind: 'add', tab: currentTab })}
             className="h-12 w-12 flex-shrink-0 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-95 transition-all"
             title={currentTab === 'library' ? t('library.addBook') : t('library.addWishlist')}
           >
@@ -918,7 +960,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
               key={book.id}
               book={book}
               onOpen={(selectedBook) =>
-                setRoute({
+                changeRoute({
                   kind: 'details',
                   tab: currentTab,
                   bookId: selectedBook.id,

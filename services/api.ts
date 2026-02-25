@@ -13,7 +13,16 @@ interface KnownGoogleCoverOverride {
   volumeId: string;
 }
 
+const MAX_CACHE_SIZE = 100;
 const coverSearchCache = new Map<string, string>();
+
+const setCache = (key: string, value: string) => {
+  if (coverSearchCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = coverSearchCache.keys().next().value;
+    if (firstKey) coverSearchCache.delete(firstKey);
+  }
+  coverSearchCache.set(key, value);
+};
 let googleBlockedUntil = 0;
 
 const normalizeQueryPart = (value: string): string => value.replace(/\s+/g, ' ').trim();
@@ -166,10 +175,23 @@ const dedupeCandidates = (candidates: CoverCandidate[]): CoverCandidate[] => {
   return Array.from(map.values());
 };
 
+const fetchWithTimeout = async (url: string, timeoutMs: number = 5000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+};
+
 const searchGoogleBooksCandidates = async (query: string, maxResults: number = 10): Promise<CoverCandidate[]> => {
   try {
     if (Date.now() < googleBlockedUntil) return [];
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=${maxResults}&printType=books`
     );
     if (!response.ok) {
@@ -264,7 +286,7 @@ const searchOpenLibraryByQuery = async (query: string): Promise<CoverCandidate[]
 
 const searchITunesCandidates = async (query: string): Promise<CoverCandidate[]> => {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=ebook&entity=ebook&limit=12`
     );
     if (!response.ok) return [];
@@ -354,8 +376,9 @@ export const fetchBookCover = async (title: string, author: string, isbn?: strin
   if (knownCover) return knownCover;
 
   const cacheKey = buildCacheKey(cleanTitle, cleanAuthor, cleanIsbn);
-  const cached = coverSearchCache.get(cacheKey);
-  if (cached) return cached;
+  if (coverSearchCache.has(cacheKey)) {
+    return coverSearchCache.get(cacheKey) || '';
+  }
 
   const candidates: CoverCandidate[] = [];
 
@@ -393,7 +416,7 @@ export const fetchBookCover = async (title: string, author: string, isbn?: strin
     if (candidates.length > 0) {
       const bestGoogle = chooseBestCandidate(cleanTitle, cleanAuthor, dedupeCandidates(candidates));
       if (bestGoogle) {
-        coverSearchCache.set(cacheKey, bestGoogle);
+        setCache(cacheKey, bestGoogle);
         return bestGoogle;
       }
     }
@@ -419,8 +442,7 @@ export const fetchBookCover = async (title: string, author: string, isbn?: strin
 
   const deduped = dedupeCandidates(candidates);
   const best = chooseBestCandidate(cleanTitle, cleanAuthor, deduped);
-  if (!best) return '';
-
-  coverSearchCache.set(cacheKey, best);
-  return best;
+  
+  setCache(cacheKey, best || '');
+  return best || '';
 };
