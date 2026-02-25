@@ -1,4 +1,4 @@
-﻿
+
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { X, Check, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
 import { createClientId } from '../services/id';

@@ -1,4 +1,4 @@
-﻿import { AppSettings, Book, LibraryState, SortDirection, SortKey } from "../types";
+import { AppSettings, Book, LibraryState, SortDirection, SortKey } from "../types";
 import { appendDebugLog, finishDebugTrace, startDebugTrace } from "./debugLogger";
 import { markDexieFailure, markDexieSuccess } from "./dexieRuntime";
 import { blobToBase64 } from "./imageUtils";

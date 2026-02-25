@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { Book, BookFormat, BookStatus } from '../types';
 import { X, Upload, Loader2, Wand2, Link, Save } from 'lucide-react';
