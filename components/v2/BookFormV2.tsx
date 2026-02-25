@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Image as ImageIcon, Loader2, Save, Wand2 } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../../types';
 import { FORMAT_LABELS, getSeasonColorClass, normalizeSeason, SEASON_OPTIONS } from '../../utils';
@@ -76,6 +76,27 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   const [publisherFocused, setPublisherFocused] = useState(false);
   const [genreFocused, setGenreFocused] = useState(false);
   const [blobPreviewUrl, setBlobPreviewUrl] = useState<string | null>(null);
+
+  const publisherRef = useRef<HTMLDivElement>(null);
+  const genreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (publisherFocused && publisherRef.current && !publisherRef.current.contains(event.target as Node)) {
+        setPublisherFocused(false);
+      }
+      if (genreFocused && genreRef.current && !genreRef.current.contains(event.target as Node)) {
+        setGenreFocused(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [publisherFocused, genreFocused]);
 
   useEffect(() => {
     let objectUrl: string | null = null;
@@ -331,7 +352,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1 relative">
+            <div ref={publisherRef} className="space-y-1 relative">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.publisher')}</label>
               <input
                 maxLength={120}
@@ -339,7 +360,6 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                 value={form.publisher || ''}
                 onChange={(e) => updateForm('publisher', sanitizeText(e.target.value, 120))}
                 onFocus={() => setPublisherFocused(true)}
-                onBlur={() => window.setTimeout(() => setPublisherFocused(false), 120)}
               />
               {publisherFocused && filteredPublisherSuggestions.length > 0 && (
                 <div
@@ -350,7 +370,6 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                     <button
                       key={item}
                       type="button"
-                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         updateForm('publisher', item);
                         setPublisherFocused(false);
@@ -364,7 +383,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
               )}
             </div>
 
-            <div className="space-y-1 relative">
+            <div ref={genreRef} className="space-y-1 relative">
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.genre')}</label>
               <input
                 maxLength={160}
@@ -372,7 +391,6 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                 value={form.genre || ''}
                 onChange={(e) => updateForm('genre', sanitizeText(e.target.value, 160))}
                 onFocus={() => setGenreFocused(true)}
-                onBlur={() => window.setTimeout(() => setGenreFocused(false), 120)}
               />
               {genreFocused && filteredGenreSuggestions.length > 0 && (
                 <div
@@ -383,7 +401,6 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                     <button
                       key={item}
                       type="button"
-                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         updateForm('genre', item);
                         setGenreFocused(false);

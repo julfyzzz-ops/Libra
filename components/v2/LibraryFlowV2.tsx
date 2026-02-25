@@ -81,7 +81,31 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
   const [genreFilter, setGenreFilter] = useState('');
   const [publisherFocused, setPublisherFocused] = useState(false);
   const [genreFocused, setGenreFocused] = useState(false);
-  const lastSuggestionPickTsRef = useRef(0);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const publisherRef = useRef<HTMLDivElement>(null);
+  const genreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (showSearchSuggestions && searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchSuggestions(false);
+      }
+      if (publisherFocused && publisherRef.current && !publisherRef.current.contains(event.target as Node)) {
+        setPublisherFocused(false);
+      }
+      if (genreFocused && genreRef.current && !genreRef.current.contains(event.target as Node)) {
+        setGenreFocused(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showSearchSuggestions, publisherFocused, genreFocused]);
+
   const [sortKeyByTab, setSortKeyByTab] = useState<{ library: V2SortKey; wishlist: V2SortKey }>(() => {
     const librarySort = loadSortPrefs(LIBRARY_SORT_PREFS_KEY);
     const wishlistSort = loadSortPrefs(WISHLIST_SORT_PREFS_KEY);
@@ -221,13 +245,6 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       genreFilter.trim().length > 0
     );
   }, [genreFilter, publisherFilter, selectedFormats, selectedStatuses]);
-
-  const runSuggestionPickOnce = useCallback((action: () => void) => {
-    const now = Date.now();
-    if (now - lastSuggestionPickTsRef.current < 250) return;
-    lastSuggestionPickTsRef.current = now;
-    action();
-  }, []);
 
   const toggleStatusFilter = useCallback((status: BookStatus) => {
     setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((item) => item !== status) : [...prev, status]));
@@ -624,7 +641,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
           >
             <Plus size={24} />
           </button>
-          <div className="relative flex-1">
+          <div ref={searchRef} className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
@@ -636,7 +653,6 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                 setShowSearchSuggestions(true);
               }}
               onFocus={() => setShowSearchSuggestions(true)}
-              onBlur={() => window.setTimeout(() => setShowSearchSuggestions(false), 120)}
             />
             {search.length > 0 && (
               <button
@@ -660,26 +676,10 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                   <button
                     key={`${currentTab}-${item}`}
                     type="button"
-                    onTouchStart={(event) => {
-                      event.preventDefault();
-                      runSuggestionPickOnce(() => {
-                        setSearchForCurrentTab(item);
-                        setShowSearchSuggestions(false);
-                      });
+                    onClick={() => {
+                      setSearchForCurrentTab(item);
+                      setShowSearchSuggestions(false);
                     }}
-                    onPointerDown={(event) => {
-                      event.preventDefault();
-                      runSuggestionPickOnce(() => {
-                        setSearchForCurrentTab(item);
-                        setShowSearchSuggestions(false);
-                      });
-                    }}
-                    onClick={() =>
-                      runSuggestionPickOnce(() => {
-                        setSearchForCurrentTab(item);
-                        setShowSearchSuggestions(false);
-                      })
-                    }
                     className="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                   >
                     {item}
@@ -806,7 +806,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="relative space-y-1">
+              <div ref={publisherRef} className="relative space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('library.filter.publisher')}</label>
                 <input
                   type="text"
@@ -816,7 +816,6 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                     setPublisherFocused(true);
                   }}
                   onFocus={() => setPublisherFocused(true)}
-                  onBlur={() => window.setTimeout(() => setPublisherFocused(false), 120)}
                   placeholder={t('library.filter.publisherPlaceholder')}
                   className="w-full bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold border border-gray-100 outline-none focus:ring-2 focus:ring-indigo-500"
                 />
@@ -838,26 +837,10 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                       <button
                         key={item}
                         type="button"
-                        onTouchStart={(event) => {
-                          event.preventDefault();
-                          runSuggestionPickOnce(() => {
-                            setPublisherFilter(item);
-                            setPublisherFocused(false);
-                          });
+                        onClick={() => {
+                          setPublisherFilter(item);
+                          setPublisherFocused(false);
                         }}
-                        onPointerDown={(event) => {
-                          event.preventDefault();
-                          runSuggestionPickOnce(() => {
-                            setPublisherFilter(item);
-                            setPublisherFocused(false);
-                          });
-                        }}
-                        onClick={() =>
-                          runSuggestionPickOnce(() => {
-                            setPublisherFilter(item);
-                            setPublisherFocused(false);
-                          })
-                        }
                         className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                       >
                         {item}
@@ -867,7 +850,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                 )}
               </div>
 
-              <div className="relative space-y-1">
+              <div ref={genreRef} className="relative space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('library.filter.genre')}</label>
                 <input
                   type="text"
@@ -877,7 +860,6 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                     setGenreFocused(true);
                   }}
                   onFocus={() => setGenreFocused(true)}
-                  onBlur={() => window.setTimeout(() => setGenreFocused(false), 120)}
                   placeholder={t('library.filter.genrePlaceholder')}
                   className="w-full bg-gray-50 px-3 py-2.5 rounded-xl text-xs font-bold border border-gray-100 outline-none focus:ring-2 focus:ring-indigo-500"
                 />
@@ -899,26 +881,10 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                       <button
                         key={item}
                         type="button"
-                        onTouchStart={(event) => {
-                          event.preventDefault();
-                          runSuggestionPickOnce(() => {
-                            setGenreFilter(item);
-                            setGenreFocused(false);
-                          });
+                        onClick={() => {
+                          setGenreFilter(item);
+                          setGenreFocused(false);
                         }}
-                        onPointerDown={(event) => {
-                          event.preventDefault();
-                          runSuggestionPickOnce(() => {
-                            setGenreFilter(item);
-                            setGenreFocused(false);
-                          });
-                        }}
-                        onClick={() =>
-                          runSuggestionPickOnce(() => {
-                            setGenreFilter(item);
-                            setGenreFocused(false);
-                          })
-                        }
                         className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-none"
                       >
                         {item}
