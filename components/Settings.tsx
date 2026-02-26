@@ -23,7 +23,7 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
 
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', uiV2Enabled: false, language: 'en' });
+  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', language: 'en' });
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);

@@ -2,9 +2,12 @@
 import React, { useMemo, useState } from 'react';
 import { Book } from '../types';
 import { ChevronLeft, ChevronRight, BookOpen, Calendar as CalendarIcon, Grid, Clock, FileText, Loader2 } from 'lucide-react';
-import { BookDetails } from './BookDetails';
+import { BookDetailsV2 } from './v2/BookDetailsV2';
+import { EditBookV2 } from './v2/EditBookV2';
 import { ReadingMode } from './ReadingMode';
 import { useLibrary } from '../contexts/LibraryContext';
+import { useUI } from '../contexts/UIContext';
+import { useI18n } from '../contexts/I18nContext';
 import { formatTime } from '../utils';
 import { BookCover } from './ui/BookCover';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
@@ -12,12 +15,32 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 type ViewMode = 'month' | 'year';
 
 export const Calendar: React.FC = () => {
-  const { books } = useLibrary();
+  const { books, updateBook, deleteBook } = useLibrary();
+  const { toast, confirm } = useUI();
+  const { t } = useI18n();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const uniquePublishers = React.useMemo(() => {
+    const pubs = new Set<string>();
+    books.forEach((b) => {
+      if (b.publisher && b.publisher.trim()) pubs.add(b.publisher.trim());
+    });
+    return Array.from(pubs).sort();
+  }, [books]);
+
+  const uniqueGenres = React.useMemo(() => {
+    const genres = new Set<string>();
+    books.forEach((b) => {
+      const value = (b.genre || '').trim();
+      if (value) genres.add(value);
+    });
+    return Array.from(genres).sort();
+  }, [books]);
   
   // Specific date selection within a month
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -399,12 +422,56 @@ export const Calendar: React.FC = () => {
          </div>
       </div>
 
-      {selectedBook && !readingModeOpen && (
-        <BookDetails 
-          book={selectedBook}
-          onClose={() => setSelectedBook(null)}
-          onOpenReadingMode={() => setReadingModeOpen(true)}
-        />
+      {selectedBook && !readingModeOpen && !isEditing && (
+        <div className="fixed inset-0 z-[60] bg-white animate-in slide-in-from-bottom duration-300">
+          <BookDetailsV2 
+            book={selectedBook}
+            onBack={() => setSelectedBook(null)}
+            onOpenReadingMode={() => setReadingModeOpen(true)}
+            onEdit={() => setIsEditing(true)}
+            onDelete={async () => {
+              const ok = await confirm({
+                title: t('library.deleteTitle'),
+                message: t('library.deleteMessage', { title: selectedBook.title }),
+                type: 'danger',
+                confirmText: t('common.delete'),
+                cancelText: t('common.cancel'),
+              });
+              if (!ok) return;
+              try {
+                deleteBook(selectedBook.id);
+                toast.show(t('library.bookDeleted'), 'success');
+                setSelectedBook(null);
+              } catch (error) {
+                console.error(error);
+                toast.show(t('library.failedDelete'), 'error');
+              }
+            }}
+            onStartReadingWishlist={() => {}}
+          />
+        </div>
+      )}
+
+      {isEditing && selectedBook && (
+        <div className="fixed inset-0 z-[70] bg-white">
+          <EditBookV2 
+            book={selectedBook}
+            publisherSuggestions={uniquePublishers}
+            genreSuggestions={uniqueGenres}
+            onSave={(updated) => {
+              try {
+                updateBook(updated);
+                toast.show(t('library.saved'), 'success');
+                setSelectedBook(updated);
+                setIsEditing(false);
+              } catch (error) {
+                console.error(error);
+                toast.show(t('library.failedSave'), 'error');
+              }
+            }}
+            onCancel={() => setIsEditing(false)}
+          />
+        </div>
       )}
 
       {readingModeOpen && selectedBook && (

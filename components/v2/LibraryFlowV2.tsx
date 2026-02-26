@@ -13,7 +13,7 @@ import { AddWishlistV2 } from './AddWishlistV2';
 import { EditBookV2 } from './EditBookV2';
 import { BookDetailsV2 } from './BookDetailsV2';
 import { BookCardV2 } from './BookCardV2';
-import { SortableBookItem } from '../SortableBookItem';
+import { SortableBookItemV2 } from './SortableBookItemV2';
 import { ReadingMode } from '../ReadingMode';
 import { BookCover } from '../ui/BookCover';
 
@@ -1141,7 +1141,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       ) : (
         <div className="space-y-3 relative">
           {sortedBooks.map((book, index) => (
-            <SortableBookItem
+            <SortableBookItemV2
               key={book.id}
               itemId={book.id}
               showHandle={isReorderMode}
@@ -1161,7 +1161,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
                 }
                 reorderMode={isReorderMode}
               />
-            </SortableBookItem>
+            </SortableBookItemV2>
           ))}
           {draggingBookId && indicatorTop !== null && (
             <div

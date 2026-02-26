@@ -59,7 +59,6 @@ export type AppLanguage = 'en' | 'uk';
 export interface AppSettings {
   accent: AccentColor;
   bg: BackgroundTone;
-  uiV2Enabled?: boolean;
   language?: AppLanguage;
 }
 
