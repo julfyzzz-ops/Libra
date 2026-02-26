@@ -239,9 +239,9 @@ export const Statistics: React.FC = () => {
   }
 
   return (
-    <div className="p-4 space-y-8 pb-32 animate-in fade-in">
+    <div className="p-4 space-y-8 pb-32 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-3xl font-bold text-gray-800">Моя полиця</h1>
+        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Моя полиця</h1>
         <p className="text-gray-500 text-sm mt-1">Статистика паперової бібліотеки</p>
       </header>
 
@@ -249,36 +249,39 @@ export const Statistics: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowReadScreen(true)}
-          className="w-full bg-white border border-gray-100 rounded-3xl p-4 flex items-center justify-between shadow-sm hover:bg-gray-50 transition-colors"
+          className="w-full bg-white border border-gray-100 rounded-[2rem] p-5 flex items-center justify-between shadow-sm hover:bg-gray-50 active:scale-[0.98] transition-all group"
         >
           <div className="text-left">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Підекран
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
+              Історія читання
             </p>
-            <p className="text-sm font-bold text-gray-800">Прочитане за місяць / рік</p>
+            <p className="text-base font-bold text-gray-800">Прочитане за місяць / рік</p>
           </div>
-          <ChevronRight size={18} className="text-gray-400" />
+          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors">
+            <ChevronRight size={20} />
+          </div>
         </button>
 
-        <div className="bg-indigo-600 p-6 rounded-[2.5rem] shadow-xl shadow-indigo-200 text-white relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
-          <BookOpen className="absolute -right-6 -bottom-6 text-white opacity-10 w-40 h-40 group-hover:scale-110 transition-transform duration-500" />
+        <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-200 text-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
+          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-indigo-400 opacity-20 rounded-full blur-2xl" />
+          <BookOpen className="absolute -right-6 -bottom-6 text-white opacity-10 w-40 h-40 group-hover:scale-110 transition-transform duration-700" />
 
           <div className="relative z-10">
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-6xl font-black tracking-tighter">{stats.total}</span>
+              <span className="text-7xl font-black tracking-tighter">{stats.total}</span>
               <span className="text-sm font-bold opacity-80 uppercase tracking-widest">Книг</span>
             </div>
-            <p className="text-indigo-200 text-xs font-medium mb-6">Фізичні примірники у колекції</p>
+            <p className="text-indigo-100 text-xs font-medium mb-8">Фізичні примірники у вашій колекції</p>
 
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-wider opacity-90">
+            <div className="space-y-3">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-90">
                 <span>Прогрес полиці</span>
                 <span>{stats.readPercent}%</span>
               </div>
-              <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
+              <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden backdrop-blur-md">
                 <div
-                  className="h-full bg-white rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                  className="h-full bg-white rounded-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(255,255,255,0.6)]"
                   style={{ width: `${stats.readPercent}%` }}
                 />
               </div>
@@ -287,22 +290,28 @@ export const Statistics: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-emerald-50 p-4 rounded-3xl border border-emerald-100 flex flex-col items-center justify-center gap-2 shadow-sm">
-            <Trophy className="text-emerald-500 mb-1" size={24} />
-            <span className="text-3xl font-black text-emerald-700">{stats.read}</span>
-            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">Прочитано</span>
+          <div className="bg-emerald-50 p-5 rounded-[2rem] border border-emerald-100 flex flex-col items-center justify-center gap-2 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-1">
+              <Trophy size={20} />
+            </div>
+            <span className="text-3xl font-black text-emerald-700 leading-none">{stats.read}</span>
+            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Прочитано</span>
           </div>
 
-          <div className="bg-amber-50 p-4 rounded-3xl border border-amber-100 flex flex-col items-center justify-center gap-2 shadow-sm">
-            <BookMarked className="text-amber-500 mb-1" size={24} />
-            <span className="text-3xl font-black text-amber-700">{stats.reading}</span>
-            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wide">Читаю</span>
+          <div className="bg-amber-50 p-5 rounded-[2rem] border border-amber-100 flex flex-col items-center justify-center gap-2 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600 mb-1">
+              <BookMarked size={20} />
+            </div>
+            <span className="text-3xl font-black text-amber-700 leading-none">{stats.reading}</span>
+            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Читаю</span>
           </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 flex flex-col items-center justify-center gap-2 shadow-sm">
-            <Library className="text-gray-400 mb-1" size={24} />
-            <span className="text-3xl font-black text-gray-700">{stats.unread}</span>
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">В планах</span>
+          <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100 flex flex-col items-center justify-center gap-2 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-1">
+              <Library size={20} />
+            </div>
+            <span className="text-3xl font-black text-slate-700 leading-none">{stats.unread}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">В планах</span>
           </div>
         </div>
       </section>
@@ -310,7 +319,7 @@ export const Statistics: React.FC = () => {
       {stats.publisherStats.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2 ml-1">
-            <Building2 size={16} className="text-gray-400" />
+            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Видавництва</h2>
           </div>
 
@@ -318,16 +327,16 @@ export const Statistics: React.FC = () => {
             {stats.publisherStats.map((pub, idx) => (
               <div
                 key={pub.name}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-4"
+                className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between gap-4 group hover:border-indigo-100 transition-colors"
               >
                 <div className="flex items-center gap-4 min-w-0 flex-1">
-                  <span className="text-2xl font-black text-gray-100 w-8 text-center flex-shrink-0">{idx + 1}</span>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-sm text-gray-800 truncate">{pub.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden">
+                  <span className="text-3xl font-black text-gray-50 w-8 text-center flex-shrink-0 group-hover:text-indigo-50 transition-colors">{idx + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-sm text-gray-800 truncate mb-1.5">{pub.name}</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="h-1.5 flex-1 max-w-[120px] bg-gray-50 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${pub.percent === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                          className={`h-full rounded-full transition-all duration-1000 ${pub.percent === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
                           style={{ width: `${pub.percent}%` }}
                         />
                       </div>
@@ -338,10 +347,10 @@ export const Statistics: React.FC = () => {
 
                 <div className="text-right flex-shrink-0">
                   <div className="flex items-baseline justify-end gap-1">
-                    <span className="text-lg font-black text-gray-800">{pub.read}</span>
+                    <span className="text-xl font-black text-gray-800">{pub.read}</span>
                     <span className="text-xs font-bold text-gray-400">/ {pub.total}</span>
                   </div>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase">Книг</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Книг</span>
                 </div>
               </div>
             ))}

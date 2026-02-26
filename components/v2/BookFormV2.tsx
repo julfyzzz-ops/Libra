@@ -70,6 +70,8 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     notes: initialValue.notes || '',
     comment: initialValue.comment || '',
     seasons: normalizeSeasons(initialValue.seasons),
+    completedAt: initialValue.completedAt,
+    rating: initialValue.rating,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
@@ -157,6 +159,8 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       notes: (form.notes || '') as string,
       comment: (form.comment || '') as string,
       seasons: normalizeSeasons(form.seasons),
+      completedAt: form.completedAt,
+      rating: form.rating,
       addedAt: initialValue.addedAt || new Date().toISOString(),
       sessions: (initialValue.sessions || []) as Book['sessions'],
     }),
@@ -165,12 +169,14 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       blobPreviewUrl,
       form.author,
       form.comment,
+      form.completedAt,
       form.coverUrl,
       form.formats,
       form.genre,
       form.notes,
       form.pagesTotal,
       form.publisher,
+      form.rating,
       form.seasons,
       form.series,
       form.seriesPart,

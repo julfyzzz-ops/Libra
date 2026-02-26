@@ -131,26 +131,7 @@ export const BookCardV2: React.FC<BookCardV2Props> = ({
       </button>
 
       {reorderMode ? (
-        <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={onMoveUp}
-            disabled={!canMoveUp}
-            className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-30 flex items-center justify-center"
-            aria-label="Move up"
-          >
-            <ChevronUp size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={onMoveDown}
-            disabled={!canMoveDown}
-            className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-30 flex items-center justify-center"
-            aria-label="Move down"
-          >
-            <ChevronDown size={14} />
-          </button>
-        </div>
+        <div className="w-8 h-8 flex-shrink-0" />
       ) : (
         <span className="flex-shrink-0" aria-label={`status-${book.status}`}>
           <StatusIcon status={book.status} />

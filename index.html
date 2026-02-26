@@ -78,6 +78,17 @@
             color: var(--text-primary);
             touch-action: pan-y;
             transition: background-color 0.3s ease, color 0.3s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        input, textarea {
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
         }
 
         .glass-morphism {

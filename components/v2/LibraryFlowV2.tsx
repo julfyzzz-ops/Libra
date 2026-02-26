@@ -13,7 +13,9 @@ import { AddWishlistV2 } from './AddWishlistV2';
 import { EditBookV2 } from './EditBookV2';
 import { BookDetailsV2 } from './BookDetailsV2';
 import { BookCardV2 } from './BookCardV2';
+import { SortableBookItem } from '../SortableBookItem';
 import { ReadingMode } from '../ReadingMode';
+import { BookCover } from '../ui/BookCover';
 
 type V2Tab = 'library' | 'wishlist';
 type V2SortKey = 'addedAt' | 'title' | 'author' | 'genre' | 'custom';
@@ -169,6 +171,18 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     wishlist: false,
   });
   const [isActionBusy, setIsActionBusy] = useState(false);
+
+  // Drag and Drop state
+  const [draggingBookId, setDraggingBookId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
+  const draggingBookIdRef = useRef<string | null>(null);
+  const dropIndexRef = useRef<number | null>(null);
+  const pointerYRef = useRef<number | null>(null);
+  const autoScrollRafRef = useRef<number | null>(null);
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const reorderDraftRef = useRef<Book[]>([]);
+
   const statusLabel = useCallback((status: BookStatus) => t(`status.${status}` as MessageKey), [t]);
   const formatLabel = useCallback((format: BookFormat) => t(`format.${format}` as MessageKey), [t]);
 
@@ -179,7 +193,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
   const search = searchByTab[currentTab];
   const sourceBooks = currentTab === 'library' ? libraryBooks : wishlistBooks;
 
-  const filteredBooks = useMemo(() => {
+  const filteredBooksList = useMemo(() => {
     const q = search.trim().toLowerCase();
     return sourceBooks.filter((b) => {
       if (currentTab === 'library') {
@@ -213,9 +227,9 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     const sortKey = sortKeyByTab[currentTab];
     const sortDirection = sortDirectionByTab[currentTab];
     if (sortKey === 'custom') {
-      return sortDirection === 'asc' ? [...filteredBooks] : [...filteredBooks].reverse();
+      return sortDirection === 'asc' ? [...filteredBooksList] : [...filteredBooksList].reverse();
     }
-    const copy = [...filteredBooks];
+    const copy = [...filteredBooksList];
 
     copy.sort((a, b) => {
       if (sortKey === 'addedAt') {
@@ -244,7 +258,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     });
 
     return sortDirection === 'asc' ? copy : copy.reverse();
-  }, [currentTab, filteredBooks, locale, sortDirectionByTab, sortKeyByTab]);
+  }, [currentTab, filteredBooksList, locale, sortDirectionByTab, sortKeyByTab]);
 
   const uniquePublishers = useMemo(() => {
     const pubs = new Set<string>();
@@ -364,6 +378,177 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
 
   const isCustomSort = sortKeyByTab[currentTab] === 'custom';
   const isReorderMode = reorderModeByTab[currentTab] && isCustomSort && search.trim().length === 0;
+
+  useEffect(() => {
+    if (isReorderMode) {
+      reorderDraftRef.current = sortedBooks;
+    }
+  }, [isReorderMode, sortedBooks]);
+
+  const EDGE_THRESHOLD_PX = 120;
+  const MAX_SCROLL_STEP_PX = 22;
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRafRef.current !== null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  }, []);
+
+  const computeDropFromPointer = useCallback((clientY: number, draggedId: string) => {
+    const ordered = reorderDraftRef.current;
+    const remaining = ordered.filter((b) => b.id !== draggedId);
+    if (remaining.length === 0) {
+      setDropIndex(0);
+      setIndicatorTop(0);
+      return;
+    }
+
+    const measured = remaining
+      .map((b) => {
+        const el = itemRefs.current.get(b.id);
+        if (!el) return null;
+        return { id: b.id, rect: el.getBoundingClientRect() };
+      })
+      .filter(Boolean) as { id: string; rect: DOMRect }[];
+
+    if (measured.length === 0) return;
+
+    const GAP_FALLBACK = 12;
+    let nextDropIndex = measured.length;
+    let nextTop = measured[measured.length - 1].rect.bottom + GAP_FALLBACK / 2;
+
+    for (let i = 0; i < measured.length; i++) {
+      const { rect } = measured[i];
+      if (clientY < rect.top + rect.height / 2) {
+        nextDropIndex = i;
+        if (i === 0) {
+          nextTop = rect.top - GAP_FALLBACK / 2;
+        } else {
+          const prevRect = measured[i - 1].rect;
+          nextTop = (prevRect.bottom + rect.top) / 2;
+        }
+        break;
+      }
+    }
+
+    dropIndexRef.current = nextDropIndex;
+    setDropIndex((prev) => (prev === nextDropIndex ? prev : nextDropIndex));
+    setIndicatorTop((prev) => (prev === nextTop ? prev : nextTop));
+  }, []);
+
+  const autoScrollStep = useCallback(() => {
+    const pointerY = pointerYRef.current;
+    const draggedId = draggingBookIdRef.current;
+    if (pointerY === null || !draggedId) {
+      stopAutoScroll();
+      return;
+    }
+
+    const viewportHeight = window.innerHeight;
+    let delta = 0;
+    if (pointerY < EDGE_THRESHOLD_PX) {
+      const proximity = (EDGE_THRESHOLD_PX - pointerY) / EDGE_THRESHOLD_PX;
+      delta = -Math.ceil(MAX_SCROLL_STEP_PX * Math.min(1, proximity));
+    } else if (pointerY > viewportHeight - EDGE_THRESHOLD_PX) {
+      const proximity = (pointerY - (viewportHeight - EDGE_THRESHOLD_PX)) / EDGE_THRESHOLD_PX;
+      delta = Math.ceil(MAX_SCROLL_STEP_PX * Math.min(1, proximity));
+    }
+
+    if (delta !== 0) {
+      window.scrollBy(0, delta);
+      computeDropFromPointer(pointerY, draggedId);
+    }
+
+    autoScrollRafRef.current = requestAnimationFrame(autoScrollStep);
+  }, [computeDropFromPointer, stopAutoScroll]);
+
+  const commitReorder = useCallback(() => {
+    const draftOrder = reorderDraftRef.current;
+    if (draftOrder.length === 0) return;
+    const currentTabBooks = currentTab === 'library' ? books.filter(b => b.status !== 'Wishlist') : books.filter(b => b.status === 'Wishlist');
+    const isSameOrder = draftOrder.length === currentTabBooks.length && draftOrder.every((b, idx) => b.id === currentTabBooks[idx]?.id);
+    if (isSameOrder) return;
+
+    const otherTabBooks = currentTab === 'library' ? books.filter(b => b.status === 'Wishlist') : books.filter(b => b.status !== 'Wishlist');
+    const newGlobalList = currentTab === 'library' ? [...draftOrder, ...otherTabBooks] : [...otherTabBooks, ...draftOrder];
+    
+    try {
+      reorderBooks(newGlobalList);
+    } catch (error) {
+      console.error(error);
+      toast.show(t('library.failedReorder'), 'error');
+    }
+  }, [books, currentTab, reorderBooks, t, toast]);
+
+  const finishDrag = useCallback(() => {
+    const draggedId = draggingBookIdRef.current;
+    const targetIndex = dropIndexRef.current;
+
+    if (draggedId !== null && targetIndex !== null) {
+      const current = reorderDraftRef.current;
+      const draggedBook = current.find((b) => b.id === draggedId);
+      if (draggedBook) {
+        const withoutDragged = current.filter((b) => b.id !== draggedId);
+        const safeIndex = Math.max(0, Math.min(targetIndex, withoutDragged.length));
+        const nextOrder = [
+          ...withoutDragged.slice(0, safeIndex),
+          draggedBook,
+          ...withoutDragged.slice(safeIndex),
+        ];
+        reorderDraftRef.current = nextOrder;
+        commitReorder();
+      }
+    }
+
+    draggingBookIdRef.current = null;
+    pointerYRef.current = null;
+    setDraggingBookId(null);
+    setDropIndex(null);
+    dropIndexRef.current = null;
+    setIndicatorTop(null);
+    window.removeEventListener('pointermove', handleGlobalPointerMove);
+    window.removeEventListener('pointerup', finishDrag);
+    stopAutoScroll();
+  }, [commitReorder, stopAutoScroll]);
+
+  const handleGlobalPointerMove = useCallback((event: PointerEvent) => {
+    const draggedId = draggingBookIdRef.current;
+    if (!draggedId) return;
+    pointerYRef.current = event.clientY;
+    computeDropFromPointer(event.clientY, draggedId);
+  }, [computeDropFromPointer]);
+
+  const startDragFromHandle = useCallback((event: React.PointerEvent<HTMLDivElement>, itemId: string) => {
+    if (!isReorderMode) return;
+    event.preventDefault();
+    event.stopPropagation();
+    draggingBookIdRef.current = itemId;
+    pointerYRef.current = event.clientY;
+    setDraggingBookId(itemId);
+    computeDropFromPointer(event.clientY, itemId);
+    window.addEventListener('pointermove', handleGlobalPointerMove, { passive: true });
+    window.addEventListener('pointerup', finishDrag);
+    if (autoScrollRafRef.current === null) {
+      autoScrollRafRef.current = requestAnimationFrame(autoScrollStep);
+    }
+  }, [autoScrollStep, computeDropFromPointer, finishDrag, handleGlobalPointerMove, isReorderMode]);
+
+  const setItemRef = useCallback((itemId: string, el: HTMLDivElement | null) => {
+    if (el) {
+      itemRefs.current.set(itemId, el);
+    } else {
+      itemRefs.current.delete(itemId);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
+      window.removeEventListener('pointerup', finishDrag);
+      stopAutoScroll();
+    };
+  }, [finishDrag, handleGlobalPointerMove, stopAutoScroll]);
 
   const toggleReorderMode = useCallback(() => {
     if (search.trim().length > 0) {
@@ -954,25 +1139,43 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
       {sortedBooks.length === 0 ? (
         <div className="py-8 text-sm text-gray-500">{t('library.empty')}</div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 relative">
           {sortedBooks.map((book, index) => (
-            <BookCardV2
+            <SortableBookItem
               key={book.id}
-              book={book}
-              onOpen={(selectedBook) =>
-                changeRoute({
-                  kind: 'details',
-                  tab: currentTab,
-                  bookId: selectedBook.id,
-                })
-              }
-              reorderMode={isReorderMode}
-              canMoveUp={index > 0}
-              canMoveDown={index < sortedBooks.length - 1}
-              onMoveUp={() => moveBookInTab(book.id, 'up')}
-              onMoveDown={() => moveBookInTab(book.id, 'down')}
-            />
+              itemId={book.id}
+              showHandle={isReorderMode}
+              performanceMode={true}
+              isDragging={draggingBookId === book.id}
+              onHandlePointerDown={startDragFromHandle}
+              setItemRef={setItemRef}
+            >
+              <BookCardV2
+                book={book}
+                onOpen={(selectedBook) =>
+                  changeRoute({
+                    kind: 'details',
+                    tab: currentTab,
+                    bookId: selectedBook.id,
+                  })
+                }
+                reorderMode={isReorderMode}
+              />
+            </SortableBookItem>
           ))}
+          {draggingBookId && indicatorTop !== null && (
+            <div
+              className="pointer-events-none fixed z-40 h-1.5 rounded-full"
+              style={{
+                left: '1.25rem',
+                right: '1.25rem',
+                top: `${Math.round(indicatorTop)}px`,
+                transform: 'translateY(calc(-50% - 12px))',
+                backgroundColor: 'var(--accent-600)',
+                boxShadow: '0 0 0 3px var(--bg-main), 0 0 12px var(--accent-600)',
+              }}
+            />
+          )}
         </div>
       )}
     </div>

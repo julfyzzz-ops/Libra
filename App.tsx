@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { BarChart2, Book as BookIcon, Calendar as CalendarIcon, Library as LibraryIcon, Settings as SettingsIcon } from 'lucide-react';
-import { AddBook } from './components/AddBook';
 import { Calendar } from './components/Calendar';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Library } from './components/Library';
 import { ReadingList } from './components/ReadingList';
 import { Settings } from './components/Settings';
 import { Statistics } from './components/Statistics';
@@ -40,12 +38,6 @@ const AppContent: React.FC = () => {
     }
   }, [filterTag]);
 
-  useEffect(() => {
-    if (settings.uiV2Enabled && activeView === 'add') {
-      setActiveView('library');
-    }
-  }, [activeView, settings.uiV2Enabled]);
-
   const handleSettingsChange = useCallback((nextSettings: AppSettings) => {
     setSettings(nextSettings);
   }, []);
@@ -59,40 +51,23 @@ const AppContent: React.FC = () => {
       );
     }
 
-    if (settings.uiV2Enabled) {
-      switch (activeView) {
-        case 'statistics':
-          return <Statistics />;
-        case 'library':
-          return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
-        case 'reading':
-          return <ReadingList />;
-        case 'add':
-          return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
-        case 'calendar':
-          return <Calendar />;
-        case 'wishlist':
-          return null;
-        case 'settings':
-          return <Settings onSettingsChange={handleSettingsChange} />;
-      }
-    }
-
     switch (activeView) {
       case 'statistics':
         return <Statistics />;
       case 'library':
-        return <Library onAddClick={() => setActiveView('add')} />;
+        return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
       case 'reading':
         return <ReadingList />;
       case 'add':
-        return <AddBook onAddSuccess={() => setActiveView('library')} onCancel={() => setActiveView('library')} />;
+        return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
       case 'calendar':
         return <Calendar />;
       case 'wishlist':
         return null;
       case 'settings':
         return <Settings onSettingsChange={handleSettingsChange} />;
+      default:
+        return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
     }
   };
 

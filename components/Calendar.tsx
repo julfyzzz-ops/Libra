@@ -278,14 +278,14 @@ export const Calendar: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in">
+    <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in duration-500">
       <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Календар</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Календар</h1>
         <button 
             onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
-            className="p-3 bg-white rounded-2xl border border-gray-100 text-gray-500 shadow-sm active:scale-95 transition-all"
+            className="w-12 h-12 bg-white rounded-2xl border border-gray-100 text-gray-400 shadow-sm active:scale-95 transition-all flex items-center justify-center hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100"
         >
-            {viewMode === 'month' ? <Grid size={20} /> : <CalendarIcon size={20} />}
+            {viewMode === 'month' ? <Grid size={22} /> : <CalendarIcon size={22} />}
         </button>
       </header>
 
@@ -294,63 +294,65 @@ export const Calendar: React.FC = () => {
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-all duration-300 select-none"
+        className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 transition-all duration-300 select-none"
       >
-        <div className="flex justify-between items-center mb-6">
-          <button onClick={handlePrev} className="p-3 hover:bg-gray-50 rounded-2xl transition-colors text-gray-600">
-            <ChevronLeft size={20} />
+        <div className="flex justify-between items-center mb-8">
+          <button onClick={handlePrev} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
+            <ChevronLeft size={24} />
           </button>
           
           <button 
              onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
-             className="text-lg font-bold capitalize flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+             className="text-xl font-bold capitalize flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-colors"
           >
-             {viewMode === 'month' && <span className="text-gray-400 font-normal">{year}</span>}
-             <span className="text-indigo-900">{viewMode === 'month' ? monthName : year}</span>
+             {viewMode === 'month' && <span className="text-gray-300 font-medium">{year}</span>}
+             <span className="text-indigo-950">{viewMode === 'month' ? monthName : year}</span>
           </button>
 
-          <button onClick={handleNext} className="p-3 hover:bg-gray-50 rounded-2xl transition-colors text-gray-600">
-            <ChevronRight size={20} />
+          <button onClick={handleNext} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
+            <ChevronRight size={24} />
           </button>
         </div>
 
-        {viewMode === 'month' ? renderMonthView() : renderYearView()}
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+          {viewMode === 'month' ? renderMonthView() : renderYearView()}
+        </div>
       </div>
 
       {/* Activity Stats */}
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 transition-all duration-300">
-         <div className="flex justify-between items-end mb-4">
+      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 transition-all duration-300">
+         <div className="flex justify-between items-start mb-6">
              <div>
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Читацька активність</h3>
-                <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Читацька активність</h3>
+                <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
                     {selectedDay ? (
-                        <span className="text-indigo-600 font-bold">{selectedDay} {monthName}</span>
+                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{selectedDay} {monthName}</span>
                     ) : (
-                        <span>{viewMode === 'month' ? `За ${monthName.toLowerCase()}` : `За ${year} рік`}</span>
+                        <span className="text-gray-600">{viewMode === 'month' ? `За ${monthName.toLowerCase()}` : `За ${year} рік`}</span>
                     )}
                 </p>
              </div>
-             <div className="flex items-baseline gap-1">
-                 <span className="text-4xl font-black text-indigo-600 tracking-tighter">{activeStats.count}</span>
-                 <span className="text-xs font-bold text-gray-400 uppercase">Книг</span>
+             <div className="flex flex-col items-end">
+                 <span className="text-4xl font-black text-indigo-600 tracking-tighter leading-none">{activeStats.count}</span>
+                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Книг</span>
              </div>
          </div>
 
          {/* Detailed Stats Cards */}
          {activeStats.pages > 0 && (
-             <div className="grid grid-cols-2 gap-3 mb-4 animate-in fade-in slide-in-from-bottom-2">
-                 <div className="bg-emerald-50 p-3 rounded-2xl flex items-center gap-3">
-                     <div className="p-2 bg-emerald-100 text-emerald-600 rounded-full"><FileText size={16} /></div>
+             <div className="grid grid-cols-2 gap-3 mb-6 animate-in fade-in slide-in-from-bottom-2">
+                 <div className="bg-emerald-50/50 p-4 rounded-3xl flex items-center gap-3 border border-emerald-100/50">
+                     <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm"><FileText size={18} /></div>
                      <div>
-                         <p className="text-[10px] font-bold text-emerald-400 uppercase">Прочитано</p>
-                         <p className="text-lg font-black text-emerald-700 leading-none">{activeStats.pages} <span className="text-[10px] font-medium opacity-70">стор.</span></p>
+                         <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Сторінок</p>
+                         <p className="text-xl font-black text-emerald-700 leading-none">{activeStats.pages}</p>
                      </div>
                  </div>
-                 <div className="bg-amber-50 p-3 rounded-2xl flex items-center gap-3">
-                     <div className="p-2 bg-amber-100 text-amber-600 rounded-full"><Clock size={16} /></div>
+                 <div className="bg-amber-50/50 p-4 rounded-3xl flex items-center gap-3 border border-amber-100/50">
+                     <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm"><Clock size={18} /></div>
                      <div>
-                         <p className="text-[10px] font-bold text-amber-400 uppercase">Час</p>
-                         <p className="text-lg font-black text-amber-700 leading-none">{activeStats.time > 0 ? Math.round(activeStats.time / 60) : 0} <span className="text-[10px] font-medium opacity-70">хв.</span></p>
+                         <p className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">Час</p>
+                         <p className="text-xl font-black text-amber-700 leading-none">{activeStats.time > 0 ? Math.round(activeStats.time / 60) : 0} <span className="text-xs font-bold opacity-60">хв</span></p>
                      </div>
                  </div>
              </div>
@@ -358,27 +360,29 @@ export const Calendar: React.FC = () => {
 
          <div className="space-y-3">
             {activeStats.list.length === 0 ? (
-               <div className="text-center py-6 text-gray-300 flex flex-col items-center">
-                   <BookOpen size={32} className="mb-2 opacity-20" />
-                   <p className="text-xs italic">Немає активності за цей період</p>
+               <div className="text-center py-10 text-gray-300 flex flex-col items-center">
+                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 border border-gray-100">
+                      <BookOpen size={28} className="opacity-20" />
+                   </div>
+                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Немає активності</p>
                </div>
             ) : (
-               <div className="grid grid-cols-1 gap-2">
+               <div className="grid grid-cols-1 gap-3">
                    {visibleStatsBooks.map(book => (
                       <div 
                         key={book.id} 
                         onClick={() => setSelectedBook(book)}
-                        className="flex items-center gap-4 p-2.5 bg-gray-50 rounded-2xl group cursor-pointer active:scale-95 transition-all hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
+                        className="flex items-center gap-4 p-3 bg-gray-50/50 rounded-[1.5rem] group cursor-pointer active:scale-[0.98] transition-all hover:bg-indigo-50 border border-gray-100/50 hover:border-indigo-100 shadow-sm"
                       >
-                        <div className="w-10 h-14 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
-                           <BookCover book={book} className="w-full h-full" iconSize={16} />
+                        <div className="w-12 h-16 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
+                           <BookCover book={book} className="w-full h-full" iconSize={18} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs text-gray-800 truncate">{book.title}</h4>
-                          <p className="text-[10px] text-gray-500 truncate">{book.author}</p>
+                          <h4 className="font-bold text-sm text-gray-800 truncate mb-0.5">{book.title}</h4>
+                          <p className="text-[11px] text-gray-500 truncate font-medium">{book.author}</p>
                         </div>
                         {(book.rating || 0) > 0 && (
-                            <div className="px-2 py-1 bg-white rounded-lg shadow-sm text-[10px] font-black text-indigo-600 border border-gray-100">
+                            <div className="w-8 h-8 bg-white rounded-xl shadow-sm text-xs font-black text-indigo-600 border border-gray-100 flex items-center justify-center">
                                 {book.rating}
                             </div>
                         )}
@@ -386,8 +390,8 @@ export const Calendar: React.FC = () => {
                     ))}
                     
                     {hasMore && (
-                        <div ref={observerTarget} className="flex justify-center py-2">
-                            <Loader2 className="animate-spin text-gray-300" size={16} />
+                        <div ref={observerTarget} className="flex justify-center py-4">
+                            <Loader2 className="animate-spin text-indigo-300" size={20} />
                         </div>
                     )}
                </div>

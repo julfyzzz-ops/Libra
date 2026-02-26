@@ -57,12 +57,6 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
     saveAndApply({ ...settings, language });
   };
 
-  const handleToggleUiV2 = () => {
-    const next = { ...settings, uiV2Enabled: !settings.uiV2Enabled };
-    saveAndApply(next);
-    toast.show(next.uiV2Enabled ? t('settings.toast.uiV2On') : t('settings.toast.uiV2Off'), 'info');
-  };
-
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -153,20 +147,25 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
   const bgLabel = (bg: BackgroundTone) => t(`bg.${bg}` as MessageKey);
 
   return (
-    <div className="p-4 space-y-6 pb-24 text-gray-800">
+    <div className="p-4 space-y-8 pb-32 text-gray-800 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-3xl font-bold text-gray-800">{t('settings.title')}</h1>
-        <p className="text-gray-500">{t('settings.subtitle')}</p>
+        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('settings.title')}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t('settings.subtitle')}</p>
       </header>
 
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-          <Palette size={14} /> {t('settings.interface')}
-        </h3>
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-8">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+              <Palette size={20} />
+           </div>
+           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+             {t('settings.interface')}
+           </h3>
+        </div>
 
-        <div className="space-y-3">
-          <label className="text-sm font-bold text-gray-700">{t('settings.language')}</label>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-4">
+          <label className="text-sm font-bold text-gray-700 ml-1">{t('settings.language')}</label>
+          <div className="grid grid-cols-2 gap-3">
             {(['en', 'uk'] as AppLanguage[]).map((lang) => {
               const active = (settings.language || 'en') === lang;
               return (
@@ -174,8 +173,8 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
                   key={lang}
                   type="button"
                   onClick={() => updateLanguage(lang)}
-                  className={`h-11 rounded-xl border text-xs font-bold transition-all ${
-                    active ? 'border-indigo-500 ring-1 ring-indigo-500 text-indigo-700 bg-indigo-50' : 'border-gray-100 text-gray-500 hover:border-gray-300'
+                  className={`h-12 rounded-2xl border text-xs font-bold transition-all ${
+                    active ? 'border-indigo-500 ring-2 ring-indigo-500/10 text-indigo-700 bg-indigo-50' : 'border-gray-100 text-gray-500 hover:border-gray-300 bg-gray-50/50'
                   }`}
                 >
                   {lang === 'en' ? t('settings.lang.en') : t('settings.lang.uk')}
@@ -185,88 +184,80 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <label className="text-sm font-bold text-gray-700">{t('settings.accent')}</label>
-          <div className="flex flex-wrap gap-3">
+        <div className="space-y-4">
+          <label className="text-sm font-bold text-gray-700 ml-1">{t('settings.accent')}</label>
+          <div className="flex flex-wrap gap-4">
             {Object.entries(ACCENT_COLORS).map(([key, val]) => (
               <button
                 key={key}
                 onClick={() => updateAccent(key as AccentColor)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  settings.accent === key ? 'ring-4 ring-gray-200 scale-110' : 'hover:scale-105'
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+                  settings.accent === key ? 'ring-4 ring-indigo-100 scale-110' : 'hover:scale-105'
                 }`}
                 style={{ backgroundColor: val.hex }}
                 title={accentLabel(key as AccentColor)}
               >
-                {settings.accent === key && <CheckCircle2 size={20} className="text-white drop-shadow-md" />}
+                {settings.accent === key && <CheckCircle2 size={22} className="text-white drop-shadow-md" />}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="space-y-3 pt-2">
-          <label className="text-sm font-bold text-gray-700">{t('settings.background')}</label>
-          <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-4 pt-2">
+          <label className="text-sm font-bold text-gray-700 ml-1">{t('settings.background')}</label>
+          <div className="grid grid-cols-3 gap-3">
             {Object.entries(BACKGROUND_TONES).map(([key, val]) => (
               <button
                 key={key}
                 onClick={() => updateBg(key as BackgroundTone)}
-                className={`h-12 rounded-xl border flex items-center justify-center text-xs font-bold transition-all ${
-                  settings.bg === key ? 'border-indigo-500 ring-1 ring-indigo-500 text-indigo-700' : 'border-gray-100 text-gray-500 hover:border-gray-300'
+                className={`h-14 rounded-2xl border flex flex-col items-center justify-center text-[10px] font-bold transition-all ${
+                  settings.bg === key ? 'border-indigo-500 ring-2 ring-indigo-500/10 text-indigo-700 bg-indigo-50' : 'border-gray-100 text-gray-500 hover:border-gray-300 bg-gray-50/50'
                 }`}
                 style={{ backgroundColor: val.vars.card }}
               >
+                <div className="w-4 h-4 rounded-full mb-1 border border-gray-200" style={{ backgroundColor: val.vars.main }} />
                 {bgLabel(key as BackgroundTone)}
               </button>
             ))}
           </div>
         </div>
-
-        <div className="space-y-3 pt-2">
-          <label className="text-sm font-bold text-gray-700">{t('settings.uiV2')}</label>
-          <button
-            type="button"
-            onClick={handleToggleUiV2}
-            className={`w-full py-3 rounded-2xl border text-sm font-bold transition-all ${
-              settings.uiV2Enabled ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-600 border-gray-200'
-            }`}
-          >
-            {settings.uiV2Enabled ? t('common.enabled') : t('common.disabled')}
-          </button>
-          <p className="text-xs text-gray-500">{t('settings.uiV2Help')}</p>
-        </div>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.backupTitle')}</h3>
-        <p className="text-sm text-gray-500">{t('settings.backupSubtitle')}</p>
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+              <ShieldCheck size={20} />
+           </div>
+           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.backupTitle')}</h3>
+        </div>
+        <p className="text-sm text-gray-500 leading-relaxed">{t('settings.backupSubtitle')}</p>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <button
             onClick={handleExport}
             disabled={isImporting || isExporting}
-            className="bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
+            className="bg-indigo-50 text-indigo-700 py-5 rounded-[2rem] font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
           >
             {isExporting ? <Loader2 className="animate-spin" size={24} /> : <Download size={24} />}
-            <span className="text-xs">{isExporting ? t('settings.exporting') : t('settings.export')}</span>
+            <span className="text-[10px] uppercase tracking-widest">{isExporting ? t('settings.exporting') : t('settings.export')}</span>
           </button>
 
           <button
             onClick={handleImportClick}
             disabled={isImporting || isExporting}
-            className="bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100 disabled:opacity-50"
+            className="bg-gray-50 text-gray-700 py-5 rounded-[2rem] font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-gray-100 hover:bg-gray-100 disabled:opacity-50"
           >
             <Upload size={24} />
-            <span className="text-xs">{t('settings.importJson')}</span>
+            <span className="text-[10px] uppercase tracking-widest">{t('settings.importJson')}</span>
           </button>
 
           <button
             onClick={handleCsvImportClick}
             disabled={isImporting || isExporting}
-            className="col-span-2 bg-emerald-50 text-emerald-700 py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
+            className="col-span-2 bg-emerald-50 text-emerald-700 py-5 rounded-[2rem] font-bold flex flex-col items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
           >
             {isImporting ? <Loader2 className="animate-spin" size={24} /> : <FileSpreadsheet size={24} />}
-            <span className="text-xs">{isImporting ? t('settings.importingCovers') : t('settings.importCsv')}</span>
+            <span className="text-[10px] uppercase tracking-widest">{isImporting ? t('settings.importingCovers') : t('settings.importCsv')}</span>
           </button>
 
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
@@ -274,41 +265,48 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-          <Bug size={14} /> {t('settings.debugTitle')}
-        </h3>
-        <p className="text-sm text-gray-500">{t('settings.debugHelp')}</p>
-        <div className="flex items-center justify-between gap-3">
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm">
+              <Bug size={20} />
+           </div>
+           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.debugTitle')}</h3>
+        </div>
+        <p className="text-sm text-gray-500 leading-relaxed">{t('settings.debugHelp')}</p>
+        <div className="flex items-center justify-between gap-4">
           <button
             onClick={handleToggleDebugMode}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+            className={`px-6 py-3 rounded-2xl text-xs font-bold border transition-all ${
               debugEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'
             }`}
           >
             {debugEnabled ? t('common.enabled') : t('common.disabled')}
           </button>
-          <button onClick={() => setShowDebugLogs(true)} className="px-4 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">
+          <button onClick={() => setShowDebugLogs(true)} className="px-6 py-3 rounded-2xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm active:scale-95">
             {t('settings.openLogs')}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.aboutTitle')}</h3>
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="text-indigo-600" size={20} />
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">{t('settings.aboutTitle')}</h3>
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm flex-shrink-0">
+              <ShieldCheck size={20} />
+            </div>
             <div className="text-sm">
-              <p className="font-bold text-gray-800">{t('settings.localStorageTitle')}</p>
-              <p className="text-gray-500 text-xs">{t('settings.localStorageDesc')}</p>
+              <p className="font-bold text-gray-800 mb-0.5">{t('settings.localStorageTitle')}</p>
+              <p className="text-gray-500 text-xs leading-relaxed">{t('settings.localStorageDesc')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="text-emerald-500" size={20} />
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shadow-sm flex-shrink-0">
+              <CheckCircle2 size={20} />
+            </div>
             <div className="text-sm">
-              <p className="font-bold text-gray-800">Libra v2.0</p>
-              <p className="text-gray-500 text-xs">{t('settings.versionDesc')}</p>
+              <p className="font-bold text-gray-800 mb-0.5">Libra v2.0</p>
+              <p className="text-gray-500 text-xs leading-relaxed">{t('settings.versionDesc')}</p>
             </div>
           </div>
         </div>
