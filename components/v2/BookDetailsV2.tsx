@@ -84,42 +84,58 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
 
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-100">
-          <div className="flex gap-4">
-            <div className="w-24 h-32 rounded-xl border border-gray-100 overflow-hidden bg-gray-50 flex-shrink-0">
-              <BookCover book={book} className="w-full h-full" iconSize={22} />
+          <div className="flex gap-5">
+            <div className="w-32 aspect-[2/3] rounded-xl border border-gray-100 overflow-hidden bg-gray-50 flex-shrink-0 shadow-lg">
+              <BookCover book={book} className="w-full h-full" iconSize={32} />
             </div>
             <div className="min-w-0 flex-1 flex flex-col justify-end">
-              <span
-                className={`inline-block w-fit px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                  book.status === 'Completed'
-                    ? 'bg-emerald-50 text-emerald-600'
-                    : book.status === 'Wishlist'
-                      ? 'bg-pink-50 text-pink-600'
-                      : 'bg-indigo-50 text-indigo-600'
-                }`}
-              >
-                {statusLabel(book.status)}
-              </span>
-              <h1 className="text-xl font-bold text-gray-800 leading-tight mt-2">{book.title}</h1>
+              {isWishlist ? (
+                <button
+                  onClick={onStartReadingWishlist}
+                  disabled={isBusy}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 mb-3 shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-60"
+                >
+                  <BookOpen size={16} />
+                  <span className="text-xs">{t('details.startReading')}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenReadingMode}
+                  disabled={isBusy}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 mb-3 shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-60"
+                >
+                  <BookOpen size={16} />
+                  <span className="text-xs">{t('details.openReading')}</span>
+                </button>
+              )}
+
+              <div className="mb-2">
+                <span
+                  className={`inline-block w-fit px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                    book.status === 'Completed'
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : book.status === 'Wishlist'
+                        ? 'bg-pink-50 text-pink-600'
+                        : 'bg-indigo-50 text-indigo-600'
+                  }`}
+                >
+                  {statusLabel(book.status)}
+                </span>
+              </div>
+              
+              <h1 className="text-xl font-bold text-gray-800 leading-tight line-clamp-3">{book.title}</h1>
               {book.author ? (
                 <button
                   type="button"
                   onClick={() => runTagFilter(book.author)}
                   disabled={isBusy}
-                  className="text-sm font-medium text-indigo-700 mt-1 truncate underline-offset-2 hover:underline disabled:opacity-60 text-left"
+                  className="text-sm font-medium text-gray-500 mt-1 truncate hover:text-indigo-600 transition-colors text-left active:scale-95"
                 >
                   {book.author}
                 </button>
               ) : (
                 <p className="text-sm text-gray-500 mt-1">{fallback}</p>
               )}
-              <div className="flex flex-wrap gap-1 mt-2">
-                {(book.formats || []).map((format) => (
-                  <span key={format} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold">
-                    {formatLabel(format)}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -299,26 +315,6 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
           )}
 
           <div className="space-y-2 pt-1">
-            {isWishlist ? (
-              <button
-                onClick={onStartReadingWishlist}
-                disabled={isBusy}
-                className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                <BookOpen size={18} />
-                <span>{t('details.startReading')}</span>
-              </button>
-            ) : (
-              <button
-                onClick={onOpenReadingMode}
-                disabled={isBusy}
-                className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                <BookOpen size={18} />
-                <span>{t('details.openReading')}</span>
-              </button>
-            )}
-
             <div className="flex gap-2">
               <button
                 onClick={onEdit}

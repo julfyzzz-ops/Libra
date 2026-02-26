@@ -9,7 +9,7 @@ interface BookCoverProps {
   iconSize?: number;
 }
 
-export const BookCover: React.FC<BookCoverProps> = ({ book, className, iconSize = 24 }) => {
+export const BookCover: React.FC<BookCoverProps> = React.memo(({ book, className, iconSize = 24 }) => {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -53,4 +53,4 @@ export const BookCover: React.FC<BookCoverProps> = ({ book, className, iconSize 
        <BookIcon size={iconSize} />
     </div>
   );
-};
+});

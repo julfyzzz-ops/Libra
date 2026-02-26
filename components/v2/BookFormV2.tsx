@@ -21,8 +21,8 @@ interface BookFormV2Props {
 
 const sanitizeText = (value: string, maxLen: number): string => {
   return value
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '')
-    .slice(0, maxLen);
+    .slice(0, maxLen)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, '');
 };
 
 const normalizeFormats = (formats?: BookFormat[]): BookFormat[] => {
@@ -153,7 +153,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       pagesTotal: Math.max(0, Number(form.pagesTotal) || 0),
       pagesRead: 0,
       coverUrl: ((form.coverUrl as string) || blobPreviewUrl || '') as string,
-      coverBlob: form.coverBlob,
+      coverBlob: undefined, // Optimization: BookCover will use coverUrl (which is either external or blob URL)
       notes: (form.notes || '') as string,
       comment: (form.comment || '') as string,
       seasons: normalizeSeasons(form.seasons),
@@ -165,7 +165,6 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       blobPreviewUrl,
       form.author,
       form.comment,
-      form.coverBlob,
       form.coverUrl,
       form.formats,
       form.genre,
@@ -181,6 +180,21 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       initialValue.sessions,
       t,
     ]
+  );
+
+  const previewBookForCover = useMemo<Book>(
+    () => ({
+      id: '__preview__',
+      title: (form.title || t('bookForm.preview')) as string,
+      coverUrl: ((form.coverUrl as string) || blobPreviewUrl || '') as string,
+      coverBlob: undefined,
+      // Fill required fields with dummies
+      author: '',
+      status: 'Unread',
+      addedAt: '',
+      formats: [],
+    } as Book),
+    [form.title, form.coverUrl, blobPreviewUrl, t]
   );
 
   const effectiveCoverUrl = ((form.coverUrl as string) || blobPreviewUrl || '').trim();
@@ -286,11 +300,11 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex justify-center">
-            <div className="relative w-24">
-              <div className="w-24 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+          <div className="flex gap-5 mb-6">
+            <div className="relative w-32 flex-shrink-0">
+              <div className="w-32 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
                 {effectiveCoverUrl ? (
-                  <BookCover book={previewBook} className="w-full h-full" iconSize={20} />
+                  <BookCover book={previewBookForCover} className="w-full h-full" iconSize={32} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-300">
                     <ImageIcon size={22} />
@@ -298,39 +312,50 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                   </div>
                 )}
               </div>
+              
+              {!effectiveCoverUrl && (
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                     <span className="sr-only">Upload</span>
+                 </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleMagicSearch}
                 disabled={isSubmitting || isMagicLoading}
-                className="absolute top-0 -right-14 bg-white p-3 rounded-2xl text-indigo-600 shadow-lg border border-indigo-50 active:scale-95 transition-all disabled:opacity-50"
+                className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-full text-indigo-600 shadow-sm border border-indigo-50 active:scale-95 transition-all disabled:opacity-50 z-20"
                 title={t('bookForm.magicSearch')}
                 aria-label={t('bookForm.magicSearch')}
               >
-                {isMagicLoading ? <Loader2 className="animate-spin" size={20} /> : <Wand2 size={20} />}
+                {isMagicLoading ? <Loader2 className="animate-spin" size={16} /> : <Wand2 size={16} />}
               </button>
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.title')}</label>
-            <input
-              required
-              maxLength={180}
-              className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-sm font-bold"
-              value={form.title || ''}
-              onChange={(e) => updateForm('title', sanitizeText(e.target.value, 180))}
-            />
-          </div>
+            <div className="flex-1 space-y-3 min-w-0">
+               <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.title')}</label>
+                <input
+                  required
+                  maxLength={180}
+                  className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-sm font-bold"
+                  value={form.title || ''}
+                  onChange={(e) => updateForm('title', sanitizeText(e.target.value, 180))}
+                  placeholder={t('bookForm.title')}
+                />
+              </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.author')}</label>
-            <input
-              required
-              maxLength={140}
-              className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-sm font-bold"
-              value={form.author || ''}
-              onChange={(e) => updateForm('author', sanitizeText(e.target.value, 140))}
-            />
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.author')}</label>
+                <input
+                  required
+                  maxLength={140}
+                  className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-sm font-bold"
+                  value={form.author || ''}
+                  onChange={(e) => updateForm('author', sanitizeText(e.target.value, 140))}
+                  placeholder={t('bookForm.author')}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -465,6 +490,35 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
             </div>
           </div>
 
+          {form.status === 'Completed' && (
+            <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('details.completed')}</label>
+                <input
+                  type="date"
+                  className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none"
+                  value={form.completedAt ? form.completedAt.substring(0, 10) : ''}
+                  onChange={(e) => updateForm('completedAt', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('details.rating')}</label>
+                <select
+                  className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none"
+                  value={form.rating || 0}
+                  onChange={(e) => updateForm('rating', parseInt(e.target.value))}
+                >
+                  <option value={0}>{t('common.unknown')}</option>
+                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('bookForm.seasons')}</label>
             <div className="grid grid-cols-2 gap-2">
@@ -515,7 +569,15 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
               maxLength={80}
               className="w-full bg-gray-50 p-3 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none text-xs font-medium"
               value={form.notes || ''}
-              onChange={(e) => updateForm('notes', sanitizeText(e.target.value, 80))}
+              onChange={(e) => {
+                const val = e.target.value;
+                try {
+                  const clean = val.replace(/[^\p{Extended_Pictographic}\s]/gu, '');
+                  updateForm('notes', clean);
+                } catch (error) {
+                  updateForm('notes', val);
+                }
+              }}
               placeholder={t('bookForm.notesPlaceholder')}
             />
           </div>
