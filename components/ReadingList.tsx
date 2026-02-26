@@ -42,8 +42,8 @@ export const ReadingList: React.FC = () => {
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Читаю</h1>
-        <p className="text-gray-500 text-sm mt-1">Книги в процесі</p>
+        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('reading.title')}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t('reading.subtitle')}</p>
       </header>
 
       {readingBooks.length === 0 ? (
@@ -51,8 +51,8 @@ export const ReadingList: React.FC = () => {
            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-100">
               <BookOpen size={32} className="opacity-20" />
            </div>
-           <p className="text-lg font-bold text-gray-400">Ви зараз нічого не читаєте</p>
-           <p className="text-xs mt-1">Оберіть книгу з бібліотеки</p>
+           <p className="text-lg font-bold text-gray-400">{t('reading.empty')}</p>
+           <p className="text-xs mt-1">{t('reading.emptyAction')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -76,7 +76,7 @@ export const ReadingList: React.FC = () => {
                     
                     <div className="space-y-2">
                        <div className="flex justify-between items-end">
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Прогрес</span>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{t('reading.progress')}</span>
                           <span className="text-xs font-black text-indigo-600">{progress}%</span>
                        </div>
                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -88,11 +88,11 @@ export const ReadingList: React.FC = () => {
                        <div className="flex justify-between items-center">
                           <div className="flex gap-1">
                              {book.formats.slice(0, 1).map(f => (
-                                <span key={f} className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded-md font-bold border border-gray-100 uppercase">{f}</span>
+                                <span key={f} className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded-md font-bold border border-gray-100 uppercase">{t(`format.${f}` as any)}</span>
                              ))}
                           </div>
                           <p className="text-[10px] text-gray-400 font-bold">
-                             {book.pagesRead} / {getBookPageTotal(book)} ст.
+                             {book.pagesRead} / {getBookPageTotal(book)} {t('details.unit.pages')}
                           </p>
                        </div>
                     </div>

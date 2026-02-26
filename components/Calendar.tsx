@@ -77,7 +77,7 @@ export const Calendar: React.FC = () => {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
   const adjustedFirstDay = (firstDayOfMonth + 6) % 7; 
 
-  const monthName = currentDate.toLocaleString('uk-UA', { month: 'long' });
+  const monthName = currentDate.toLocaleString(t('settings.lang.en') === 'English' ? 'en-US' : 'uk-UA', { month: 'long' });
   const year = currentDate.getFullYear();
 
   const isBookReadInMonth = (book: Book, yearStr: number, monthIndex: number) => {
@@ -209,7 +209,7 @@ export const Calendar: React.FC = () => {
       return (
         <>
             <div className="grid grid-cols-7 gap-1 mb-2">
-            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'].map(d => (
+            {[t('calendar.mon'), t('calendar.tue'), t('calendar.wed'), t('calendar.thu'), t('calendar.fri'), t('calendar.sat'), t('calendar.sun')].map(d => (
                 <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase">{d}</div>
             ))}
             </div>
@@ -255,10 +255,11 @@ export const Calendar: React.FC = () => {
   };
 
   const renderYearView = () => {
-      const months = [
-          'Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
-          'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'
-      ];
+      const months = Array.from({ length: 12 }, (_, i) => {
+          const d = new Date(year, i, 1);
+          const name = d.toLocaleString(t('settings.lang.en') === 'English' ? 'en-US' : 'uk-UA', { month: 'long' });
+          return name.charAt(0).toUpperCase() + name.slice(1);
+      });
 
       return (
           <div className="grid grid-cols-3 gap-3">
@@ -303,7 +304,7 @@ export const Calendar: React.FC = () => {
   return (
     <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in duration-500">
       <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Календар</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('calendar.title')}</h1>
         <button 
             onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
             className="w-12 h-12 bg-white rounded-2xl border border-gray-100 text-gray-400 shadow-sm active:scale-95 transition-all flex items-center justify-center hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100"
@@ -346,18 +347,18 @@ export const Calendar: React.FC = () => {
       <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 transition-all duration-300">
          <div className="flex justify-between items-start mb-6">
              <div>
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Читацька активність</h3>
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{t('calendar.activity')}</h3>
                 <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
                     {selectedDay ? (
                         <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{selectedDay} {monthName}</span>
                     ) : (
-                        <span className="text-gray-600">{viewMode === 'month' ? `За ${monthName.toLowerCase()}` : `За ${year} рік`}</span>
+                        <span className="text-gray-600">{viewMode === 'month' ? t('calendar.forMonth', { month: monthName.toLowerCase() }) : t('calendar.forYear', { year: year })}</span>
                     )}
                 </p>
              </div>
              <div className="flex flex-col items-end">
                  <span className="text-4xl font-black text-indigo-600 tracking-tighter leading-none">{activeStats.count}</span>
-                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Книг</span>
+                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">{t('calendar.books')}</span>
              </div>
          </div>
 
@@ -367,15 +368,15 @@ export const Calendar: React.FC = () => {
                  <div className="bg-emerald-50/50 p-4 rounded-3xl flex items-center gap-3 border border-emerald-100/50">
                      <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm"><FileText size={18} /></div>
                      <div>
-                         <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Сторінок</p>
+                         <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">{t('calendar.pages')}</p>
                          <p className="text-xl font-black text-emerald-700 leading-none">{activeStats.pages}</p>
                      </div>
                  </div>
                  <div className="bg-amber-50/50 p-4 rounded-3xl flex items-center gap-3 border border-amber-100/50">
                      <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm"><Clock size={18} /></div>
                      <div>
-                         <p className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">Час</p>
-                         <p className="text-xl font-black text-amber-700 leading-none">{activeStats.time > 0 ? Math.round(activeStats.time / 60) : 0} <span className="text-xs font-bold opacity-60">хв</span></p>
+                         <p className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">{t('calendar.time')}</p>
+                         <p className="text-xl font-black text-amber-700 leading-none">{activeStats.time > 0 ? Math.round(activeStats.time / 60) : 0} <span className="text-xs font-bold opacity-60">{t('details.unit.minutes')}</span></p>
                      </div>
                  </div>
              </div>
@@ -387,7 +388,7 @@ export const Calendar: React.FC = () => {
                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 border border-gray-100">
                       <BookOpen size={28} className="opacity-20" />
                    </div>
-                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Немає активності</p>
+                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('calendar.noActivity')}</p>
                </div>
             ) : (
                <div className="grid grid-cols-1 gap-3">

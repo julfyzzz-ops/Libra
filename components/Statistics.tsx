@@ -11,17 +11,19 @@ import {
   Trophy
 } from 'lucide-react';
 import { useLibrary } from '../contexts/LibraryContext';
+import { useI18n } from '../contexts/I18nContext';
 import { FORMAT_LABELS } from '../utils';
 import { BookCover } from './ui/BookCover';
 
 type ReadPeriodMode = 'month' | 'year';
 
-const formatPeriodLabel = (date: Date, mode: ReadPeriodMode) => {
+const formatPeriodLabel = (date: Date, mode: ReadPeriodMode, locale: string) => {
+  const lang = locale === 'uk' ? 'uk-UA' : 'en-US';
   if (mode === 'year') {
-    return new Intl.DateTimeFormat('uk-UA', { year: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat(lang, { year: 'numeric' }).format(date);
   }
 
-  const label = new Intl.DateTimeFormat('uk-UA', {
+  const label = new Intl.DateTimeFormat(lang, {
     month: 'long',
     year: 'numeric'
   }).format(date);
@@ -29,12 +31,14 @@ const formatPeriodLabel = (date: Date, mode: ReadPeriodMode) => {
   return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
-const formatCompletedDate = (date: Date) =>
-  new Intl.DateTimeFormat('uk-UA', {
+const formatCompletedDate = (date: Date, locale: string) => {
+  const lang = locale === 'uk' ? 'uk-UA' : 'en-US';
+  return new Intl.DateTimeFormat(lang, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   }).format(date);
+};
 
 const movePeriod = (date: Date, mode: ReadPeriodMode, step: number) =>
   mode === 'month'
@@ -43,6 +47,7 @@ const movePeriod = (date: Date, mode: ReadPeriodMode, step: number) =>
 
 export const Statistics: React.FC = () => {
   const { books } = useLibrary();
+  const { t, locale } = useI18n();
   const [showReadScreen, setShowReadScreen] = useState(false);
   const [periodMode, setPeriodMode] = useState<ReadPeriodMode>('month');
   const [periodDate, setPeriodDate] = useState(() => new Date());
@@ -113,14 +118,14 @@ export const Statistics: React.FC = () => {
               type="button"
               onClick={() => setShowReadScreen(false)}
               className="w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-500 flex items-center justify-center shadow-sm"
-              aria-label="Назад"
+              aria-label={t('common.back')}
             >
               <ArrowLeft size={18} />
             </button>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-gray-800 truncate">Прочитане</h1>
+              <h1 className="text-2xl font-bold text-gray-800 truncate">{t('stats.completedTitle')}</h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                Повністю завершені книги за обраний період
+                {t('stats.completedSubtitle')}
               </p>
             </div>
           </div>
@@ -140,7 +145,7 @@ export const Statistics: React.FC = () => {
                   : 'text-gray-500 hover:bg-white'
               }`}
             >
-              Місяць
+              {t('stats.month')}
             </button>
             <button
               type="button"
@@ -154,7 +159,7 @@ export const Statistics: React.FC = () => {
                   : 'text-gray-500 hover:bg-white'
               }`}
             >
-              Рік
+              {t('stats.year')}
             </button>
           </div>
 
@@ -163,17 +168,16 @@ export const Statistics: React.FC = () => {
               type="button"
               onClick={() => setPeriodDate(prev => movePeriod(prev, periodMode, -1))}
               className="w-10 h-10 rounded-xl border border-gray-100 text-gray-500 bg-gray-50 flex items-center justify-center"
-              aria-label="Попередній період"
             >
               <ChevronLeft size={18} />
             </button>
 
             <div className="text-center min-w-0">
               <p className="text-xs uppercase tracking-wider text-gray-400 font-bold">
-                Обраний період
+                {t('stats.selectedPeriod')}
               </p>
               <p className="text-sm font-bold text-gray-800 truncate">
-                {formatPeriodLabel(periodDate, periodMode)}
+                {formatPeriodLabel(periodDate, periodMode, locale)}
               </p>
             </div>
 
@@ -181,7 +185,6 @@ export const Statistics: React.FC = () => {
               type="button"
               onClick={() => setPeriodDate(prev => movePeriod(prev, periodMode, 1))}
               className="w-10 h-10 rounded-xl border border-gray-100 text-gray-500 bg-gray-50 flex items-center justify-center"
-              aria-label="Наступний період"
             >
               <ChevronRight size={18} />
             </button>
@@ -190,7 +193,7 @@ export const Statistics: React.FC = () => {
           <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                Прочитано повністю
+                {t('stats.completedFully')}
               </p>
               <p className="text-3xl font-black text-indigo-700">
                 {readPeriod.completedBooks.length}
@@ -202,13 +205,13 @@ export const Statistics: React.FC = () => {
 
         <section className="space-y-3">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
-            Список книг
+            {t('stats.bookList')}
           </h2>
 
           {readPeriod.completedBooks.length === 0 ? (
             <div className="bg-white rounded-3xl border border-gray-100 p-8 text-center text-gray-400">
               <BookOpen size={30} className="mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-semibold">У цьому періоді ще немає завершених книг</p>
+              <p className="text-sm font-semibold">{t('stats.noCompleted')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -222,12 +225,12 @@ export const Statistics: React.FC = () => {
                     <h3 className="text-sm font-bold text-gray-800 truncate">{book.title}</h3>
                     <p className="text-xs text-gray-500 truncate">{book.author}</p>
                     <p className="text-[10px] text-gray-400 mt-1">
-                      Формат: {book.formats.map(f => FORMAT_LABELS[f]).join(', ')}
+                      {t('bookForm.formats')}: {book.formats.map(f => t(`format.${f}` as any)).join(', ')}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">Завершено</p>
-                    <p className="text-xs font-bold text-gray-700">{formatCompletedDate(completedDate)}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">{t('stats.completedAt')}</p>
+                    <p className="text-xs font-bold text-gray-700">{formatCompletedDate(completedDate, locale)}</p>
                   </div>
                 </article>
               ))}
@@ -241,8 +244,8 @@ export const Statistics: React.FC = () => {
   return (
     <div className="p-4 space-y-8 pb-32 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Моя полиця</h1>
-        <p className="text-gray-500 text-sm mt-1">Статистика паперової бібліотеки</p>
+        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('stats.title')}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t('stats.subtitle')}</p>
       </header>
 
       <section className="space-y-4">
@@ -253,9 +256,9 @@ export const Statistics: React.FC = () => {
         >
           <div className="text-left">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
-              Історія читання
+              {t('stats.history')}
             </p>
-            <p className="text-base font-bold text-gray-800">Прочитане за місяць / рік</p>
+            <p className="text-base font-bold text-gray-800">{t('stats.historySubtitle')}</p>
           </div>
           <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors">
             <ChevronRight size={20} />
@@ -270,13 +273,13 @@ export const Statistics: React.FC = () => {
           <div className="relative z-10">
             <div className="flex items-baseline gap-2 mb-1">
               <span className="text-7xl font-black tracking-tighter">{stats.total}</span>
-              <span className="text-sm font-bold opacity-80 uppercase tracking-widest">Книг</span>
+              <span className="text-sm font-bold opacity-80 uppercase tracking-widest">{t('stats.booksCount')}</span>
             </div>
-            <p className="text-indigo-100 text-xs font-medium mb-8">Фізичні примірники у вашій колекції</p>
+            <p className="text-indigo-100 text-xs font-medium mb-8">{t('stats.shelfDesc')}</p>
 
             <div className="space-y-3">
               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-90">
-                <span>Прогрес полиці</span>
+                <span>{t('stats.shelfProgress')}</span>
                 <span>{stats.readPercent}%</span>
               </div>
               <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden backdrop-blur-md">
@@ -295,7 +298,7 @@ export const Statistics: React.FC = () => {
               <Trophy size={20} />
             </div>
             <span className="text-3xl font-black text-emerald-700 leading-none">{stats.read}</span>
-            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Прочитано</span>
+            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{t('stats.read')}</span>
           </div>
 
           <div className="bg-amber-50 p-5 rounded-[2rem] border border-amber-100 flex flex-col items-center justify-center gap-2 shadow-sm">
@@ -303,7 +306,7 @@ export const Statistics: React.FC = () => {
               <BookMarked size={20} />
             </div>
             <span className="text-3xl font-black text-amber-700 leading-none">{stats.reading}</span>
-            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Читаю</span>
+            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">{t('stats.reading')}</span>
           </div>
 
           <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100 flex flex-col items-center justify-center gap-2 shadow-sm">
@@ -311,7 +314,7 @@ export const Statistics: React.FC = () => {
               <Library size={20} />
             </div>
             <span className="text-3xl font-black text-slate-700 leading-none">{stats.unread}</span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">В планах</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('stats.planned')}</span>
           </div>
         </div>
       </section>
@@ -320,7 +323,7 @@ export const Statistics: React.FC = () => {
         <section className="space-y-4">
           <div className="flex items-center gap-2 ml-1">
             <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Видавництва</h2>
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('stats.publishers')}</h2>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -350,7 +353,7 @@ export const Statistics: React.FC = () => {
                     <span className="text-xl font-black text-gray-800">{pub.read}</span>
                     <span className="text-xs font-bold text-gray-400">/ {pub.total}</span>
                   </div>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Книг</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{t('stats.booksCount')}</span>
                 </div>
               </div>
             ))}
@@ -361,8 +364,8 @@ export const Statistics: React.FC = () => {
       {stats.total === 0 && (
         <div className="text-center py-12 text-gray-300">
           <BookOpen size={48} className="mx-auto mb-2 opacity-20" />
-          <p className="text-sm font-medium">Ваша паперова полиця порожня</p>
-          <p className="text-xs mt-1">Додайте книги з форматом "Паперова", щоб побачити статистику</p>
+          <p className="text-sm font-medium">{t('stats.empty')}</p>
+          <p className="text-xs mt-1">{t('stats.emptyDesc')}</p>
         </div>
       )}
     </div>
