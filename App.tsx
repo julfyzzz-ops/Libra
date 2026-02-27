@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { BarChart2, Book as BookIcon, Calendar as CalendarIcon, Library as LibraryIcon, Settings as SettingsIcon } from 'lucide-react';
+import { BarChart2, Book as BookIcon, Calendar as CalendarIcon, CalendarDays, Library as LibraryIcon, Settings as SettingsIcon } from 'lucide-react';
 import { Calendar } from './components/Calendar';
+import { History } from './components/History';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ReadingList } from './components/ReadingList';
 import { Settings } from './components/Settings';
@@ -53,21 +54,32 @@ const AppContent: React.FC = () => {
 
     switch (activeView) {
       case 'statistics':
-        return <Statistics />;
+        return <Statistics onBack={() => setActiveView('library')} />;
       case 'library':
-        return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        return <LibraryFlowV2 
+          onNavigateToReading={() => setActiveView('reading')} 
+          onNavigateToStatistics={() => setActiveView('statistics')}
+        />;
       case 'reading':
         return <ReadingList />;
       case 'add':
-        return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        return <LibraryFlowV2 
+          onNavigateToReading={() => setActiveView('reading')} 
+          onNavigateToStatistics={() => setActiveView('statistics')}
+        />;
       case 'calendar':
         return <Calendar />;
+      case 'history':
+        return <History />;
       case 'wishlist':
         return null;
       case 'settings':
         return <Settings onSettingsChange={handleSettingsChange} />;
       default:
-        return <LibraryFlowV2 onNavigateToReading={() => setActiveView('reading')} />;
+        return <LibraryFlowV2 
+          onNavigateToReading={() => setActiveView('reading')} 
+          onNavigateToStatistics={() => setActiveView('statistics')}
+        />;
     }
   };
 
@@ -86,8 +98,8 @@ const AppContent: React.FC = () => {
             label={t('nav.library')}
           />
           <NavButton active={activeView === 'reading'} onClick={() => setActiveView('reading')} icon={<BookIcon size={20} />} label={t('nav.reading')} />
+          <NavButton active={activeView === 'history'} onClick={() => setActiveView('history')} icon={<CalendarDays size={20} />} label={t('nav.history')} />
           <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label={t('nav.calendar')} />
-          <NavButton active={activeView === 'statistics'} onClick={() => setActiveView('statistics')} icon={<BarChart2 size={20} />} label={t('nav.statistics')} />
           <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label={t('nav.settings')} />
         </nav>
       </div>

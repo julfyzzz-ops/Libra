@@ -17,7 +17,7 @@ type ViewMode = 'month' | 'year';
 export const Calendar: React.FC = () => {
   const { books, updateBook, deleteBook } = useLibrary();
   const { toast, confirm } = useUI();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -77,7 +77,7 @@ export const Calendar: React.FC = () => {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
   const adjustedFirstDay = (firstDayOfMonth + 6) % 7; 
 
-  const monthName = currentDate.toLocaleString(t('settings.lang.en') === 'English' ? 'en-US' : 'uk-UA', { month: 'long' });
+  const monthName = currentDate.toLocaleString(locale, { month: 'long' });
   const year = currentDate.getFullYear();
 
   const isBookReadInMonth = (book: Book, yearStr: number, monthIndex: number) => {
@@ -215,7 +215,7 @@ export const Calendar: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-7 gap-1">
-            {padding.map((_, i) => <div key={`p-${i}`} className="aspect-square" />)}
+            {padding.map((_, i) => <div key={`p-${i}`} className="aspect-[2/3]" />)}
             {days.map(day => {
                 const dateStr = `${year}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const reads = dailyReadingMap[dateStr] || [];
@@ -225,7 +225,7 @@ export const Calendar: React.FC = () => {
                 <div 
                     key={day} 
                     onClick={() => setSelectedDay(isSelected ? null : day)}
-                    className={`aspect-square relative rounded-xl overflow-hidden border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    className={`aspect-[2/3] relative rounded-xl overflow-hidden border flex flex-col items-center justify-center transition-all cursor-pointer ${
                         isSelected 
                             ? 'ring-2 ring-indigo-500 border-indigo-500 z-10 scale-105 shadow-md' 
                             : reads.length > 0 
@@ -257,7 +257,7 @@ export const Calendar: React.FC = () => {
   const renderYearView = () => {
       const months = Array.from({ length: 12 }, (_, i) => {
           const d = new Date(year, i, 1);
-          const name = d.toLocaleString(t('settings.lang.en') === 'English' ? 'en-US' : 'uk-UA', { month: 'long' });
+          const name = d.toLocaleString(locale, { month: 'long' });
           return name.charAt(0).toUpperCase() + name.slice(1);
       });
 
@@ -302,129 +302,112 @@ export const Calendar: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in duration-500">
-      <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">{t('calendar.title')}</h1>
-        <button 
-            onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
-            className="w-12 h-12 bg-white rounded-2xl border border-gray-100 text-gray-400 shadow-sm active:scale-95 transition-all flex items-center justify-center hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100"
-        >
-            {viewMode === 'month' ? <Grid size={22} /> : <CalendarIcon size={22} />}
-        </button>
-      </header>
-
-      {/* Main Calendar Card */}
-      <div 
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 transition-all duration-300 select-none"
-      >
-        <div className="flex justify-between items-center mb-8">
-          <button onClick={handlePrev} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
-            <ChevronLeft size={24} />
-          </button>
-          
+    <>
+      <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in duration-500">
+        <header className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight">{t('calendar.title')}</h1>
           <button 
-             onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
-             className="text-xl font-bold capitalize flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-colors"
+              onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
+              className="w-12 h-12 bg-white rounded-2xl border border-gray-100 text-gray-400 shadow-sm active:scale-95 transition-all flex items-center justify-center hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100"
           >
-             {viewMode === 'month' && <span className="text-gray-300 font-medium">{year}</span>}
-             <span className="text-indigo-950">{viewMode === 'month' ? monthName : year}</span>
+              {viewMode === 'month' ? <Grid size={22} /> : <CalendarIcon size={22} />}
           </button>
+        </header>
 
-          <button onClick={handleNext} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
-            <ChevronRight size={24} />
-          </button>
+        {/* Main Calendar Card */}
+        <div 
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 transition-all duration-300 select-none"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <button onClick={handlePrev} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
+              <ChevronLeft size={24} />
+            </button>
+            
+            <button 
+               onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
+               className="text-xl font-bold capitalize flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-colors"
+            >
+               {viewMode === 'month' && <span className="text-gray-300 font-medium">{year}</span>}
+               <span className="text-indigo-950">{viewMode === 'month' ? monthName : year}</span>
+            </button>
+
+            <button onClick={handleNext} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-xl transition-colors text-gray-400">
+              <ChevronRight size={24} />
+            </button>
+          </div>
+
+          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+            {viewMode === 'month' ? renderMonthView() : renderYearView()}
+          </div>
         </div>
 
-        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-          {viewMode === 'month' ? renderMonthView() : renderYearView()}
+        {/* Activity Stats */}
+        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 transition-all duration-300">
+           <div className="flex justify-between items-start mb-6">
+               <div>
+                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{t('calendar.activity')}</h3>
+                  <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      {selectedDay ? (
+                          <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{selectedDay} {monthName}</span>
+                      ) : (
+                          <span className="text-gray-600">{viewMode === 'month' ? t('calendar.forMonth', { month: monthName.toLowerCase() }) : t('calendar.forYear', { year: year })}</span>
+                      )}
+                  </p>
+               </div>
+               <div className="flex flex-col items-end">
+                   <span className="text-4xl font-black text-indigo-600 tracking-tighter leading-none">{activeStats.count}</span>
+                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">{t('calendar.books')}</span>
+               </div>
+           </div>
+
+
+           <div className="space-y-3">
+              {activeStats.list.length === 0 ? (
+                 <div className="text-center py-10 text-gray-300 flex flex-col items-center">
+                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 border border-gray-100">
+                        <BookOpen size={28} className="opacity-20" />
+                     </div>
+                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('calendar.noActivity')}</p>
+                 </div>
+              ) : (
+                 <div className="grid grid-cols-1 gap-3">
+                     {visibleStatsBooks.map(book => (
+                        <div 
+                          key={book.id} 
+                          onClick={() => setSelectedBook(book)}
+                          className="flex items-center gap-4 p-3 bg-gray-50/50 rounded-[1.5rem] group cursor-pointer active:scale-[0.98] transition-all hover:bg-indigo-50 border border-gray-100/50 hover:border-indigo-100 shadow-sm"
+                        >
+                          <div className="w-12 h-16 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
+                             <BookCover book={book} className="w-full h-full" iconSize={18} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-sm text-gray-800 truncate mb-0.5">{book.title}</h4>
+                            <p className="text-[11px] text-gray-500 truncate font-medium">{book.author}</p>
+                          </div>
+                          {(book.rating || 0) > 0 && (
+                              <div className="w-8 h-8 bg-white rounded-xl shadow-sm text-xs font-black text-indigo-600 border border-gray-100 flex items-center justify-center">
+                                  {book.rating}
+                              </div>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {hasMore && (
+                          <div ref={observerTarget} className="flex justify-center py-4">
+                              <Loader2 className="animate-spin text-indigo-300" size={20} />
+                          </div>
+                      )}
+                 </div>
+              )}
+           </div>
         </div>
-      </div>
-
-      {/* Activity Stats */}
-      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 transition-all duration-300">
-         <div className="flex justify-between items-start mb-6">
-             <div>
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{t('calendar.activity')}</h3>
-                <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                    {selectedDay ? (
-                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{selectedDay} {monthName}</span>
-                    ) : (
-                        <span className="text-gray-600">{viewMode === 'month' ? t('calendar.forMonth', { month: monthName.toLowerCase() }) : t('calendar.forYear', { year: year })}</span>
-                    )}
-                </p>
-             </div>
-             <div className="flex flex-col items-end">
-                 <span className="text-4xl font-black text-indigo-600 tracking-tighter leading-none">{activeStats.count}</span>
-                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">{t('calendar.books')}</span>
-             </div>
-         </div>
-
-         {/* Detailed Stats Cards */}
-         {activeStats.pages > 0 && (
-             <div className="grid grid-cols-2 gap-3 mb-6 animate-in fade-in slide-in-from-bottom-2">
-                 <div className="bg-emerald-50/50 p-4 rounded-3xl flex items-center gap-3 border border-emerald-100/50">
-                     <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm"><FileText size={18} /></div>
-                     <div>
-                         <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">{t('calendar.pages')}</p>
-                         <p className="text-xl font-black text-emerald-700 leading-none">{activeStats.pages}</p>
-                     </div>
-                 </div>
-                 <div className="bg-amber-50/50 p-4 rounded-3xl flex items-center gap-3 border border-amber-100/50">
-                     <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm"><Clock size={18} /></div>
-                     <div>
-                         <p className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">{t('calendar.time')}</p>
-                         <p className="text-xl font-black text-amber-700 leading-none">{activeStats.time > 0 ? Math.round(activeStats.time / 60) : 0} <span className="text-xs font-bold opacity-60">{t('details.unit.minutes')}</span></p>
-                     </div>
-                 </div>
-             </div>
-         )}
-
-         <div className="space-y-3">
-            {activeStats.list.length === 0 ? (
-               <div className="text-center py-10 text-gray-300 flex flex-col items-center">
-                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 border border-gray-100">
-                      <BookOpen size={28} className="opacity-20" />
-                   </div>
-                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('calendar.noActivity')}</p>
-               </div>
-            ) : (
-               <div className="grid grid-cols-1 gap-3">
-                   {visibleStatsBooks.map(book => (
-                      <div 
-                        key={book.id} 
-                        onClick={() => setSelectedBook(book)}
-                        className="flex items-center gap-4 p-3 bg-gray-50/50 rounded-[1.5rem] group cursor-pointer active:scale-[0.98] transition-all hover:bg-indigo-50 border border-gray-100/50 hover:border-indigo-100 shadow-sm"
-                      >
-                        <div className="w-12 h-16 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
-                           <BookCover book={book} className="w-full h-full" iconSize={18} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-sm text-gray-800 truncate mb-0.5">{book.title}</h4>
-                          <p className="text-[11px] text-gray-500 truncate font-medium">{book.author}</p>
-                        </div>
-                        {(book.rating || 0) > 0 && (
-                            <div className="w-8 h-8 bg-white rounded-xl shadow-sm text-xs font-black text-indigo-600 border border-gray-100 flex items-center justify-center">
-                                {book.rating}
-                            </div>
-                        )}
-                      </div>
-                    ))}
-                    
-                    {hasMore && (
-                        <div ref={observerTarget} className="flex justify-center py-4">
-                            <Loader2 className="animate-spin text-indigo-300" size={20} />
-                        </div>
-                    )}
-               </div>
-            )}
-         </div>
       </div>
 
       {selectedBook && !readingModeOpen && !isEditing && (
-        <div className="fixed inset-0 z-[60] bg-white animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[60] bg-slate-50 animate-in slide-in-from-bottom duration-300">
           <BookDetailsV2 
             book={selectedBook}
             onBack={() => setSelectedBook(null)}
@@ -454,7 +437,7 @@ export const Calendar: React.FC = () => {
       )}
 
       {isEditing && selectedBook && (
-        <div className="fixed inset-0 z-[70] bg-white">
+        <div className="fixed inset-0 z-[70] bg-slate-50">
           <EditBookV2 
             book={selectedBook}
             publisherSuggestions={uniquePublishers}
@@ -481,6 +464,6 @@ export const Calendar: React.FC = () => {
           onClose={() => setReadingModeOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 };

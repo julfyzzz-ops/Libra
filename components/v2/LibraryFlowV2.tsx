@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowDownUp, ArrowUp, Filter, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp, BarChart2, Filter, Plus, Search, X } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../../types';
 import { getBookPageTotal } from '../../utils';
 import { createClientId } from '../../services/id';
@@ -65,9 +65,10 @@ type V2Route =
 
 interface LibraryFlowV2Props {
   onNavigateToReading?: () => void;
+  onNavigateToStatistics?: () => void;
 }
 
-export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReading }) => {
+export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReading, onNavigateToStatistics }) => {
   const { t, locale } = useI18n();
   const { books, addBook, updateBook, deleteBook, reorderBooks, filterTag, setFilterTag } = useLibrary();
   const { toast, confirm } = useUI();
@@ -844,19 +845,28 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
 
   return (
     <div className="px-4 pb-24 text-gray-800 space-y-4">
-      <div className="sticky top-0 z-30 -mx-4 px-4 pt-0 pb-2 bg-slate-50/95 backdrop-blur-sm border-b border-gray-100 space-y-4">
-        <header className="flex items-center gap-4">
+      <div className="sticky top-0 z-30 -mx-4 px-4 pt-4 pb-2 bg-slate-50/95 backdrop-blur-sm border-b border-gray-100 space-y-4">
+        <header className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => openList('library')}
+              className={`text-3xl font-bold transition-colors ${currentTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}
+            >
+              {t('library.tab.library')}
+            </button>
+            <button
+              onClick={() => openList('wishlist')}
+              className={`text-3xl font-bold transition-colors ${currentTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}
+            >
+              {t('library.tab.wishlist')}
+            </button>
+          </div>
           <button
-            onClick={() => openList('library')}
-            className={`text-3xl font-bold transition-colors ${currentTab === 'library' ? 'text-gray-800' : 'text-gray-300'}`}
+            onClick={onNavigateToStatistics}
+            className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            title={t('nav.statistics')}
           >
-            {t('library.tab.library')}
-          </button>
-          <button
-            onClick={() => openList('wishlist')}
-            className={`text-3xl font-bold transition-colors ${currentTab === 'wishlist' ? 'text-gray-800' : 'text-gray-300'}`}
-          >
-            {t('library.tab.wishlist')}
+            <BarChart2 size={20} />
           </button>
         </header>
 

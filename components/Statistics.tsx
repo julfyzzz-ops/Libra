@@ -2,55 +2,22 @@ import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
-  Building2,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   Library,
   BookMarked,
-  Trophy
+  Trophy,
+  ChevronRight
 } from 'lucide-react';
 import { useLibrary } from '../contexts/LibraryContext';
 import { useI18n } from '../contexts/I18nContext';
 import { FORMAT_LABELS } from '../utils';
-import { BookCover } from './ui/BookCover';
 
-type ReadPeriodMode = 'month' | 'year';
+interface StatisticsProps {
+  onBack?: () => void;
+}
 
-const formatPeriodLabel = (date: Date, mode: ReadPeriodMode, locale: string) => {
-  const lang = locale === 'uk' ? 'uk-UA' : 'en-US';
-  if (mode === 'year') {
-    return new Intl.DateTimeFormat(lang, { year: 'numeric' }).format(date);
-  }
-
-  const label = new Intl.DateTimeFormat(lang, {
-    month: 'long',
-    year: 'numeric'
-  }).format(date);
-
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
-
-const formatCompletedDate = (date: Date, locale: string) => {
-  const lang = locale === 'uk' ? 'uk-UA' : 'en-US';
-  return new Intl.DateTimeFormat(lang, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(date);
-};
-
-const movePeriod = (date: Date, mode: ReadPeriodMode, step: number) =>
-  mode === 'month'
-    ? new Date(date.getFullYear(), date.getMonth() + step, 1)
-    : new Date(date.getFullYear() + step, 0, 1);
-
-export const Statistics: React.FC = () => {
+export const Statistics: React.FC<StatisticsProps> = ({ onBack }) => {
   const { books } = useLibrary();
-  const { t, locale } = useI18n();
-  const [showReadScreen, setShowReadScreen] = useState(false);
-  const [periodMode, setPeriodMode] = useState<ReadPeriodMode>('month');
-  const [periodDate, setPeriodDate] = useState(() => new Date());
+  const { t } = useI18n();
 
   const stats = useMemo(() => {
     const paperBooks = books.filter(
@@ -85,186 +52,25 @@ export const Statistics: React.FC = () => {
     return { total, read, reading, unread, readPercent, publisherStats };
   }, [books]);
 
-  const readPeriod = useMemo(() => {
-    const start =
-      periodMode === 'month'
-        ? new Date(periodDate.getFullYear(), periodDate.getMonth(), 1)
-        : new Date(periodDate.getFullYear(), 0, 1);
-    const end =
-      periodMode === 'month'
-        ? new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 1)
-        : new Date(periodDate.getFullYear() + 1, 0, 1);
-
-    const completedBooks = books
-      .filter(b => b.status === 'Completed' && !!b.completedAt)
-      .map(b => ({ book: b, completedDate: new Date(b.completedAt as string) }))
-      .filter(
-        entry =>
-          !Number.isNaN(entry.completedDate.getTime()) &&
-          entry.completedDate >= start &&
-          entry.completedDate < end
-      )
-      .sort((a, b) => b.completedDate.getTime() - a.completedDate.getTime());
-
-    return { start, end, completedBooks };
-  }, [books, periodDate, periodMode]);
-
-  if (showReadScreen) {
-    return (
-      <div className="p-4 space-y-5 pb-32 animate-in fade-in">
-        <header className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={() => setShowReadScreen(false)}
-              className="w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-500 flex items-center justify-center shadow-sm"
-              aria-label={t('common.back')}
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-gray-800 truncate">{t('stats.completedTitle')}</h1>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {t('stats.completedSubtitle')}
-              </p>
-            </div>
-          </div>
-        </header>
-
-        <section className="bg-white rounded-3xl border border-gray-100 p-4 space-y-4 shadow-sm">
-          <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-2xl">
-            <button
-              type="button"
-              onClick={() => {
-                setPeriodMode('month');
-                setPeriodDate(new Date());
-              }}
-              className={`py-2 rounded-xl text-xs font-bold transition-colors ${
-                periodMode === 'month'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-500 hover:bg-white'
-              }`}
-            >
-              {t('stats.month')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPeriodMode('year');
-                setPeriodDate(new Date());
-              }}
-              className={`py-2 rounded-xl text-xs font-bold transition-colors ${
-                periodMode === 'year'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-500 hover:bg-white'
-              }`}
-            >
-              {t('stats.year')}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setPeriodDate(prev => movePeriod(prev, periodMode, -1))}
-              className="w-10 h-10 rounded-xl border border-gray-100 text-gray-500 bg-gray-50 flex items-center justify-center"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            <div className="text-center min-w-0">
-              <p className="text-xs uppercase tracking-wider text-gray-400 font-bold">
-                {t('stats.selectedPeriod')}
-              </p>
-              <p className="text-sm font-bold text-gray-800 truncate">
-                {formatPeriodLabel(periodDate, periodMode, locale)}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setPeriodDate(prev => movePeriod(prev, periodMode, 1))}
-              className="w-10 h-10 rounded-xl border border-gray-100 text-gray-500 bg-gray-50 flex items-center justify-center"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-
-          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                {t('stats.completedFully')}
-              </p>
-              <p className="text-3xl font-black text-indigo-700">
-                {readPeriod.completedBooks.length}
-              </p>
-            </div>
-            <CalendarDays className="text-indigo-300" size={28} />
-          </div>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
-            {t('stats.bookList')}
-          </h2>
-
-          {readPeriod.completedBooks.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-gray-100 p-8 text-center text-gray-400">
-              <BookOpen size={30} className="mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-semibold">{t('stats.noCompleted')}</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {readPeriod.completedBooks.map(({ book, completedDate }) => (
-                <article
-                  key={book.id}
-                  className="bg-white border border-gray-100 rounded-3xl p-3 shadow-sm flex gap-3 items-center"
-                >
-                  <BookCover book={book} className="w-12 h-16 rounded-xl flex-shrink-0" iconSize={16} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-gray-800 truncate">{book.title}</h3>
-                    <p className="text-xs text-gray-500 truncate">{book.author}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      {t('bookForm.formats')}: {book.formats.map(f => t(`format.${f}` as any)).join(', ')}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{t('stats.completedAt')}</p>
-                    <p className="text-xs font-bold text-gray-700">{formatCompletedDate(completedDate, locale)}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 space-y-8 pb-32 animate-in fade-in duration-500">
-      <header>
-        <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('stats.title')}</h1>
-        <p className="text-gray-500 text-sm mt-1">{t('stats.subtitle')}</p>
+      <header className="flex items-center gap-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-500 flex items-center justify-center shadow-sm active:scale-95 transition-all"
+            aria-label={t('common.back')}
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('stats.title')}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t('stats.subtitle')}</p>
+        </div>
       </header>
 
       <section className="space-y-4">
-        <button
-          type="button"
-          onClick={() => setShowReadScreen(true)}
-          className="w-full bg-white border border-gray-100 rounded-[2rem] p-5 flex items-center justify-between shadow-sm hover:bg-gray-50 active:scale-[0.98] transition-all group"
-        >
-          <div className="text-left">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
-              {t('stats.history')}
-            </p>
-            <p className="text-base font-bold text-gray-800">{t('stats.historySubtitle')}</p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors">
-            <ChevronRight size={20} />
-          </div>
-        </button>
-
         <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-200 text-white relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-indigo-400 opacity-20 rounded-full blur-2xl" />
