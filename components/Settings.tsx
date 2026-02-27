@@ -5,7 +5,6 @@ import { useLibrary } from '../contexts/LibraryContext';
 import { useUI } from '../contexts/UIContext';
 import { MessageKey } from '../i18n/messages';
 import { importLibraryFromCSV, importLibraryFromJSON } from '../services/importers';
-import { clearDebugLogs, getDebugLogs, isDebugModeEnabled, setDebugModeEnabled, type DebugLogEntry } from '../services/debugLogger';
 import { exportLibraryToJSON, loadSettings, saveSettings } from '../services/storageService';
 import { AccentColor, AppLanguage, AppSettings, BackgroundTone } from '../types';
 import { ACCENT_COLORS, applyTheme, BACKGROUND_TONES } from '../utils';
@@ -24,19 +23,10 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', language: 'en' });
-  const [debugEnabled, setDebugEnabled] = useState(false);
-  const [showDebugLogs, setShowDebugLogs] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
 
   useEffect(() => {
     setSettings(loadSettings());
-    setDebugEnabled(isDebugModeEnabled());
   }, []);
-
-  useEffect(() => {
-    if (!showDebugLogs) return;
-    setDebugLogs(getDebugLogs());
-  }, [showDebugLogs, debugEnabled]);
 
   const saveAndApply = (nextSettings: AppSettings) => {
     setSettings(nextSettings);
@@ -117,29 +107,6 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
     } finally {
       setIsImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = '';
-    }
-  };
-
-  const handleToggleDebugMode = () => {
-    const next = !debugEnabled;
-    setDebugEnabled(next);
-    setDebugModeEnabled(next);
-    toast.show(next ? t('settings.toast.debugOn') : t('settings.toast.debugOff'), 'info');
-  };
-
-  const handleClearDebugLogs = () => {
-    clearDebugLogs();
-    setDebugLogs([]);
-    toast.show(t('settings.toast.logsCleared'), 'success');
-  };
-
-  const handleCopyDebugLogs = async () => {
-    const payload = JSON.stringify(getDebugLogs(), null, 2);
-    try {
-      await navigator.clipboard.writeText(payload);
-      toast.show(t('settings.toast.logsCopied'), 'success');
-    } catch {
-      toast.show(t('settings.toast.logsCopyFail'), 'error');
     }
   };
 
@@ -266,29 +233,6 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
-        <div className="flex items-center gap-3">
-           <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm">
-              <Bug size={20} />
-           </div>
-           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.debugTitle')}</h3>
-        </div>
-        <p className="text-sm text-gray-500 leading-relaxed">{t('settings.debugHelp')}</p>
-        <div className="flex items-center justify-between gap-4">
-          <button
-            onClick={handleToggleDebugMode}
-            className={`px-6 py-3 rounded-2xl text-xs font-bold border transition-all ${
-              debugEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'
-            }`}
-          >
-            {debugEnabled ? t('common.enabled') : t('common.disabled')}
-          </button>
-          <button onClick={() => setShowDebugLogs(true)} className="px-6 py-3 rounded-2xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm active:scale-95">
-            {t('settings.openLogs')}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">{t('settings.aboutTitle')}</h3>
         <div className="space-y-6">
           <div className="flex items-start gap-4">
@@ -311,51 +255,6 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
           </div>
         </div>
       </div>
-
-      {showDebugLogs && (
-        <div className="fixed inset-0 z-[120] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
-            <div className="sticky top-0 z-10 bg-white border-b border-gray-100 p-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-gray-800">{t('settings.logsTitle')}</h3>
-                <p className="text-xs text-gray-500">{t('settings.logsCount', { count: debugLogs.length })}</p>
-              </div>
-              <button onClick={() => setShowDebugLogs(false)} className="p-2 rounded-full bg-gray-50 text-gray-500">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-4 flex gap-2 border-b border-gray-100">
-              <button
-                onClick={handleCopyDebugLogs}
-                className="px-3 py-2 rounded-xl text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-2"
-              >
-                <Copy size={14} /> {t('settings.logsCopy')}
-              </button>
-              <button onClick={handleClearDebugLogs} className="px-3 py-2 rounded-xl text-xs font-bold border bg-red-50 text-red-700 border-red-200 flex items-center gap-2">
-                <Trash2 size={14} /> {t('settings.logsClear')}
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
-              {debugLogs.length === 0 ? (
-                <div className="text-sm text-gray-500">{t('settings.logsEmpty')}</div>
-              ) : (
-                debugLogs
-                  .slice()
-                  .reverse()
-                  .map((log) => (
-                    <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-3">
-                      <div className="text-[10px] text-gray-500">
-                        {new Date(log.ts).toLocaleString(locale)} | {log.level} | {log.scope}
-                      </div>
-                      <div className="text-xs font-semibold text-gray-800 mt-1 break-words">{log.message}</div>
-                      {log.details && <pre className="mt-2 text-[10px] text-gray-600 whitespace-pre-wrap break-words">{log.details}</pre>}
-                    </div>
-                  ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

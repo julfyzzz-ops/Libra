@@ -11,7 +11,6 @@ import { I18nProvider } from './contexts/I18nContext';
 import { LibraryProvider, useLibrary } from './contexts/LibraryContext';
 import { UIProvider } from './contexts/UIContext';
 import { MESSAGES, MessageKey } from './i18n/messages';
-import { initDebugLogger } from './services/debugLogger';
 import { loadSettings } from './services/storageService';
 import { AppSettings, ViewType } from './types';
 import { applyTheme } from './utils';
@@ -24,10 +23,6 @@ const AppContent: React.FC = () => {
   const language = settings.language === 'uk' ? 'uk' : 'en';
   const messages = MESSAGES[language];
   const t = (key: MessageKey) => messages[key] || MESSAGES.en[key];
-
-  useEffect(() => {
-    initDebugLogger();
-  }, []);
 
   useEffect(() => {
     applyTheme(settings.accent, settings.bg);
@@ -98,8 +93,8 @@ const AppContent: React.FC = () => {
             label={t('nav.library')}
           />
           <NavButton active={activeView === 'reading'} onClick={() => setActiveView('reading')} icon={<BookIcon size={20} />} label={t('nav.reading')} />
-          <NavButton active={activeView === 'history'} onClick={() => setActiveView('history')} icon={<CalendarDays size={20} />} label={t('nav.history')} />
           <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label={t('nav.calendar')} />
+          <NavButton active={activeView === 'history'} onClick={() => setActiveView('history')} icon={<BarChart2 size={20} />} label={t('nav.history')} />
           <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label={t('nav.settings')} />
         </nav>
       </div>

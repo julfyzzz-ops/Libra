@@ -1,5 +1,4 @@
 import { AppSettings, Book, LibraryState, SortDirection, SortKey } from "../types";
-import { appendDebugLog, finishDebugTrace, startDebugTrace } from "./debugLogger";
 import { markDexieFailure, markDexieSuccess } from "./dexieRuntime";
 import { blobToBase64 } from "./imageUtils";
 import { migrateLegacyIndexedDbToDexie } from "./migrations/migrateToDexie";
@@ -82,21 +81,12 @@ export const saveLibrary = async (state: LibraryState): Promise<void> => {
 
 export const saveBook = async (book: Book): Promise<void> => {
   const started = Date.now();
-  const trace = startDebugTrace("storage.saveBook", "saveBook", {
-    id: book.id,
-    status: book.status,
-    hasCoverBlob: Boolean(book.coverBlob),
-    coverUrlLen: (book.coverUrl || "").length,
-  });
   try {
     await saveBookDexie(book);
     await markDexieSuccess("saveBook", started);
-    finishDebugTrace(trace, "info");
   } catch (e) {
     await markDexieFailure("saveBook", e);
-    finishDebugTrace(trace, "error", e);
     console.error("Failed to save book to Dexie", e);
-    appendDebugLog("error", "storage.saveBook", "saveBook failed", e);
     if (e instanceof DOMException && e.name === "QuotaExceededError") {
       quotaAlert();
     }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowDownUp, ArrowUp, BarChart2, Filter, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp, BarChart2, BookOpen, Filter, Plus, Search, X } from 'lucide-react';
 import { Book, BookFormat, BookStatus } from '../../types';
 import { getBookPageTotal } from '../../utils';
 import { createClientId } from '../../services/id';
@@ -866,7 +866,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
             className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title={t('nav.statistics')}
           >
-            <BarChart2 size={20} />
+            <BookOpen size={20} />
           </button>
         </header>
 
