@@ -79,7 +79,7 @@ export const Statistics: React.FC<StatisticsProps> = ({ onBack }) => {
           <div className="relative z-10">
             <div className="flex items-baseline gap-2 mb-1">
               <span className="text-7xl font-black tracking-tighter">{stats.total}</span>
-              <span className="text-sm font-bold opacity-80 uppercase tracking-widest">{t('stats.booksCount')}</span>
+              <span className="text-sm font-bold opacity-80 uppercase tracking-widest">{t('stats.addedBooksCount')}</span>
             </div>
             <p className="text-indigo-100 text-xs font-medium mb-8">{t('stats.shelfDesc')}</p>
 
@@ -159,7 +159,7 @@ export const Statistics: React.FC<StatisticsProps> = ({ onBack }) => {
                     <span className="text-xl font-black text-gray-800">{pub.read}</span>
                     <span className="text-xs font-bold text-gray-400">/ {pub.total}</span>
                   </div>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{t('stats.booksCount')}</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{t('stats.addedBooksCount')}</span>
                 </div>
               </div>
             ))}

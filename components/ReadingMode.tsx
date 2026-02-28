@@ -170,6 +170,9 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
     const pageVal = parseInt(numpadValue) || 0;
     if (numpadMode === 'start') {
         setSession({ isActive: true, isPaused: false, startPage: pageVal, startTime: Date.now(), accumulatedTime: 0, displaySeconds: 0 });
+        if (book.status !== 'Reading') {
+            updateBook({ ...book, status: 'Reading' });
+        }
         setNumpadMode(null);
     } else if (numpadMode === 'stop') {
         confirmSession(pageVal);

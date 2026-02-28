@@ -155,7 +155,7 @@ export const History: React.FC = () => {
 
     // 4. Added books
     const addedBooks = books
-      .filter(b => b.addedAt)
+      .filter(b => b.status !== 'Wishlist' && b.addedAt)
       .filter(b => {
         const d = new Date(b.addedAt!);
         return d >= start && d <= end;
