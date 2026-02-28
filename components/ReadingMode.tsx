@@ -69,6 +69,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
     } else {
         localStorage.removeItem(`libra_session_${book.id}`);
     }
+    window.dispatchEvent(new CustomEvent('libra_session_update', { detail: { bookId: book.id } }));
   }, [session, book.id]);
 
   useEffect(() => {

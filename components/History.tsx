@@ -232,7 +232,7 @@ export const History: React.FC = () => {
 
       {/* Date Range Picker */}
       <section className="bg-white rounded-[2rem] border border-gray-100 px-5 py-4 shadow-sm">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">
               {t('stats.startDate')}

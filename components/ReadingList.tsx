@@ -10,6 +10,7 @@ import { useLibrary } from '../contexts/LibraryContext';
 import { useUI } from '../contexts/UIContext';
 import { useI18n } from '../contexts/I18nContext';
 import { BookCover } from './ui/BookCover';
+import { ActiveTimerBadge } from './ui/ActiveTimerBadge';
 
 interface ReadingListProps {
   onToggleNav?: (hidden: boolean) => void;
@@ -73,8 +74,9 @@ export const ReadingList: React.FC<ReadingListProps> = ({ onToggleNav }) => {
                   <div 
                     key={book.id}
                     onClick={() => setSelectedBook(book)}
-                    className="bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex gap-4 items-center active:scale-[0.98] transition-all cursor-pointer group"
+                    className="bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex gap-4 items-center active:scale-[0.98] transition-all cursor-pointer group relative"
                   >
+                    <ActiveTimerBadge bookId={book.id} />
                     <div className="w-16 h-24 bg-gray-50 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
                       <BookCover book={book} className="w-full h-full" iconSize={24} />
                     </div>
