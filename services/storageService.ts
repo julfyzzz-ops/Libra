@@ -1,4 +1,4 @@
-import { AppSettings, Book, LibraryState, SortDirection, SortKey } from "../types";
+import { AppSettings, BackgroundTone, Book, LibraryState, SortDirection, SortKey } from "../types";
 import { markDexieFailure, markDexieSuccess } from "./dexieRuntime";
 import { blobToBase64 } from "./imageUtils";
 import { migrateLegacyIndexedDbToDexie } from "./migrations/migrateToDexie";
@@ -20,7 +20,8 @@ export const loadSettings = (): AppSettings => {
     if (!data) return defaultSettings;
     const parsed = JSON.parse(data) as Partial<AppSettings>;
     const language = parsed.language === "uk" ? "uk" : "en";
-    return { ...defaultSettings, ...parsed, language };
+    const bg = parsed.bg === ("neutral" as any) ? "pink" : (parsed.bg as BackgroundTone || "cool");
+    return { ...defaultSettings, ...parsed, language, bg };
   } catch {
     return defaultSettings;
   }

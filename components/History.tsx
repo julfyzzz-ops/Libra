@@ -95,13 +95,6 @@ const BookItem: React.FC<{ book: Book; locale: string; t: any; extraInfo?: React
     <div className="min-w-0 flex-1">
       <h3 className="text-base font-bold text-gray-800 truncate leading-tight mb-1">{book.title}</h3>
       <p className="text-xs text-gray-500 truncate font-medium">{book.author}</p>
-      <div className="flex flex-wrap gap-1 mt-2">
-        {book.formats.map(f => (
-          <span key={f} className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded-md font-bold border border-gray-100 uppercase">
-            {t(`format.${f}` as any)}
-          </span>
-        ))}
-      </div>
     </div>
     {extraInfo}
   </article>

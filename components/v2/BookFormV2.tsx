@@ -72,6 +72,8 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     seasons: normalizeSeasons(initialValue.seasons),
     completedAt: initialValue.completedAt,
     rating: initialValue.rating,
+    addedAt: initialValue.addedAt,
+    wishlistedAt: initialValue.wishlistedAt,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
@@ -81,6 +83,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
 
   const publisherRef = useRef<HTMLDivElement>(null);
   const genreRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -161,12 +164,14 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       seasons: normalizeSeasons(form.seasons),
       completedAt: form.completedAt,
       rating: form.rating,
-      addedAt: initialValue.addedAt || new Date().toISOString(),
+      addedAt: form.addedAt || initialValue.addedAt || '',
+      wishlistedAt: form.wishlistedAt || initialValue.wishlistedAt,
       sessions: (initialValue.sessions || []) as Book['sessions'],
     }),
     [
       allowedStatuses,
       blobPreviewUrl,
+      form.addedAt,
       form.author,
       form.comment,
       form.completedAt,
@@ -182,8 +187,10 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
       form.seriesPart,
       form.status,
       form.title,
+      form.wishlistedAt,
       initialValue.addedAt,
       initialValue.sessions,
+      initialValue.wishlistedAt,
       t,
     ]
   );
@@ -231,6 +238,29 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
     } finally {
       setIsMagicLoading(false);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // We can use a simple URL.createObjectURL for preview, 
+      // but we should store the blob in the form state.
+      setForm((prev) => ({
+        ...prev,
+        coverBlob: file,
+        coverUrl: '', // Clear URL if we have a blob
+      }));
+      toast.show(t('bookForm.toast.coverFound'), 'success');
+    } catch (error) {
+      console.error('File upload failed', error);
+      toast.show(t('bookForm.toast.coverSearchError'), 'error');
+    }
+  };
+
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const toggleFormat = (format: BookFormat) => {
@@ -288,7 +318,7 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
   };
 
   return (
-    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-24 text-gray-800">
+    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-8 text-gray-800">
       <button
         onClick={() => {
           closeSuggestions();
@@ -308,7 +338,18 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-5 mb-6">
             <div className="relative w-32 flex-shrink-0">
-              <div className="w-32 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={triggerFileUpload}
+                className="w-32 aspect-[2/3] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm relative group"
+              >
                 {effectiveCoverUrl ? (
                   <BookCover book={previewBookForCover} className="w-full h-full" iconSize={32} />
                 ) : (
@@ -317,19 +358,18 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
                     <span className="text-[9px] font-bold uppercase tracking-wide">{t('bookForm.cover')}</span>
                   </div>
                 )}
-              </div>
-              
-              {!effectiveCoverUrl && (
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                     <span className="sr-only">Upload</span>
-                 </div>
-              )}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                  <div className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ImageIcon size={16} className="text-gray-600" />
+                  </div>
+                </div>
+              </button>
 
               <button
                 type="button"
                 onClick={handleMagicSearch}
                 disabled={isSubmitting || isMagicLoading}
-                className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-full text-indigo-600 shadow-sm border border-indigo-50 active:scale-95 transition-all disabled:opacity-50 z-20"
+                className="absolute -top-2 -right-2 bg-white/90 backdrop-blur-sm p-2 rounded-full text-indigo-600 shadow-md border border-indigo-50 active:scale-95 transition-all disabled:opacity-50 z-20"
                 title={t('bookForm.magicSearch')}
                 aria-label={t('bookForm.magicSearch')}
               >

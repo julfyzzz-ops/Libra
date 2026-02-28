@@ -34,7 +34,8 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
       pagesTotal: 0,
       pagesRead: 0,
       coverUrl: coverUrl.trim(),
-      addedAt: new Date().toISOString(),
+      wishlistedAt: new Date().toISOString(),
+      addedAt: '',
       sessions: [],
     }),
     [author, coverUrl, t, title]
@@ -65,7 +66,7 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
   };
 
   return (
-    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-24 text-gray-800">
+    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-8 text-gray-800">
       <button onClick={onCancel} className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors">
         <span className="text-sm font-bold">{t('common.back')}</span>
       </button>
@@ -96,7 +97,8 @@ export const AddWishlistV2: React.FC<AddWishlistV2Props> = ({ onAdd, onCancel })
                 pagesTotal: 0,
                 pagesRead: 0,
                 coverUrl: coverUrl.trim(),
-                addedAt: nowIso,
+                wishlistedAt: nowIso,
+                addedAt: '',
                 sessions: [],
               });
             } finally {

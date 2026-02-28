@@ -233,18 +233,28 @@ export const Calendar: React.FC = () => {
                                 : 'border-gray-50 bg-gray-50/50'
                     }`}
                 >
-                    <span className={`text-[10px] absolute top-1 left-1 font-bold z-10 ${reads.length > 0 ? 'text-indigo-700 bg-white/90 backdrop-blur-[1px] px-1 rounded-md shadow-sm' : 'text-gray-300'}`}>
+                    <span className={`text-[10px] absolute top-1 left-1 font-bold z-10 text-gray-500 ${reads.length > 0 ? 'bg-white/80 backdrop-blur-md px-1.5 py-0.5 rounded-lg shadow-sm' : ''}`}>
                     {day}
                     </span>
-                    {reads.length > 0 && (
-                    <div className="w-full h-full relative">
+                    {reads.length === 1 && (
+                      <div className="w-full h-full relative">
                         <BookCover book={reads[0]} className="w-full h-full" iconSize={12} />
-                        {reads.length > 1 && (
-                        <div className="absolute bottom-0 right-0 bg-indigo-600 px-1 rounded-tl-lg text-[8px] font-bold text-white shadow-sm">
-                            +{reads.length - 1}
+                      </div>
+                    )}
+                    {reads.length >= 2 && (
+                      <div className="w-full h-full flex gap-[1px] bg-gray-100">
+                        <div className="flex-1 h-full relative">
+                          <BookCover book={reads[0]} className="w-full h-full" iconSize={10} />
                         </div>
-                        )}
-                    </div>
+                        <div className="flex-1 h-full relative">
+                          <BookCover book={reads[1]} className="w-full h-full" iconSize={10} />
+                          {reads.length > 2 && (
+                            <div className="absolute bottom-0 right-0 bg-indigo-600 px-1 rounded-tl-lg text-[7px] font-bold text-white shadow-sm z-10">
+                              +{reads.length - 2}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                 </div>
                 );

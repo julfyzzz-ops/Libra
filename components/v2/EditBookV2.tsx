@@ -37,6 +37,7 @@ export const EditBookV2: React.FC<EditBookV2Props> = ({
           ...value,
           id: book.id,
           addedAt: book.addedAt,
+          wishlistedAt: book.wishlistedAt,
           sessions: value.sessions || book.sessions || [],
           updatedAt: new Date().toISOString(),
         };

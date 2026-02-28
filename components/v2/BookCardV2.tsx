@@ -48,12 +48,17 @@ const FormatIcon: React.FC<{ format: BookFormat }> = ({ format }) => {
   }
 };
 
-const StatusIcon: React.FC<{ status: BookStatus }> = ({ status }) => {
+const StatusIcon: React.FC<{ status: BookStatus; rating?: number }> = ({ status, rating }) => {
   if (status === 'Completed') {
     return (
-      <span className="w-6 h-6 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-600 flex items-center justify-center">
-        <Trophy size={13} />
-      </span>
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="w-6 h-6 rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <Trophy size={13} />
+        </span>
+        {rating && rating > 0 && (
+          <span className="text-[9px] font-black text-emerald-600 leading-none">{rating}</span>
+        )}
+      </div>
     );
   }
   if (status === 'Reading') {
@@ -119,13 +124,6 @@ export const BookCardV2: React.FC<BookCardV2Props> = ({
             {book.notes && (
               <span className="text-[13px] leading-none truncate max-w-[110px] text-gray-700">{book.notes}</span>
             )}
-
-            {(book.rating || 0) > 0 && (
-              <span className="text-[10px] font-black px-1.5 py-0.5 bg-gray-50 rounded text-gray-600 flex-shrink-0 inline-flex items-center gap-1">
-                <Star size={10} />
-                <span>{book.rating}</span>
-              </span>
-            )}
           </div>
         </div>
       </button>
@@ -134,7 +132,7 @@ export const BookCardV2: React.FC<BookCardV2Props> = ({
         <div className="w-8 h-8 flex-shrink-0" />
       ) : (
         <span className="flex-shrink-0" aria-label={`status-${book.status}`}>
-          <StatusIcon status={book.status} />
+          <StatusIcon status={book.status} rating={book.rating} />
         </span>
       )}
     </div>

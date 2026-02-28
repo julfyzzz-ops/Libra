@@ -182,7 +182,6 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
                 }`}
                 style={{ backgroundColor: val.vars.card }}
               >
-                <div className="w-4 h-4 rounded-full mb-1 border border-gray-200" style={{ backgroundColor: val.vars.main }} />
                 {bgLabel(key as BackgroundTone)}
               </button>
             ))}

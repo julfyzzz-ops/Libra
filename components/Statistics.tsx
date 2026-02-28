@@ -20,18 +20,18 @@ export const Statistics: React.FC<StatisticsProps> = ({ onBack }) => {
   const { t } = useI18n();
 
   const stats = useMemo(() => {
-    const paperBooks = books.filter(
-      b => b.formats.includes('Paper') && b.status !== 'Wishlist'
+    const libraryBooks = books.filter(
+      b => b.status !== 'Wishlist'
     );
 
-    const total = paperBooks.length;
-    const read = paperBooks.filter(b => b.status === 'Completed').length;
-    const reading = paperBooks.filter(b => b.status === 'Reading').length;
-    const unread = paperBooks.filter(b => b.status === 'Unread').length;
+    const total = libraryBooks.length;
+    const read = libraryBooks.filter(b => b.status === 'Completed').length;
+    const reading = libraryBooks.filter(b => b.status === 'Reading').length;
+    const unread = libraryBooks.filter(b => b.status === 'Unread').length;
     const readPercent = total > 0 ? Math.round((read / total) * 100) : 0;
 
     const publisherMap: Record<string, { total: number; read: number }> = {};
-    paperBooks.forEach(b => {
+    libraryBooks.forEach(b => {
       if (!b.publisher) return;
       const pub = b.publisher.trim();
       if (!pub) return;

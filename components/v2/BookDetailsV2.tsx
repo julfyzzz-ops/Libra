@@ -72,7 +72,7 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
   const formatLabel = (format: BookFormat) => t(`format.${format}` as MessageKey);
 
   return (
-    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-24 text-gray-800 space-y-4">
+    <div className="h-[100dvh] overflow-y-auto overscroll-contain p-4 pb-8 text-gray-800 space-y-4">
       <button
         onClick={onBack}
         disabled={isBusy}
@@ -96,7 +96,7 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
                   className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 mb-3 shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-60"
                 >
                   <BookOpen size={16} />
-                  <span className="text-xs">{t('details.startReading')}</span>
+                  <span className="text-xs">{t('details.addToLibrary')}</span>
                 </button>
               ) : (
                 <button
@@ -240,10 +240,12 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
               <span className="text-xs font-bold text-gray-700">{totalPages || fallback}</span>
             </div>
 
-            <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase">{t('details.added')}</span>
-              <span className="text-xs font-bold text-gray-700">{formatDate(book.addedAt, locale, fallback)}</span>
-            </div>
+            {!isWishlist && (
+              <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">{t('details.added')}</span>
+                <span className="text-xs font-bold text-gray-700">{formatDate(book.addedAt, locale, fallback)}</span>
+              </div>
+            )}
 
             <div className="flex justify-between items-center">
               <span className="text-[10px] font-bold text-gray-400 uppercase">{t('details.formats')}</span>
@@ -276,7 +278,7 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
               </div>
               <div>
                 <p className="text-[10px] font-bold text-pink-400 uppercase">{t('details.inWishlistSince')}</p>
-                <p className="text-xs font-bold text-pink-700">{formatDate(book.addedAt, locale, fallback)}</p>
+                <p className="text-xs font-bold text-pink-700">{formatDate(book.wishlistedAt || book.addedAt, locale, fallback)}</p>
               </div>
             </div>
           ) : (

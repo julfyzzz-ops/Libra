@@ -126,6 +126,7 @@ const en = {
   'details.comment': 'Comment',
   'details.openReading': 'Open reading',
   'details.startReading': 'Start reading',
+  'details.addToLibrary': 'Add to library',
   'details.deleteAria': 'Delete book',
   'details.unit.minutes': 'min',
   'details.unit.pagesPerHour': 'p/h',
@@ -233,7 +234,7 @@ const en = {
 
   'bg.cool': 'Cool',
   'bg.warm': 'Warm',
-  'bg.neutral': 'Neutral',
+  'bg.pink': 'Pink',
   'bg.peach': 'Peach',
   'bg.mint': 'Mint',
   'bg.dark': 'Dark',
@@ -367,6 +368,7 @@ const uk: Record<keyof typeof en, string> = {
   'details.comment': 'Коментар',
   'details.openReading': 'Режим читання',
   'details.startReading': 'Почати читати',
+  'details.addToLibrary': 'Додати в бібліотеку',
   'details.deleteAria': 'Видалити книгу',
   'details.unit.minutes': 'хв',
   'details.unit.pagesPerHour': 'ст/год',
@@ -474,7 +476,7 @@ const uk: Record<keyof typeof en, string> = {
 
   'bg.cool': 'Холодний',
   'bg.warm': 'Теплий',
-  'bg.neutral': 'Нейтральний',
+  'bg.pink': 'Рожевий',
   'bg.peach': 'Персик',
   'bg.mint': 'Мʼята',
   'bg.dark': 'Темний',

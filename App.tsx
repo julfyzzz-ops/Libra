@@ -18,6 +18,7 @@ import { applyTheme } from './utils';
 const AppContent: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('library');
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [isNavHidden, setIsNavHidden] = useState(false);
   const { isLoading, filterTag, setFilterTag } = useLibrary();
 
   const language = settings.language === 'uk' ? 'uk' : 'en';
@@ -33,6 +34,10 @@ const AppContent: React.FC = () => {
       setActiveView('library');
     }
   }, [filterTag]);
+
+  useEffect(() => {
+    setIsNavHidden(false);
+  }, [activeView]);
 
   const handleSettingsChange = useCallback((nextSettings: AppSettings) => {
     setSettings(nextSettings);
@@ -54,13 +59,15 @@ const AppContent: React.FC = () => {
         return <LibraryFlowV2 
           onNavigateToReading={() => setActiveView('reading')} 
           onNavigateToStatistics={() => setActiveView('statistics')}
+          onToggleNav={setIsNavHidden}
         />;
       case 'reading':
-        return <ReadingList />;
+        return <ReadingList onToggleNav={setIsNavHidden} />;
       case 'add':
         return <LibraryFlowV2 
           onNavigateToReading={() => setActiveView('reading')} 
           onNavigateToStatistics={() => setActiveView('statistics')}
+          onToggleNav={setIsNavHidden}
         />;
       case 'calendar':
         return <Calendar />;
@@ -74,6 +81,7 @@ const AppContent: React.FC = () => {
         return <LibraryFlowV2 
           onNavigateToReading={() => setActiveView('reading')} 
           onNavigateToStatistics={() => setActiveView('statistics')}
+          onToggleNav={setIsNavHidden}
         />;
     }
   };
@@ -82,21 +90,23 @@ const AppContent: React.FC = () => {
     <I18nProvider language={language}>
       <div className="w-full min-h-screen bg-slate-50 overflow-x-clip relative transition-colors duration-300">
         <main className="min-h-screen">{renderView()}</main>
-        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl p-2 z-50 grid grid-cols-5 gap-1 items-center">
-          <NavButton
-            active={activeView === 'library' || activeView === 'add'}
-            onClick={() => {
-              setActiveView('library');
-              setFilterTag('');
-            }}
-            icon={<LibraryIcon size={20} />}
-            label={t('nav.library')}
-          />
-          <NavButton active={activeView === 'reading'} onClick={() => setActiveView('reading')} icon={<BookIcon size={20} />} label={t('nav.reading')} />
-          <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label={t('nav.calendar')} />
-          <NavButton active={activeView === 'history'} onClick={() => setActiveView('history')} icon={<BarChart2 size={20} />} label={t('nav.history')} />
-          <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label={t('nav.settings')} />
-        </nav>
+        {!isNavHidden && (
+          <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl p-2 z-50 grid grid-cols-5 gap-1 items-center">
+            <NavButton
+              active={activeView === 'library' || activeView === 'add'}
+              onClick={() => {
+                setActiveView('library');
+                setFilterTag('');
+              }}
+              icon={<LibraryIcon size={20} />}
+              label={t('nav.library')}
+            />
+            <NavButton active={activeView === 'reading'} onClick={() => setActiveView('reading')} icon={<BookIcon size={20} />} label={t('nav.reading')} />
+            <NavButton active={activeView === 'calendar'} onClick={() => setActiveView('calendar')} icon={<CalendarIcon size={20} />} label={t('nav.calendar')} />
+            <NavButton active={activeView === 'history'} onClick={() => setActiveView('history')} icon={<BarChart2 size={20} />} label={t('nav.history')} />
+            <NavButton active={activeView === 'settings'} onClick={() => setActiveView('settings')} icon={<SettingsIcon size={20} />} label={t('nav.settings')} />
+          </nav>
+        )}
       </div>
     </I18nProvider>
   );

@@ -66,13 +66,21 @@ type V2Route =
 interface LibraryFlowV2Props {
   onNavigateToReading?: () => void;
   onNavigateToStatistics?: () => void;
+  onToggleNav?: (hidden: boolean) => void;
 }
 
-export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReading, onNavigateToStatistics }) => {
+export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReading, onNavigateToStatistics, onToggleNav }) => {
   const { t, locale } = useI18n();
   const { books, addBook, updateBook, deleteBook, reorderBooks, filterTag, setFilterTag } = useLibrary();
   const { toast, confirm } = useUI();
   const [route, setRoute] = useState<V2Route>({ kind: 'list', tab: 'library' });
+
+  useEffect(() => {
+    if (onToggleNav) {
+      const isFullScreen = route.kind === 'details' || route.kind === 'edit' || route.kind === 'reading' || route.kind === 'add';
+      onToggleNav(isFullScreen);
+    }
+  }, [route.kind, onToggleNav]);
 
   const changeRoute = useCallback((newRoute: V2Route | ((prev: V2Route) => V2Route)) => {
     setRoute((prev) => {
@@ -234,8 +242,8 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
 
     copy.sort((a, b) => {
       if (sortKey === 'addedAt') {
-        const aTime = Date.parse(a.addedAt || '');
-        const bTime = Date.parse(b.addedAt || '');
+        const aTime = Date.parse(a.addedAt || a.wishlistedAt || '');
+        const bTime = Date.parse(b.addedAt || b.wishlistedAt || '');
         return (Number.isFinite(aTime) ? aTime : 0) - (Number.isFinite(bTime) ? bTime : 0);
       }
       if (sortKey === 'author') {
@@ -731,7 +739,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     const liveBook = books.find((b) => b.id === route.bookId);
     if (!liveBook) {
       return (
-        <div className="p-4 pb-24 text-gray-800">
+        <div className="p-4 pb-8 text-gray-800">
           <p className="text-sm text-gray-500">{t('library.bookNotFound')}</p>
           <button className="mt-3 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => openList(route.tab)}>
             {t('common.back')}
@@ -782,15 +790,10 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
             try {
               updateBook({
                 ...liveBook,
-                status: 'Reading',
-                readingStartedAt: new Date().toISOString(),
+                status: 'Unread',
               });
-              toast.show(t('library.movedToReading'), 'success');
-              if (onNavigateToReading) {
-                onNavigateToReading();
-              } else {
-                openList('library');
-              }
+              toast.show(t('library.bookAdded'), 'success');
+              openList('library');
             } catch (error) {
               console.error(error);
               toast.show(t('library.failedUpdateStatus'), 'error');
@@ -807,7 +810,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     const liveBook = books.find((b) => b.id === route.bookId);
     if (!liveBook) {
       return (
-        <div className="p-4 pb-24 text-gray-800">
+        <div className="p-4 pb-8 text-gray-800">
           <p className="text-sm text-gray-500">{t('library.bookNotFound')}</p>
           <button className="mt-3 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => openList(route.tab)}>
             {t('common.back')}
@@ -823,7 +826,7 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
     const liveBook = books.find((b) => b.id === route.bookId);
     if (!liveBook) {
       return (
-        <div className="p-4 pb-24 text-gray-800">
+        <div className="p-4 pb-8 text-gray-800">
           <p className="text-sm text-gray-500">{t('library.bookNotFound')}</p>
           <button className="mt-3 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold" onClick={() => openList(route.tab)}>
             {t('common.back')}

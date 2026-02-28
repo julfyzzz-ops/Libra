@@ -129,12 +129,25 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         finalBook.pagesRead = 0;
         finalBook.sessions = []; // Clear reading history
         finalBook.rating = undefined; // Clear rating as it's not read
+        
+        if (finalBook.status === 'Wishlist') {
+          finalBook.addedAt = '';
+          if (!finalBook.wishlistedAt) {
+            finalBook.wishlistedAt = new Date().toISOString();
+          }
+        }
     }
 
     setState((prev) => {
       let bookToPersist: Book | null = null;
       const nextBooks = prev.books.map((b) => {
         if (b.id !== finalBook.id) return b;
+        
+        // Handle transition from Wishlist to Library
+        if (b.status === 'Wishlist' && finalBook.status !== 'Wishlist') {
+          finalBook.addedAt = new Date().toISOString();
+        }
+
         bookToPersist = { ...b, ...finalBook, customOrder: b.customOrder };
         return bookToPersist;
       });

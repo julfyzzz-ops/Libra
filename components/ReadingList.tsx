@@ -11,13 +11,23 @@ import { useUI } from '../contexts/UIContext';
 import { useI18n } from '../contexts/I18nContext';
 import { BookCover } from './ui/BookCover';
 
-export const ReadingList: React.FC = () => {
+interface ReadingListProps {
+  onToggleNav?: (hidden: boolean) => void;
+}
+
+export const ReadingList: React.FC<ReadingListProps> = ({ onToggleNav }) => {
   const { books, updateBook, deleteBook } = useLibrary();
   const { toast, confirm } = useUI();
   const { t } = useI18n();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [readingModeOpen, setReadingModeOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  React.useEffect(() => {
+    if (onToggleNav) {
+      onToggleNav(!!selectedBook || readingModeOpen || isEditing);
+    }
+  }, [selectedBook, readingModeOpen, isEditing, onToggleNav]);
 
   const uniquePublishers = React.useMemo(() => {
     const pubs = new Set<string>();

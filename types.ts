@@ -40,6 +40,7 @@ export interface Book {
   readingPagesTotal?: number; // Specific page count for the selected format (e.g. e-book pages differ from paper)
 
   addedAt: string;
+  wishlistedAt?: string;
   readingStartedAt?: string;
   completedAt?: string;
   // readingDates removed in favor of sessions
@@ -53,7 +54,7 @@ export interface LibraryState {
 }
 
 export type AccentColor = 'indigo' | 'rose' | 'amber' | 'emerald' | 'violet' | 'sky' | 'pink' | 'gold' | 'black' | 'white';
-export type BackgroundTone = 'cool' | 'warm' | 'neutral' | 'peach' | 'mint' | 'dark' | 'midnight' | 'forest';
+export type BackgroundTone = 'cool' | 'warm' | 'pink' | 'peach' | 'mint' | 'dark' | 'midnight' | 'forest';
 export type AppLanguage = 'en' | 'uk';
 
 export interface AppSettings {
