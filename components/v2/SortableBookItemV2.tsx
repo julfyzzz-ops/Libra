@@ -5,18 +5,17 @@ interface SortableBookItemV2Props {
   itemId: string;
   children: React.ReactNode;
   showHandle: boolean;
-  performanceMode?: boolean;
   isDragging?: boolean;
   onHandlePointerDown?: (event: React.PointerEvent<HTMLDivElement>, itemId: string) => void;
   setItemRef?: (itemId: string, el: HTMLDivElement | null) => void;
 }
 
-export const SortableBookItemV2: React.FC<SortableBookItemV2Props> = ({ itemId, children, showHandle, performanceMode = false, isDragging = false, onHandlePointerDown, setItemRef }) => {
+export const SortableBookItemV2: React.FC<SortableBookItemV2Props> = ({ itemId, children, showHandle, isDragging = false, onHandlePointerDown, setItemRef }) => {
   return (
     <div
       ref={(el) => setItemRef?.(itemId, el)}
-      className={`relative ${performanceMode ? 'will-change-transform' : ''}`}
-      style={{ touchAction: 'pan-y', willChange: 'transform' }}
+      className={`relative`}
+      style={{ touchAction: 'pan-y' }}
     >
       {/* Content */}
       <div className={`w-full relative z-0 transition-opacity duration-200 ${isDragging ? 'opacity-40' : ''}`}>
@@ -27,7 +26,7 @@ export const SortableBookItemV2: React.FC<SortableBookItemV2Props> = ({ itemId, 
       {showHandle && (
         <div
             onPointerDown={(e) => onHandlePointerDown?.(e, itemId)}
-            className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-xl text-gray-400 border border-gray-100 cursor-grab active:cursor-grabbing touch-none ${performanceMode ? 'bg-white text-gray-500' : 'bg-white/90 backdrop-blur-sm shadow-sm active:text-indigo-600 active:scale-110 transition-all'}`}
+            className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-xl text-gray-400 border border-gray-100 cursor-grab active:cursor-grabbing touch-none bg-white/90 backdrop-blur-sm shadow-sm active:text-indigo-600 active:scale-110 transition-all`}
             style={{ touchAction: 'none' }} 
         >
             <GripVertical size={20} />

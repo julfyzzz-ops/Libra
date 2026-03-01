@@ -1158,7 +1158,6 @@ export const LibraryFlowV2: React.FC<LibraryFlowV2Props> = ({ onNavigateToReadin
               key={book.id}
               itemId={book.id}
               showHandle={isReorderMode}
-              performanceMode={true}
               isDragging={draggingBookId === book.id}
               onHandlePointerDown={startDragFromHandle}
               setItemRef={setItemRef}

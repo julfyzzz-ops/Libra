@@ -9,7 +9,7 @@ interface BookCoverProps {
   iconSize?: number;
 }
 
-export const BookCover: React.FC<BookCoverProps> = React.memo(({ book, className, iconSize = 24 }) => {
+export const BookCover: React.FC<BookCoverProps> = ({ book, className, iconSize = 24 }) => {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -41,7 +41,7 @@ export const BookCover: React.FC<BookCoverProps> = React.memo(({ book, className
   if (objectUrl && !hasError) {
     return (
         <img 
-            key={objectUrl}
+            key={`${book.id}-${objectUrl}`}
             src={objectUrl} 
             className={`object-cover ${className}`} 
             alt={book.title} 
@@ -57,4 +57,4 @@ export const BookCover: React.FC<BookCoverProps> = React.memo(({ book, className
        <BookIcon size={iconSize} />
     </div>
   );
-});
+};

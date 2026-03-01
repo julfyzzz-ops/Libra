@@ -95,7 +95,7 @@ export const BookCardV2: React.FC<BookCardV2Props> = ({
         className="min-w-0 flex-1 text-left flex gap-4 items-center disabled:cursor-default active:scale-[0.99] transition-transform cursor-pointer select-none"
       >
         <div className="w-12 h-16 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
-          <BookCover book={book} className="w-full h-full" iconSize={18} />
+          <BookCover key={book.id} book={book} className="w-full h-full" iconSize={18} />
         </div>
 
         <div className="min-w-0 flex-1">
