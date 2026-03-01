@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bug, CheckCircle2, Copy, Download, FileSpreadsheet, Loader2, Palette, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { Bug, CheckCircle2, Copy, Download, FileSpreadsheet, Heart, Loader2, Palette, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import { useI18n } from '../contexts/I18nContext';
 import { useLibrary } from '../contexts/LibraryContext';
 import { useUI } from '../contexts/UIContext';
@@ -232,6 +232,24 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-sm">
+              <Heart size={20} />
+           </div>
+           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.thankAuthor')}</h3>
+        </div>
+        <a 
+          href="https://send.monobank.ua/jar/7stNN1kZYM" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-full bg-rose-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-rose-200"
+        >
+          <Heart size={18} />
+          <span>{t('settings.thankAuthor')}</span>
+        </a>
+      </div>
+
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">{t('settings.aboutTitle')}</h3>
         <div className="space-y-6">
           <div className="flex items-start gap-4">
@@ -248,7 +266,7 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
               <CheckCircle2 size={20} />
             </div>
             <div className="text-sm">
-              <p className="font-bold text-gray-800 mb-0.5">Libra v2.0</p>
+              <p className="font-bold text-gray-800 mb-0.5">Libra v3.0</p>
               <p className="text-gray-500 text-xs leading-relaxed">{t('settings.versionDesc')}</p>
             </div>
           </div>

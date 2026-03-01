@@ -207,6 +207,7 @@ const en = {
   'settings.localStorageTitle': 'Local storage',
   'settings.localStorageDesc': 'All data and covers are stored in your browser.',
   'settings.versionDesc': 'Your reading companion',
+  'settings.thankAuthor': 'Thank the author',
 
   'settings.toast.uiV2On': 'UI V2 beta enabled',
   'settings.toast.uiV2Off': 'UI V2 beta disabled',
@@ -240,6 +241,8 @@ const en = {
   'bg.dark': 'Dark',
   'bg.midnight': 'Midnight',
   'bg.forest': 'Forest',
+  'details.recalculate': 'Recalculate progress',
+  'details.recalculateToast': 'Progress recalculated based on history',
 } as const;
 
 const uk: Record<keyof typeof en, string> = {
@@ -449,6 +452,7 @@ const uk: Record<keyof typeof en, string> = {
   'settings.localStorageTitle': 'Локальне збереження',
   'settings.localStorageDesc': 'Усі дані та обкладинки зберігаються у вашому браузері.',
   'settings.versionDesc': 'Ваш помічник для читання',
+  'settings.thankAuthor': 'Подякувати автору',
 
   'settings.toast.uiV2On': 'UI V2 beta увімкнено',
   'settings.toast.uiV2Off': 'UI V2 beta вимкнено',
@@ -482,6 +486,8 @@ const uk: Record<keyof typeof en, string> = {
   'bg.dark': 'Темний',
   'bg.midnight': 'Опівнічний',
   'bg.forest': 'Ліс',
+  'details.recalculate': 'Перерахувати прогрес',
+  'details.recalculateToast': 'Прогрес перераховано на основі історії',
 };
 
 export const MESSAGES: Record<AppLanguage, Record<keyof typeof en, string>> = { en, uk };

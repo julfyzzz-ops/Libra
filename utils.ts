@@ -329,4 +329,10 @@ export const applyTheme = (accent: AccentColor, bg: BackgroundTone) => {
   root.style.setProperty('--text-body', bgData.vars.textBody);
   root.style.setProperty('--text-secondary', bgData.vars.textSecondary);
   root.style.setProperty('--text-light', bgData.vars.textLight);
+  
+  // Update Android status bar color
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute('content', bgData.vars.main);
+  }
 };
