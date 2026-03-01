@@ -14,8 +14,10 @@ export const BookCover: React.FC<BookCoverProps> = React.memo(({ book, className
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    setHasError(false);
+    setObjectUrl(null); // Clear previous URL immediately
+    
     let url: string | null = null;
-    setHasError(false); // Reset error state when book changes
 
     if (book.coverBlob) {
       // Create lazy URL only when component mounts
@@ -39,10 +41,12 @@ export const BookCover: React.FC<BookCoverProps> = React.memo(({ book, className
   if (objectUrl && !hasError) {
     return (
         <img 
+            key={objectUrl}
             src={objectUrl} 
             className={`object-cover ${className}`} 
             alt={book.title} 
             loading="lazy" 
+            referrerPolicy="no-referrer"
             onError={() => setHasError(true)}
         />
     );
