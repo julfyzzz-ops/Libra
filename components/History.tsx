@@ -233,7 +233,7 @@ export const History: React.FC = () => {
       {/* Date Range Picker */}
       <section className="bg-white rounded-[2rem] border border-gray-100 px-5 py-4 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">
               {t('stats.startDate')}
             </label>
@@ -241,10 +241,10 @@ export const History: React.FC = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full block bg-gray-50 border-none rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none min-w-0 text-center box-border max-w-full"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">
               {t('stats.endDate')}
             </label>
@@ -252,7 +252,7 @@ export const History: React.FC = () => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full block bg-gray-50 border-none rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none min-w-0 text-center box-border max-w-full"
             />
           </div>
         </div>

@@ -538,11 +538,11 @@ export const BookFormV2: React.FC<BookFormV2Props> = ({
 
           {form.status === 'Completed' && (
             <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('details.completed')}</label>
                 <input
                   type="date"
-                  className="w-full bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none"
+                  className="w-full block bg-gray-50 p-3 rounded-2xl text-xs font-bold border-none outline-none appearance-none min-w-0 box-border max-w-full"
                   value={form.completedAt ? form.completedAt.substring(0, 10) : ''}
                   onChange={(e) => updateForm('completedAt', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
                 />
