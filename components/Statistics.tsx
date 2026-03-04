@@ -21,7 +21,7 @@ export const Statistics: React.FC<StatisticsProps> = ({ onBack }) => {
 
   const stats = useMemo(() => {
     const libraryBooks = books.filter(
-      b => b.status !== 'Wishlist'
+      b => b.status !== 'Wishlist' && b.formats.includes('Paper')
     );
 
     const total = libraryBooks.length;
