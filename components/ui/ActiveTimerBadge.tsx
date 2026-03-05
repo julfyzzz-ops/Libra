@@ -4,9 +4,11 @@ import { formatTime } from '../../utils';
 
 interface ActiveTimerBadgeProps {
   bookId: string;
+  onClick?: (e: React.MouseEvent) => void;
+  className?: string;
 }
 
-export const ActiveTimerBadge: React.FC<ActiveTimerBadgeProps> = ({ bookId }) => {
+export const ActiveTimerBadge: React.FC<ActiveTimerBadgeProps> = ({ bookId, onClick, className }) => {
   const [displaySeconds, setDisplaySeconds] = useState<number | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,13 @@ export const ActiveTimerBadge: React.FC<ActiveTimerBadgeProps> = ({ bookId }) =>
   if (displaySeconds === null) return null;
 
   return (
-    <div className="absolute top-4 right-6 bg-red-600 text-black text-[10px] font-black px-2 py-0.5 rounded-lg shadow-lg z-20 flex items-center justify-center whitespace-nowrap">
+    <div 
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(e);
+      }}
+      className={`absolute top-1 right-1 w-16 h-16 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg z-20 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform active:scale-95 border-4 border-white ring-1 ring-gray-100 ${className || ''}`}
+    >
       {formatTime(displaySeconds)}
     </div>
   );

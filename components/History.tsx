@@ -153,7 +153,12 @@ export const History: React.FC = () => {
     
     const countRating10 = bestBooks.length;
 
-    // 4. Added books
+    // 4. Worst read (Books with rating <= 5)
+    const worstBooks = completedBooks
+      .filter(b => b.rating !== undefined && b.rating > 0 && b.rating <= 5)
+      .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
+
+    // 5. Added books
     const addedBooks = books
       .filter(b => b.status !== 'Wishlist' && b.addedAt)
       .filter(b => {
@@ -207,6 +212,7 @@ export const History: React.FC = () => {
       completedBooks,
       largestBook,
       bestBooks,
+      worstBooks,
       countRating10,
       addedBooks,
       genres,
@@ -307,9 +313,12 @@ export const History: React.FC = () => {
               locale={locale} 
               t={t} 
               extraInfo={
-                <div className="text-right flex-shrink-0 pl-2 border-l border-gray-50">
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-1">{t('stats.completedAt')}</p>
-                  <p className="text-xs font-black text-indigo-600">{formatCompletedDate(new Date(book.completedAt!), locale)}</p>
+                <div className="text-right flex-shrink-0 pl-2 border-l border-gray-50 flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1">
+                    <Star size={10} className={`fill-current ${book.rating && book.rating >= 8 ? 'text-emerald-500' : book.rating && book.rating <= 5 ? 'text-red-400' : 'text-amber-400'}`} />
+                    <span className="text-xs font-black text-gray-800">{book.rating || '-'}</span>
+                  </div>
+                  <p className="text-[9px] font-bold text-gray-400">{formatCompletedDate(new Date(book.completedAt!), locale)}</p>
                 </div>
               }
             />
@@ -368,7 +377,35 @@ export const History: React.FC = () => {
           ))}
         </MetricSection>
 
-        {/* 4. Added Books */}
+        {/* 4. Worst Read */}
+        <MetricSection
+          title={t('stats.worstRead')}
+          value={stats.worstBooks.length}
+          icon={<Star size={24} />}
+          isOpen={openSection === 'worst'}
+          onToggle={() => toggleSection('worst')}
+          hasData={stats.worstBooks.length > 0}
+        >
+          {stats.worstBooks.map((book) => (
+            <BookItem 
+              key={book.id} 
+              book={book} 
+              locale={locale} 
+              t={t} 
+              extraInfo={
+                <div className="text-right flex-shrink-0 pl-2 border-l border-gray-50">
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-1">{t('details.rating')}</p>
+                  <div className="flex items-center gap-1 justify-end">
+                    <Star size={10} className="fill-red-400 text-red-400" />
+                    <p className="text-xs font-black text-red-600">{book.rating}</p>
+                  </div>
+                </div>
+              }
+            />
+          ))}
+        </MetricSection>
+
+        {/* 5. Added Books */}
         <MetricSection
           title={t('stats.addedBooksCount')}
           value={stats.addedBooks.length}
@@ -393,7 +430,7 @@ export const History: React.FC = () => {
           ))}
         </MetricSection>
 
-        {/* 5. Genres */}
+        {/* 6. Genres */}
         <MetricSection
           title={t('library.filter.genre')}
           value={stats.genres.length}
@@ -412,7 +449,7 @@ export const History: React.FC = () => {
           </div>
         </MetricSection>
 
-        {/* 6. Publishers */}
+        {/* 7. Publishers */}
         <MetricSection
           title={t('stats.publishers')}
           value={stats.publishers.length}
