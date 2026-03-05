@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Book, ReadingSessionData, BookFormat } from '../types';
-import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText, Smartphone, Headphones, Tablet, RefreshCw } from 'lucide-react';
+import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText, Smartphone, Headphones, Tablet, RefreshCw, Plus } from 'lucide-react';
 import { calculateProgress, formatTime, getRemainingTimeText, getBookPageTotal, FORMAT_LABELS } from '../utils';
 import { useLibrary } from '../contexts/LibraryContext';
 import { BookCover } from './ui/BookCover';
@@ -219,6 +219,20 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
     if (isCompleted) setShowRatingDialog(true);
   };
 
+  const handleAddSession = () => {
+    const newSession: ReadingSessionData = {
+      id: createClientId(),
+      date: new Date().toISOString().split('T')[0],
+      duration: 0,
+      pages: 0
+    };
+    
+    const nextSessions = [...diarySessions, newSession];
+    setDiarySessions(nextSessions);
+    setEditingSessionId(newSession.id);
+    updateBook({ ...book, sessions: nextSessions });
+  };
+
   const updateSession = (sessionId: string, field: keyof ReadingSessionData, value: any) => {
     const sessionToUpdate = diarySessions.find(s => s.id === sessionId);
     if (!sessionToUpdate) return;
@@ -232,7 +246,20 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
       newPagesRead = Math.max(0, newPagesRead + diff);
     }
 
-    updateBook({ ...book, sessions: updatedSessions, pagesRead: newPagesRead });
+    const total = getBookPageTotal(book);
+    const isCompleted = total > 0 && newPagesRead >= total;
+    
+    const updates: Partial<Book> = { sessions: updatedSessions, pagesRead: newPagesRead };
+    
+    if (isCompleted && book.status !== 'Completed') {
+        updates.status = 'Completed';
+        updates.completedAt = new Date().toISOString();
+    } else if (!isCompleted && book.status === 'Completed') {
+        updates.status = 'Reading';
+        updates.completedAt = undefined;
+    }
+
+    updateBook({ ...book, ...updates });
   };
 
   const deleteSession = (e: React.MouseEvent, sessionId: string) => {
@@ -259,7 +286,19 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
 
   const recalculateProgress = () => {
     const totalRead = diarySessions.reduce((acc, s) => acc + (s.pages || 0), 0);
-    updateBook({ ...book, pagesRead: totalRead });
+    const total = getBookPageTotal(book);
+    const isCompleted = total > 0 && totalRead >= total;
+    
+    const updates: Partial<Book> = { pagesRead: totalRead };
+    if (isCompleted && book.status !== 'Completed') {
+        updates.status = 'Completed';
+        updates.completedAt = new Date().toISOString();
+    } else if (!isCompleted && book.status === 'Completed') {
+        updates.status = 'Reading';
+        updates.completedAt = undefined;
+    }
+    
+    updateBook({ ...book, ...updates });
     toast.show(t('details.recalculateToast'), 'success');
   };
 
@@ -328,13 +367,22 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
        <div className="flex-1 bg-white rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col w-full">
           <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-white z-10 flex items-center justify-between">
              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><BookOpen size={18} className="text-indigo-600" /> Щоденник</h3>
-             <button 
-               onClick={recalculateProgress}
-               className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-               title={t('details.recalculate')}
-             >
-               <RefreshCw size={16} />
-             </button>
+             <div className="flex gap-2">
+                <button 
+                  onClick={handleAddSession}
+                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                  title="Додати запис"
+                >
+                  <Plus size={16} />
+                </button>
+                <button 
+                  onClick={recalculateProgress}
+                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                  title={t('details.recalculate')}
+                >
+                  <RefreshCw size={16} />
+                </button>
+             </div>
           </div>
           <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2.5">
               {diarySessions.length > 0 ? (
