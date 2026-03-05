@@ -26,8 +26,9 @@ interface ReadingSessionState {
 
 type SetupStep = 'none' | 'select-format' | 'confirm-pages';
 
-export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
-  const { updateBook } = useLibrary();
+export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onClose }) => {
+  const { updateBook, books } = useLibrary();
+  const book = books.find(b => b.id === initialBook.id) || initialBook;
   const { toast } = useUI();
   const { t } = useI18n();
   const [diarySessions, setDiarySessions] = useState<ReadingSessionData[]>(book.sessions || []);
@@ -57,6 +58,8 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
   const [setupStep, setSetupStep] = useState<SetupStep>('none');
   const [tempFormat, setTempFormat] = useState<BookFormat | null>(null);
   const [tempPagesTotal, setTempPagesTotal] = useState<number>(book.pagesTotal || 0);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     setDiarySessions(book.sessions || []);
@@ -186,8 +189,6 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
   };
 
   const confirmSession = (finalPage: number) => {
-    const total = getBookPageTotal(book);
-    const isCompleted = total > 0 && finalPage >= total;
     const pagesCount = Math.max(0, finalPage - session.startPage);
     const today = new Date().toISOString().split('T')[0];
     const finalDuration = session.accumulatedTime;
@@ -199,14 +200,20 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
       pages: pagesCount
     };
 
-    // Optimistic UI: show new diary record immediately.
-    setDiarySessions(prev => [...prev, newSession]);
+    const nextSessions = [...diarySessions, newSession];
+    // Optimistic UI
+    setDiarySessions(nextSessions);
+
+    // Recalculate total from all sessions to be safe
+    const totalRead = nextSessions.reduce((acc, s) => acc + (s.pages || 0), 0);
+    const total = getBookPageTotal(book);
+    const isCompleted = total > 0 && totalRead >= total;
 
     let updatedBook: Book = {
         ...book,
-        pagesRead: finalPage,
+        pagesRead: totalRead,
         status: isCompleted ? 'Completed' : 'Reading',
-        sessions: [...(book.sessions || []), newSession]
+        sessions: nextSessions
     };
 
     if (isCompleted) updatedBook.completedAt = new Date().toISOString();
@@ -230,26 +237,20 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
     const nextSessions = [...diarySessions, newSession];
     setDiarySessions(nextSessions);
     setEditingSessionId(newSession.id);
+    
+    // No change in pagesRead yet as pages is 0
     updateBook({ ...book, sessions: nextSessions });
   };
 
   const updateSession = (sessionId: string, field: keyof ReadingSessionData, value: any) => {
-    const sessionToUpdate = diarySessions.find(s => s.id === sessionId);
-    if (!sessionToUpdate) return;
-
     const updatedSessions = diarySessions.map(s => s.id === sessionId ? { ...s, [field]: value } : s);
     setDiarySessions(updatedSessions);
 
-    let newPagesRead = book.pagesRead || 0;
-    if (field === 'pages') {
-      const diff = (value as number) - (sessionToUpdate.pages || 0);
-      newPagesRead = Math.max(0, newPagesRead + diff);
-    }
-
+    const totalRead = updatedSessions.reduce((acc, s) => acc + (s.pages || 0), 0);
     const total = getBookPageTotal(book);
-    const isCompleted = total > 0 && newPagesRead >= total;
+    const isCompleted = total > 0 && totalRead >= total;
     
-    const updates: Partial<Book> = { sessions: updatedSessions, pagesRead: newPagesRead };
+    const updates: Partial<Book> = { sessions: updatedSessions, pagesRead: totalRead };
     
     if (isCompleted && book.status !== 'Completed') {
         updates.status = 'Completed';
@@ -264,24 +265,28 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
 
   const deleteSession = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    if (!window.confirm('Видалити цю сесію?')) return;
-    const sessionToDelete = diarySessions.find(s => s.id === sessionId);
-    const updatedSessions = diarySessions.filter(s => s.id !== sessionId);
+    setSessionToDelete(sessionId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!sessionToDelete) return;
+    
+    const updatedSessions = diarySessions.filter(s => s.id !== sessionToDelete);
     setDiarySessions(updatedSessions);
     
-    let newPagesRead = book.pagesRead || 0;
-    if (sessionToDelete) {
-      newPagesRead = Math.max(0, newPagesRead - (sessionToDelete.pages || 0));
-    }
-    
+    const totalRead = updatedSessions.reduce((acc, s) => acc + (s.pages || 0), 0);
     const total = getBookPageTotal(book);
-    const updatedBook: Book = { ...book, sessions: updatedSessions, pagesRead: newPagesRead };
     
-    if (book.status === 'Completed' && total > 0 && newPagesRead < total) {
+    const updatedBook: Book = { ...book, sessions: updatedSessions, pagesRead: totalRead };
+    
+    if (book.status === 'Completed' && total > 0 && totalRead < total) {
         updatedBook.status = 'Reading';
         updatedBook.completedAt = undefined;
     }
     updateBook(updatedBook);
+    setShowDeleteDialog(false);
+    setSessionToDelete(null);
   };
 
   const recalculateProgress = () => {
@@ -341,6 +346,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
                    </div>
                    <div className="flex flex-col justify-center">
                        <div className="text-4xl font-bold text-white leading-none mb-2">{calculateProgress(book.pagesRead, effectiveTotal)}%</div>
+                       <div className="text-sm font-medium text-gray-300 mb-1">{book.pagesRead} / {effectiveTotal} стор.</div>
                        <p className="text-xs font-medium text-gray-400 mb-3 max-w-[140px] leading-tight">{getRemainingTimeText(book)}</p>
                        <div className="w-32 h-1.5 bg-gray-600 rounded-full overflow-hidden">
                           <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${calculateProgress(book.pagesRead, effectiveTotal)}%` }} />
@@ -471,6 +477,33 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book, onClose }) => {
             </div>
          </div>
        )}
+        {showDeleteDialog && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+             <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200">
+                <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-4 text-red-500">
+                    <Trash2 size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Видалити запис?</h3>
+                <p className="text-gray-500 text-sm mb-8 text-center leading-relaxed px-4">
+                    Ви впевнені, що хочете видалити цей запис із щоденника читання? Цю дію неможливо скасувати.
+                </p>
+                <div className="flex gap-3 w-full">
+                    <button 
+                        onClick={() => { setShowDeleteDialog(false); setSessionToDelete(null); }} 
+                        className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 active:scale-95 transition-all"
+                    >
+                        Скасувати
+                    </button>
+                    <button 
+                        onClick={handleConfirmDelete} 
+                        className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-bold shadow-lg shadow-red-200 hover:bg-red-600 active:scale-95 transition-all"
+                    >
+                        Видалити
+                    </button>
+                </div>
+             </div>
+          </div>
+        )}
     </div>
   );
 };
