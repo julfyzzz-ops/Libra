@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Book } from '../types';
-import { BookOpen, Book as BookIcon } from 'lucide-react';
+import { BookOpen, Book as BookIcon, Dices } from 'lucide-react';
 import { BookDetailsV2 } from './v2/BookDetailsV2';
 import { EditBookV2 } from './v2/EditBookV2';
 import { ReadingMode } from './ReadingMode';
@@ -47,15 +47,36 @@ export const ReadingList: React.FC<ReadingListProps> = ({ onToggleNav }) => {
     return Array.from(genres).sort();
   }, [books]);
 
-  // Filter only books with status 'Reading'
   const readingBooks = books.filter(b => b.status === 'Reading');
+  
+  const handleRandomBook = () => {
+    const unreadPaperBooks = books.filter(b => b.status === 'Unread' && b.formats.includes('Paper'));
+    if (unreadPaperBooks.length === 0) {
+      toast.show(t('library.empty'), 'info');
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * unreadPaperBooks.length);
+    const randomBook = unreadPaperBooks[randomIndex];
+    setSelectedBook(randomBook);
+    setReadingModeOpen(false);
+    setIsEditing(false);
+  };
 
   return (
     <>
       <div className="p-4 space-y-6 pb-24 text-gray-800 animate-in fade-in duration-500">
-        <header>
-          <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('reading.title')}</h1>
-          <p className="text-gray-500 text-sm mt-1">{t('reading.subtitle')}</p>
+        <header className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{t('reading.title')}</h1>
+            <p className="text-gray-500 text-sm mt-1">{t('reading.subtitle')}</p>
+          </div>
+          <button
+            onClick={handleRandomBook}
+            className="w-12 h-12 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-indigo-600 active:scale-90 transition-all"
+            aria-label="Random unread paper book"
+          >
+            <Dices size={24} className="rotate-12" />
+          </button>
         </header>
 
         {readingBooks.length === 0 ? (
