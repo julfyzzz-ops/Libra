@@ -59,6 +59,7 @@ export const getSeasonColorClass = (season: string): string => {
 
 // Helper to get the effective total pages (using reading specific total if set)
 export const getBookPageTotal = (book: Book) => {
+  if (book.selectedReadingFormat === 'Audio') return 100;
   return book.readingPagesTotal || book.pagesTotal || 0;
 };
 
@@ -87,6 +88,7 @@ export const getRatingColor = (rating: number) => {
 };
 
 export const calculateAverageSpeed = (book: Book) => {
+  if (book.selectedReadingFormat === 'Audio') return 0;
   if (!book.sessions || book.sessions.length === 0) return 0;
   const totalPages = book.sessions.reduce((acc, s) => acc + Number(s.pages), 0);
   const totalSeconds = book.sessions.reduce((acc, s) => acc + Number(s.duration), 0);

@@ -130,12 +130,22 @@ export const ReadingList: React.FC<ReadingListProps> = ({ onToggleNav }) => {
                          </div>
                          <div className="flex justify-between items-center">
                             <div className="flex gap-1">
-                               {book.formats.slice(0, 1).map(f => (
-                                  <span key={f} className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded-md font-bold border border-gray-100 uppercase">{t(`format.${f}` as any)}</span>
-                               ))}
+                               {book.selectedReadingFormat ? (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-md font-bold border border-indigo-100 uppercase">
+                                    {t(`format.${book.selectedReadingFormat}` as any)}
+                                  </span>
+                               ) : (
+                                  book.formats.slice(0, 1).map(f => (
+                                     <span key={f} className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded-md font-bold border border-gray-100 uppercase">{t(`format.${f}` as any)}</span>
+                                  ))
+                               )}
                             </div>
                             <p className="text-[10px] text-gray-400 font-bold">
-                               {book.pagesRead} / {getBookPageTotal(book)} {t('details.unit.pages')}
+                               {book.selectedReadingFormat === 'Audio' ? (
+                                  `${book.pagesRead || 0}%`
+                               ) : (
+                                  `${book.pagesRead || 0} / ${getBookPageTotal(book)} ${t('details.unit.pages')}`
+                               )}
                             </p>
                          </div>
                       </div>

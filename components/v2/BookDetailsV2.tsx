@@ -58,7 +58,7 @@ export const BookDetailsV2: React.FC<BookDetailsV2Props> = ({
 }) => {
   const { t, locale } = useI18n();
   const isWishlist = book.status === 'Wishlist';
-  const totalPages = getBookPageTotal(book);
+  const totalPages = book.pagesTotal || getBookPageTotal(book);
   const progress = calculateProgress(book.pagesRead, totalPages);
   const fallback = t('common.unknown');
 

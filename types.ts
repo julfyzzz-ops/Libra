@@ -6,7 +6,8 @@ export interface ReadingSessionData {
   id: string;
   date: string; // YYYY-MM-DD
   duration: number; // in seconds
-  pages: number; // number of pages read in this session
+  pages: number; // number of pages read in this session (or percentage points for Audio)
+  format?: BookFormat;
 }
 
 export interface Book {

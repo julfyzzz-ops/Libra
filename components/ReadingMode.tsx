@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Book, ReadingSessionData, BookFormat } from '../types';
 import { BookOpen, X, Play, Pause, Square, CheckCircle2, Save, Edit3, Trash2, Delete, Trophy, Calendar, Clock, Zap, FileText, Smartphone, Headphones, Tablet, RefreshCw, Plus } from 'lucide-react';
 import { calculateProgress, formatTime, getRemainingTimeText, getBookPageTotal, FORMAT_LABELS } from '../utils';
@@ -80,11 +80,31 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onC
     window.dispatchEvent(new CustomEvent('libra_session_update', { detail: { bookId: book.id } }));
   }, [session, book.id]);
 
+  const handleFormatSelect = useCallback((format: BookFormat) => {
+      setTempFormat(format);
+      if (format === 'Audio') {
+          updateBook({
+              ...book,
+              selectedReadingFormat: 'Audio',
+              readingPagesTotal: 100
+          });
+          setSetupStep('none');
+          return;
+      }
+      setTempPagesTotal(book.pagesTotal || 0);
+      setSetupStep('confirm-pages');
+  }, [book, updateBook]);
+
   useEffect(() => {
-     if (book.formats.length > 1 && !book.selectedReadingFormat && book.status !== 'Completed') {
-         setSetupStep('select-format');
+     if (!book.selectedReadingFormat && book.status !== 'Completed' && book.formats.length > 0) {
+         if (book.formats.length > 1) {
+             setSetupStep('select-format');
+         } else {
+             // Auto-select the only format
+             handleFormatSelect(book.formats[0]);
+         }
      }
-  }, [book.formats, book.selectedReadingFormat, book.status]);
+  }, [book.formats, book.selectedReadingFormat, book.status, handleFormatSelect]);
 
   // Handle timer interval
   useEffect(() => {
@@ -118,12 +138,6 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onC
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [session.isActive, session.isPaused, session.startTime, session.accumulatedTime]);
-
-  const handleFormatSelect = (format: BookFormat) => {
-      setTempFormat(format);
-      setTempPagesTotal(book.pagesTotal || 0);
-      setSetupStep('confirm-pages');
-  };
 
   const handlePagesConfirm = () => {
       if (tempFormat && tempPagesTotal > 0) {
@@ -346,7 +360,12 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onC
                    </div>
                    <div className="flex flex-col justify-center">
                        <div className="text-4xl font-bold text-white leading-none mb-2">{calculateProgress(book.pagesRead, effectiveTotal)}%</div>
-                       <div className="text-sm font-medium text-gray-300 mb-1">{book.pagesRead} / {effectiveTotal} стор.</div>
+                       <div className="text-sm font-medium text-gray-300 mb-1">
+                         {book.selectedReadingFormat === 'Audio' 
+                           ? `${book.pagesRead || 0}%` 
+                           : `${book.pagesRead || 0} / ${effectiveTotal} стор.`
+                         }
+                       </div>
                        <p className="text-xs font-medium text-gray-400 mb-3 max-w-[140px] leading-tight">{getRemainingTimeText(book)}</p>
                        <div className="w-32 h-1.5 bg-gray-600 rounded-full overflow-hidden">
                           <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${calculateProgress(book.pagesRead, effectiveTotal)}%` }} />
@@ -393,7 +412,7 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onC
           <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2.5">
               {diarySessions.length > 0 ? (
                   [...diarySessions].reverse().map((s) => {
-                      const speed = s.duration > 0 ? Math.round(s.pages / (s.duration / 3600)) : 0;
+                      const speed = (s.duration > 0 && book.selectedReadingFormat !== 'Audio') ? Math.round(s.pages / (s.duration / 3600)) : 0;
                       const isEditing = editingSessionId === s.id;
                       return (
                           <div key={s.id} className="bg-white border border-gray-100 rounded-2xl p-2 shadow-sm flex items-stretch gap-2">
@@ -403,14 +422,21 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onC
                                       {isEditing ? (<input type="date" className="w-full bg-white text-[10px] rounded border border-gray-200 p-0.5" value={s.date} onChange={(e) => updateSession(s.id, 'date', e.target.value)} />) : (<span className="text-xs font-bold text-gray-700 truncate">{new Date(s.date).toLocaleDateString('uk-UA', {day: '2-digit', month: '2-digit'})}</span>)}
                                   </div>
                                   <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 min-w-0">
-                                      <div className="flex items-center gap-1 mb-0.5"><FileText size={10} className="text-gray-400" /><span className="text-[9px] text-gray-400 uppercase font-bold truncate">Стор</span></div>
-                                      {isEditing ? (<input inputMode="numeric" pattern="[0-9]*" type="number" className="w-full text-center bg-white text-xs rounded border border-gray-200 p-0.5" value={s.pages} onChange={(e) => updateSession(s.id, 'pages', parseInt(e.target.value) || 0)} />) : (<span className="text-xs font-black text-indigo-600">{s.pages}</span>)}
+                                      <div className="flex items-center gap-1 mb-0.5"><FileText size={10} className="text-gray-400" /><span className="text-[9px] text-gray-400 uppercase font-bold truncate">{book.selectedReadingFormat === 'Audio' ? 'Відс' : 'Стор'}</span></div>
+                                      {isEditing ? (<input inputMode="numeric" pattern="[0-9]*" type="number" className="w-full text-center bg-white text-xs rounded border border-gray-200 p-0.5" value={s.pages} onChange={(e) => updateSession(s.id, 'pages', parseInt(e.target.value) || 0)} />) : (<span className="text-xs font-black text-indigo-600">{s.pages}{book.selectedReadingFormat === 'Audio' ? '%' : ''}</span>)}
                                   </div>
                                   <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 min-w-0">
                                       <div className="flex items-center gap-1 mb-0.5"><Clock size={10} className="text-gray-400" /><span className="text-[9px] text-gray-400 uppercase font-bold truncate">Хв</span></div>
                                       {isEditing ? (<input inputMode="numeric" pattern="[0-9]*" type="number" className="w-full text-center bg-white text-xs rounded border border-gray-200 p-0.5" value={Math.round(s.duration / 60)} onChange={(e) => updateSession(s.id, 'duration', (parseInt(e.target.value) || 0) * 60)} />) : (<span className="text-xs font-black text-gray-700">{Math.round(s.duration / 60)}</span>)}
                                   </div>
-                                  <DiaryCardItem icon={Zap} label="Швидк" value={`${speed}`} colorClass="text-amber-500" />
+                                  {book.selectedReadingFormat !== 'Audio' ? (
+                                    <DiaryCardItem icon={Zap} label="Швидк" value={`${speed}`} colorClass="text-amber-500" />
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-1.5 flex-1 min-w-0">
+                                      <div className="flex items-center gap-1 mb-0.5"><Zap size={10} className="text-gray-400" /><span className="text-[9px] text-gray-400 uppercase font-bold truncate">Аудіо</span></div>
+                                      <span className="text-xs font-black text-gray-400 italic">N/A</span>
+                                    </div>
+                                  )}
                               </div>
                               <div className="flex flex-col gap-1 w-8 flex-shrink-0">
                                   <button onClick={(e) => { e.stopPropagation(); setEditingSessionId(isEditing ? null : s.id); }} className={`flex-1 flex items-center justify-center rounded-lg transition-colors ${isEditing ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:text-indigo-600'}`}>{isEditing ? <Save size={14} /> : <Edit3 size={14} />}</button>
@@ -456,8 +482,11 @@ export const ReadingMode: React.FC<ReadingModeProps> = ({ book: initialBook, onC
        {numpadMode && (
          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-               <h3 className="text-lg font-bold text-gray-800 text-center mb-6">{numpadMode === 'start' ? 'З якої сторінки почали?' : 'На якій сторінці зупинились?'}</h3>
-               <div className="flex justify-center mb-6"><div className="text-5xl font-black text-gray-800 flex items-center tracking-tight">{numpadValue || '0'}<span className="animate-pulse text-indigo-500 ml-1">|</span></div></div>
+               <h3 className="text-lg font-bold text-gray-800 text-center mb-6">{book.selectedReadingFormat === 'Audio'
+                    ? (numpadMode === 'start' ? 'Скільки відсотків було?' : 'Скільки відсотків зараз?')
+                    : (numpadMode === 'start' ? 'З якої сторінки почали?' : 'На якій сторінці зупинились?')
+                  }</h3>
+               <div className="flex justify-center mb-6"><div className="text-5xl font-black text-gray-800 flex items-center tracking-tight">{numpadValue || '0'}{book.selectedReadingFormat === 'Audio' && <span className="text-2xl ml-1">%</span>}<span className="animate-pulse text-indigo-500 ml-1">|</span></div></div>
                <div className="grid grid-cols-3 gap-3 mb-4">
                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handleNumpadPress(num)} className="h-14 rounded-2xl text-xl font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm">{num}</button>))}
                    <div /><button onClick={() => handleNumpadPress(0)} className="h-14 rounded-2xl text-xl font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm">0</button>

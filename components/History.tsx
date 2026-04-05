@@ -144,7 +144,9 @@ export const History: React.FC = () => {
       .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
 
     // 2. Largest book read
-    const largestBook = [...completedBooks].sort((a, b) => getBookPageTotal(b) - getBookPageTotal(a))[0];
+    const largestBook = [...completedBooks]
+      .filter(b => b.selectedReadingFormat !== 'Audio')
+      .sort((a, b) => getBookPageTotal(b) - getBookPageTotal(a))[0];
 
     // 3. Best read (Books with rating 10)
     const bestBooks = completedBooks
@@ -192,11 +194,16 @@ export const History: React.FC = () => {
     // 7. Reading sessions stats
     let totalPagesRead = 0;
     let totalDurationSeconds = 0;
+    let totalDurationSecondsForSpeed = 0;
     books.forEach(book => {
+      const isAudio = book.selectedReadingFormat === 'Audio';
       book.sessions.forEach(session => {
         const sessionDate = new Date(session.date);
         if (sessionDate >= start && sessionDate <= end) {
-          totalPagesRead += session.pages;
+          if (!isAudio) {
+            totalPagesRead += session.pages;
+            totalDurationSecondsForSpeed += session.duration;
+          }
           totalDurationSeconds += session.duration;
         }
       });
@@ -205,7 +212,7 @@ export const History: React.FC = () => {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     
-    const avgSpeed = totalDurationSeconds > 0 ? (totalPagesRead / (totalDurationSeconds / 3600)) : 0;
+    const avgSpeed = totalDurationSecondsForSpeed > 0 ? (totalPagesRead / (totalDurationSecondsForSpeed / 3600)) : 0;
     const avgPagesPerDay = totalPagesRead / diffDays;
 
     return {
