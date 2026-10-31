@@ -6,11 +6,13 @@ import { useUI } from '../contexts/UIContext';
 import { MessageKey } from '../i18n/messages';
 import { importLibraryFromCSV, importLibraryFromJSON } from '../services/importers';
 import { buildCustomProxyUrl } from '../services/MBooksParser';
-import { exportLibraryToJSON, loadSettings, saveSettings } from '../services/storageService';
+import { exportLibraryToJSON, loadSettings, saveSettings, DEFAULT_CORS_PROXY_URL } from '../services/storageService';
 import { AccentColor, AppLanguage, AppSettings, BackgroundTone } from '../types';
 import { ACCENT_COLORS, applyTheme, BACKGROUND_TONES } from '../utils';
 
-const CLOUDFLARE_WORKER_CODE = `export default {
+const CLOUDFLARE_WORKER_CODE = `const ALLOWED_HOSTS = ['mbooks.com.ua', 'goodreads.com', 'www.goodreads.com'];
+
+export default {
   async fetch(request) {
     const url = new URL(request.url);
     let targetUrl = url.searchParams.get("url") || url.searchParams.get("quest");
@@ -18,10 +20,20 @@ const CLOUDFLARE_WORKER_CODE = `export default {
       targetUrl = url.pathname.slice(1);
     }
     if (!targetUrl) {
-      return new Response("Libra CORS Proxy is running! Use: ?url=https://...", {
+      return new Response("Libra CORS Proxy is running! Pass ?url=https://...", {
         status: 200,
         headers: { "Access-Control-Allow-Origin": "*" }
       });
+    }
+
+    // Protection: allow only book domains
+    try {
+      const parsedTarget = new URL(targetUrl);
+      if (!ALLOWED_HOSTS.some(h => parsedTarget.hostname === h || parsedTarget.hostname.endsWith('.' + h))) {
+        return new Response("Forbidden target domain", { status: 403 });
+      }
+    } catch {
+      return new Response("Invalid target URL", { status: 400 });
     }
 
     if (request.method === "OPTIONS") {
@@ -78,7 +90,7 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
 
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', language: 'en', corsProxyUrl: '' });
+  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', language: 'en', corsProxyUrl: DEFAULT_CORS_PROXY_URL });
 
   const [proxyInput, setProxyInput] = useState('');
   const [isTestingProxy, setIsTestingProxy] = useState(false);
@@ -158,12 +170,10 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
 
   const handleSaveProxy = () => {
     const val = proxyInput.trim();
-    saveAndApply({ ...settings, corsProxyUrl: val });
-    if (val) {
-      toast.show(t('settings.toast.proxySaved'), 'success');
-    } else {
-      toast.show(t('settings.toast.proxyCleared'), 'info');
-    }
+    const finalVal = val || DEFAULT_CORS_PROXY_URL;
+    saveAndApply({ ...settings, corsProxyUrl: finalVal });
+    setProxyInput(finalVal);
+    toast.show(t('settings.toast.proxySaved'), 'success');
   };
 
   const handleTestProxy = async () => {
@@ -395,7 +405,7 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
                 setProxyInput(e.target.value);
                 setProxyTestStatus(null);
               }}
-              placeholder="https://libra-proxy.username.workers.dev"
+              placeholder={DEFAULT_CORS_PROXY_URL}
               className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
             />
             <button

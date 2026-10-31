@@ -12,16 +12,18 @@ import {
 } from "./repositories/booksRepo";
 
 const SETTINGS_KEY = "booktracker_settings";
+export const DEFAULT_CORS_PROXY_URL = "https://libra-proxy.julfyzzz.workers.dev/";
 
 export const loadSettings = (): AppSettings => {
-  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", language: "en", corsProxyUrl: "" };
+  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", language: "en", corsProxyUrl: DEFAULT_CORS_PROXY_URL };
   try {
     const data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return defaultSettings;
     const parsed = JSON.parse(data) as Partial<AppSettings>;
     const language = parsed.language === "uk" ? "uk" : "en";
     const bg = parsed.bg === ("neutral" as any) ? "pink" : (parsed.bg as BackgroundTone || "cool");
-    const corsProxyUrl = typeof parsed.corsProxyUrl === "string" ? parsed.corsProxyUrl.trim() : "";
+    const rawProxy = typeof parsed.corsProxyUrl === "string" ? parsed.corsProxyUrl.trim() : "";
+    const corsProxyUrl = rawProxy !== "" ? rawProxy : DEFAULT_CORS_PROXY_URL;
     return { ...defaultSettings, ...parsed, language, bg, corsProxyUrl };
   } catch {
     return defaultSettings;

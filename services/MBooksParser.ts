@@ -1,7 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { normalizeIsbn } from '../utils';
 import { GoodreadsParser } from './GoodreadsParser';
-import { loadSettings } from './storageService';
+import { loadSettings, DEFAULT_CORS_PROXY_URL } from './storageService';
 
 export const buildCustomProxyUrl = (proxyBase: string, targetUrl: string): string => {
   const trimmed = proxyBase.trim();
@@ -556,7 +556,7 @@ export class MBooksParser {
     if (onStep) onStep(1, 'Пошук книги за ISBN (MBooks, Goodreads, Open Library)...');
 
     const settings = loadSettings();
-    const customProxy = settings.corsProxyUrl?.trim();
+    const customProxy = settings.corsProxyUrl?.trim() || DEFAULT_CORS_PROXY_URL;
     const isStaticHost = typeof window !== 'undefined' && (
       window.location.hostname.includes('github.io') ||
       window.location.hostname.includes('pages.dev') ||
@@ -711,7 +711,7 @@ const fetchHtml = async (url: string): Promise<string> => {
 
   // 2. Custom Cloudflare Worker / CORS Proxy (Top priority for Web)
   const settings = loadSettings();
-  const customProxy = settings.corsProxyUrl?.trim();
+  const customProxy = settings.corsProxyUrl?.trim() || DEFAULT_CORS_PROXY_URL;
 
   if (url.startsWith('/goodreads-api')) {
     const targetUrl = `https://www.goodreads.com${url.replace(/^\/goodreads-api/, '')}`;
