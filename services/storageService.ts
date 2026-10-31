@@ -14,14 +14,15 @@ import {
 const SETTINGS_KEY = "booktracker_settings";
 
 export const loadSettings = (): AppSettings => {
-  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", language: "en" };
+  const defaultSettings: AppSettings = { accent: "indigo", bg: "cool", language: "en", corsProxyUrl: "" };
   try {
     const data = localStorage.getItem(SETTINGS_KEY);
     if (!data) return defaultSettings;
     const parsed = JSON.parse(data) as Partial<AppSettings>;
     const language = parsed.language === "uk" ? "uk" : "en";
     const bg = parsed.bg === ("neutral" as any) ? "pink" : (parsed.bg as BackgroundTone || "cool");
-    return { ...defaultSettings, ...parsed, language, bg };
+    const corsProxyUrl = typeof parsed.corsProxyUrl === "string" ? parsed.corsProxyUrl.trim() : "";
+    return { ...defaultSettings, ...parsed, language, bg, corsProxyUrl };
   } catch {
     return defaultSettings;
   }

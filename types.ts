@@ -68,6 +68,7 @@ export interface AppSettings {
   accent: AccentColor;
   bg: BackgroundTone;
   language?: AppLanguage;
+  corsProxyUrl?: string;
 }
 
 export type SortKey = 'title' | 'author' | 'addedAt' | 'genre' | 'custom';

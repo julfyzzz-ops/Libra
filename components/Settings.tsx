@@ -1,13 +1,69 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bug, CheckCircle2, Copy, Download, DownloadCloud, FileSpreadsheet, Heart, Loader2, Palette, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { Bug, CheckCircle2, Copy, Download, DownloadCloud, FileSpreadsheet, Globe, Heart, Loader2, Palette, ShieldCheck, Trash2, Upload, X, Zap } from 'lucide-react';
 import { useI18n } from '../contexts/I18nContext';
 import { useLibrary } from '../contexts/LibraryContext';
 import { useUI } from '../contexts/UIContext';
 import { MessageKey } from '../i18n/messages';
 import { importLibraryFromCSV, importLibraryFromJSON } from '../services/importers';
+import { buildCustomProxyUrl } from '../services/MBooksParser';
 import { exportLibraryToJSON, loadSettings, saveSettings } from '../services/storageService';
 import { AccentColor, AppLanguage, AppSettings, BackgroundTone } from '../types';
 import { ACCENT_COLORS, applyTheme, BACKGROUND_TONES } from '../utils';
+
+const CLOUDFLARE_WORKER_CODE = `export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    let targetUrl = url.searchParams.get("url") || url.searchParams.get("quest");
+    if (!targetUrl && url.pathname.length > 1) {
+      targetUrl = url.pathname.slice(1);
+    }
+    if (!targetUrl) {
+      return new Response("Libra CORS Proxy is running! Use: ?url=https://...", {
+        status: 200,
+        headers: { "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "*",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
+    try {
+      const response = await fetch(targetUrl, {
+        method: request.method,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,*/*;q=0.8",
+          "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+          "Referer": targetUrl.includes("goodreads") ? "https://www.goodreads.com/" : "https://mbooks.com.ua/"
+        }
+      });
+
+      const newHeaders = new Headers(response.headers);
+      newHeaders.set("Access-Control-Allow-Origin", "*");
+      newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS");
+      newHeaders.set("Access-Control-Allow-Headers", "*");
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+  }
+};`;
 
 interface SettingsProps {
   onSettingsChange?: (settings: AppSettings) => void;
@@ -22,7 +78,13 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
 
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', language: 'en' });
+  const [settings, setSettings] = useState<AppSettings>({ accent: 'indigo', bg: 'cool', language: 'en', corsProxyUrl: '' });
+
+  const [proxyInput, setProxyInput] = useState('');
+  const [isTestingProxy, setIsTestingProxy] = useState(false);
+  const [proxyTestStatus, setProxyTestStatus] = useState<'success' | 'error' | null>(null);
+  const [proxyErrorMessage, setProxyErrorMessage] = useState('');
+  const [isCodeCopied, setIsCodeCopied] = useState(false);
 
   const [canInstall, setCanInstall] = useState(false);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
@@ -82,7 +144,9 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
   };
 
   useEffect(() => {
-    setSettings(loadSettings());
+    const loaded = loadSettings();
+    setSettings(loaded);
+    setProxyInput(loaded.corsProxyUrl || '');
   }, []);
 
   const saveAndApply = (nextSettings: AppSettings) => {
@@ -90,6 +154,67 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
     saveSettings(nextSettings);
     onSettingsChange?.(nextSettings);
     applyTheme(nextSettings.accent, nextSettings.bg);
+  };
+
+  const handleSaveProxy = () => {
+    const val = proxyInput.trim();
+    saveAndApply({ ...settings, corsProxyUrl: val });
+    if (val) {
+      toast.show(t('settings.toast.proxySaved'), 'success');
+    } else {
+      toast.show(t('settings.toast.proxyCleared'), 'info');
+    }
+  };
+
+  const handleTestProxy = async () => {
+    const candidate = proxyInput.trim();
+    if (!candidate) return;
+    setIsTestingProxy(true);
+    setProxyTestStatus(null);
+    setProxyErrorMessage('');
+
+    try {
+      const testTarget = 'https://mbooks.com.ua/';
+      const proxiedUrl = buildCustomProxyUrl(candidate, testTarget);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 7000);
+      const res = await fetch(proxiedUrl, { signal: controller.signal });
+      clearTimeout(timer);
+
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.length > 50 && !text.includes('id="root"')) {
+          setProxyTestStatus('success');
+          toast.show(t('settings.proxySuccess'), 'success');
+          saveAndApply({ ...settings, corsProxyUrl: candidate });
+        } else {
+          setProxyTestStatus('error');
+          setProxyErrorMessage('Empty response');
+          toast.show(t('settings.proxyError'), 'error');
+        }
+      } else {
+        setProxyTestStatus('error');
+        setProxyErrorMessage(`HTTP error ${res.status}`);
+        toast.show(t('settings.proxyError'), 'error');
+      }
+    } catch (e: any) {
+      setProxyTestStatus('error');
+      setProxyErrorMessage(e?.message || 'Connection failed');
+      toast.show(t('settings.proxyError'), 'error');
+    } finally {
+      setIsTestingProxy(false);
+    }
+  };
+
+  const handleCopyWorkerCode = async () => {
+    try {
+      await navigator.clipboard.writeText(CLOUDFLARE_WORKER_CODE);
+      setIsCodeCopied(true);
+      toast.show(t('settings.proxyCodeCopied'), 'success');
+      setTimeout(() => setIsCodeCopied(false), 3000);
+    } catch {
+      toast.show('Copy failed', 'error');
+    }
   };
 
   const updateAccent = (color: AccentColor) => {
@@ -243,6 +368,87 @@ export const Settings: React.FC<SettingsProps> = ({ onSettingsChange }) => {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Cloudflare Worker / CORS Proxy Settings */}
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+            <Globe size={20} />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('settings.proxyTitle')}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t('settings.proxySubtitle')}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-gray-700 block">
+            {t('settings.proxyLabel')}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={proxyInput}
+              onChange={(e) => {
+                setProxyInput(e.target.value);
+                setProxyTestStatus(null);
+              }}
+              placeholder="https://libra-proxy.username.workers.dev"
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+            />
+            <button
+              onClick={handleSaveProxy}
+              className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-xs transition-all active:scale-95 shadow-xs"
+            >
+              {t('common.save')}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={handleTestProxy}
+              disabled={isTestingProxy || !proxyInput.trim()}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-40"
+            >
+              {isTestingProxy ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+              <span>{isTestingProxy ? t('settings.proxyTesting') : t('settings.proxyTest')}</span>
+            </button>
+            {proxyTestStatus === 'success' && (
+              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                <CheckCircle2 size={14} /> {t('settings.proxySuccess')}
+              </span>
+            )}
+            {proxyTestStatus === 'error' && (
+              <span className="text-xs text-rose-500 font-medium flex items-center gap-1">
+                <X size={14} /> {proxyErrorMessage || t('settings.proxyError')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="border border-indigo-50 bg-indigo-50/50 rounded-2xl p-4 text-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-indigo-950 flex items-center gap-1.5">
+              <Zap size={14} className="text-indigo-600" />
+              {t('settings.proxyHelpTitle')}
+            </span>
+            <button
+              onClick={handleCopyWorkerCode}
+              className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            >
+              {isCodeCopied ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Copy size={13} />}
+              <span>{isCodeCopied ? t('settings.proxyCodeCopied') : t('settings.proxyCopyCode')}</span>
+            </button>
+          </div>
+
+          <ol className="list-decimal list-inside text-gray-600 space-y-1.5 leading-relaxed pl-1">
+            <li>{t('settings.proxyStep1')}</li>
+            <li>{t('settings.proxyStep2')}</li>
+            <li>{t('settings.proxyStep3')}</li>
+            <li>{t('settings.proxyStep4')}</li>
+          </ol>
         </div>
       </div>
 

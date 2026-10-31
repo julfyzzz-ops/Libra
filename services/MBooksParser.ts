@@ -1,6 +1,23 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { normalizeIsbn } from '../utils';
 import { GoodreadsParser } from './GoodreadsParser';
+import { loadSettings } from './storageService';
+
+export const buildCustomProxyUrl = (proxyBase: string, targetUrl: string): string => {
+  const trimmed = proxyBase.trim();
+  if (!trimmed) return targetUrl;
+  if (trimmed.endsWith('=')) {
+    return `${trimmed}${encodeURIComponent(targetUrl)}`;
+  }
+  if (trimmed.includes('?url=') || trimmed.includes('?quest=')) {
+    return `${trimmed}${encodeURIComponent(targetUrl)}`;
+  }
+  if (trimmed.endsWith('?')) {
+    return `${trimmed}url=${encodeURIComponent(targetUrl)}`;
+  }
+  const clean = trimmed.replace(/\/+$/, '');
+  return `${clean}/?url=${encodeURIComponent(targetUrl)}`;
+};
 
 export interface ParsedBook {
   title: string;
@@ -309,9 +326,11 @@ export class MBooksParser {
     const cleanIsbn = normalizeIsbn(isbn);
     if (!cleanIsbn) return null;
 
+    const apiKey = (typeof process !== 'undefined' && (process.env.GEMINI_API_KEY || process.env.API_KEY)) || '';
+    const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : '';
     const urls = [
-      `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`,
-      `https://www.googleapis.com/books/v1/volumes?q=${cleanIsbn}`
+      `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${keyParam}`,
+      `https://www.googleapis.com/books/v1/volumes?q=${cleanIsbn}${keyParam}`
     ];
 
     for (const url of urls) {
@@ -536,28 +555,38 @@ export class MBooksParser {
 
     if (onStep) onStep(1, 'Пошук книги за ISBN (MBooks, Goodreads, Open Library)...');
 
-    // Tier 1: Server-side unified lookup (fastest & most reliable: MBooks -> Goodreads -> Open Library -> Google Books)
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(`/api/lookup-isbn?isbn=${encodeURIComponent(cleanIsbn)}&_t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+    const settings = loadSettings();
+    const customProxy = settings.corsProxyUrl?.trim();
+    const isStaticHost = typeof window !== 'undefined' && (
+      window.location.hostname.includes('github.io') ||
+      window.location.hostname.includes('pages.dev') ||
+      window.location.protocol === 'file:'
+    );
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data && json.data.title && json.data.title !== 'Невідома назва') {
-          return json.data;
+    // Tier 1: Server-side unified lookup (Only if NOT on a static host like GitHub Pages, or if localhost)
+    if (!isStaticHost && !customProxy) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const res = await fetch(`/api/lookup-isbn?isbn=${encodeURIComponent(cleanIsbn)}&_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && json.data.title && json.data.title !== 'Невідома назва') {
+            return json.data;
+          }
         }
+      } catch (e) {
+        console.warn('Server-side lookup not reachable or timed out, trying fallbacks...', e);
       }
-    } catch (e) {
-      console.warn('Server-side lookup not reachable or timed out, trying fallbacks...', e);
     }
 
     const isNative =
@@ -582,29 +611,32 @@ export class MBooksParser {
     }
 
     // Tier 2: Client-side MBooks search and extraction
-    try {
-      if (onStep) onStep(1, 'Пошук книги на mbooks.com.ua...');
-      const href = await this.searchByIsbn(cleanIsbn);
-      if (href) {
-        if (onStep) onStep(2, 'Отримання та аналіз детальної інформації про книгу...');
-        const book = await this.getBookDetails(href);
-        if (book && book.title && book.title !== 'Невідома назва') {
-          return book;
+    // If on static host without customProxy, skip slow dead scraping and go straight to direct APIs
+    if (customProxy || !isStaticHost) {
+      try {
+        if (onStep) onStep(1, 'Пошук книги на mbooks.com.ua...');
+        const href = await this.searchByIsbn(cleanIsbn);
+        if (href) {
+          if (onStep) onStep(2, 'Отримання та аналіз детальної інформації про книгу...');
+          const book = await this.getBookDetails(href);
+          if (book && book.title && book.title !== 'Невідома назва') {
+            return book;
+          }
         }
+      } catch (e) {
+        console.warn('MBooks client parser failed, proceeding to fallback providers...', e);
       }
-    } catch (e) {
-      console.warn('MBooks client parser failed, proceeding to fallback providers...', e);
-    }
 
-    // Tier 2.5: Goodreads Fallback (клієнтський пошук та парсинг через GoodreadsParser)
-    try {
-      if (onStep) onStep(2, 'Пошук книги в каталозі Goodreads...');
-      const goodreadsBook = await this.searchGoodreads(cleanIsbn);
-      if (goodreadsBook && goodreadsBook.title && goodreadsBook.title !== 'Невідома назва') {
-        return goodreadsBook;
+      // Tier 2.5: Goodreads Fallback (клієнтський пошук та парсинг через GoodreadsParser)
+      try {
+        if (onStep) onStep(2, 'Пошук книги в каталозі Goodreads...');
+        const goodreadsBook = await this.searchGoodreads(cleanIsbn);
+        if (goodreadsBook && goodreadsBook.title && goodreadsBook.title !== 'Невідома назва') {
+          return goodreadsBook;
+        }
+      } catch (e) {
+        console.warn('Goodreads fallback search failed:', e);
       }
-    } catch (e) {
-      console.warn('Goodreads fallback search failed:', e);
     }
 
     // Tier 3: Parallel search across Open Library, Google Books, iTunes
@@ -677,12 +709,35 @@ const fetchHtml = async (url: string): Promise<string> => {
     }
   }
 
-  // 2. Web Browser (Dev / Preview / Production)
+  // 2. Custom Cloudflare Worker / CORS Proxy (Top priority for Web)
+  const settings = loadSettings();
+  const customProxy = settings.corsProxyUrl?.trim();
+
   if (url.startsWith('/goodreads-api')) {
-    // 2.1 Direct relative /goodreads-api via server proxy
+    const targetUrl = `https://www.goodreads.com${url.replace(/^\/goodreads-api/, '')}`;
+
+    if (customProxy) {
+      try {
+        const proxied = buildCustomProxyUrl(customProxy, targetUrl);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(proxied, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.length > 50 && !text.includes('id="root"')) {
+            return text;
+          }
+        }
+      } catch (e) {
+        console.warn('Custom Cloudflare Worker proxy failed for Goodreads:', e);
+      }
+    }
+
+    // 2.1 Direct relative /goodreads-api via server proxy (when running dev/express server)
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const res = await fetch(url, {
         headers: {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,*/*;q=0.8'
@@ -707,7 +762,6 @@ const fetchHtml = async (url: string): Promise<string> => {
     }
 
     // 2.2 Try universal backend proxy
-    const targetUrl = `https://www.goodreads.com${url.replace(/^\/goodreads-api/, '')}`;
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -755,10 +809,30 @@ const fetchHtml = async (url: string): Promise<string> => {
   }
 
   if (url.startsWith('/api')) {
+    const targetUrl = `https://mbooks.com.ua${url.replace(/^\/api/, '')}`;
+
+    if (customProxy) {
+      try {
+        const proxied = buildCustomProxyUrl(customProxy, targetUrl);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(proxied, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.length > 200 && !text.includes('id="root"')) {
+            return text;
+          }
+        }
+      } catch (e) {
+        console.warn('Custom Cloudflare Worker proxy failed for MBooks:', e);
+      }
+    }
+
     // 2.1 First try direct relative /api (works on server backend)
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const res = await fetch(url, {
         headers: {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -784,7 +858,6 @@ const fetchHtml = async (url: string): Promise<string> => {
     }
 
     // 2.2 Try universal backend proxy
-    const targetUrl = `https://mbooks.com.ua${url.replace(/^\/api/, '')}`;
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
